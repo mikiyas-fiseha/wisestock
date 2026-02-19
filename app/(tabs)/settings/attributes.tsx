@@ -1,0 +1,159 @@
+
+import { ListItem } from '@/components/ListItem';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/context/AuthContext';
+import { useFeedback } from '@/context/FeedbackContext';
+import { supabase } from '@/lib/supabase';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Modal, StyleSheet, Text, View } from 'react-native';
+
+interface Attribute {
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+}
+
+export default function AttributesScreen() {
+    const { company } = useAuth();
+    const { showFeedback } = useFeedback();
+    const [attributes, setAttributes] = useState<Attribute[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [name, setName] = useState('');
+    const [code, setCode] = useState('');
+    const [creating, setCreating] = useState(false);
+
+    useEffect(() => {
+        if (company) fetchAttributes();
+    }, [company]);
+
+    const fetchAttributes = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('attributes')
+                .select('*')
+                .order('name');
+            if (error) throw error;
+            setAttributes(data || []);
+        } catch (e) {
+            console.error(e);
+            showFeedback('error', 'Error', 'Failed to fetch attributes');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createAttribute = async () => {
+        if (!name.trim() || !code.trim()) return;
+        setCreating(true);
+        try {
+            const { error } = await supabase
+                .from('attributes')
+                .insert([{
+                    company_id: company?.id,
+                    name,
+                    code: code.toLowerCase().replace(/\s+/g, '_'),
+                    type: 'text' // Hardcoded for MVP
+                }]);
+
+            if (error) throw error;
+
+            setName('');
+            setCode('');
+            setModalVisible(false);
+            fetchAttributes();
+        } catch (e: any) {
+            showFeedback('error', 'Error', e.message);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    return (
+        <View style={styles.container}>
+            <FlatList
+                data={attributes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <ListItem title={item.name} subtitle={`Code: ${item.code} | Type: ${item.type}`} />
+                )}
+            />
+
+            <View style={styles.fab}>
+                <AppButton title="+ Add Attribute" onPress={() => setModalVisible(true)} />
+            </View>
+
+            <Modal visible={modalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>New Attribute</Text>
+                        <AppTextInput
+                            label="Name"
+                            value={name}
+                            onChangeText={(t) => {
+                                setName(t);
+                                if (!code) setCode(t.toLowerCase().replace(/\s+/g, '_'));
+                            }}
+                        />
+                        <AppTextInput
+                            label="Code"
+                            value={code}
+                            onChangeText={setCode}
+                            placeholder="unique_code"
+                        />
+                        <View style={styles.modalButtons}>
+                            <AppButton
+                                title="Cancel"
+                                variant="outline"
+                                onPress={() => setModalVisible(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                            <AppButton
+                                title="Create"
+                                loading={creating}
+                                onPress={createAttribute}
+                                style={{ flex: 1 }}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: Colors.light.background,
+    },
+    fab: {
+        padding: 16,
+        borderTopWidth: 1,
+        borderColor: '#eee',
+        backgroundColor: '#fff',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: 16,
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 24,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 16,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        marginTop: 16,
+    },
+});

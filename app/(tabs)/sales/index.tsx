@@ -1,0 +1,253 @@
+import { SaleListItem } from '@/components/SaleListItem';
+import { SearchFilterHeader } from '@/components/SearchFilterHeader';
+import { AppButton } from '@/components/ui/AppButton';
+import { ModernModal } from '@/components/ui/ModernModal';
+import { Colors, Layout } from '@/constants/Colors';
+import { useFeedback } from '@/context/FeedbackContext';
+import { useProcessReturn, useSales } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+export default function SalesScreen() {
+    const router = useRouter();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
+    const { data: sales, isLoading: loading } = useSales(searchQuery, filters);
+    const { mutate: processReturn, isPending: isReturning } = useProcessReturn();
+
+    const [selectedSale, setSelectedSale] = useState<any>(null);
+    const [detailsVisible, setDetailsVisible] = useState(false);
+
+    const { showFeedback, confirmAction } = useFeedback();
+
+
+    const [selectedSaleItems, setSelectedSaleItems] = useState<any[]>([]);
+
+    const openDetails = async (sale: any) => {
+        setSelectedSale(sale);
+        setDetailsVisible(true);
+        // Fetch items
+        const { data } = await supabase.from('sale_items').select('*').eq('sale_id', sale.id);
+        setSelectedSaleItems(data || []);
+    };
+
+    const handleReturn = () => {
+        if (!selectedSale) return;
+
+        confirmAction(
+            'error',
+            'Confirm Return',
+            'Are you sure you want to return this sale? Items will be restocked.',
+            performReturn,
+            'Return Items'
+        );
+    };
+
+    const performReturn = () => {
+        processReturn({
+            saleId: selectedSale.id,
+            items: selectedSaleItems,
+            refundAmount: selectedSale.paid_amount
+        }, {
+            onSuccess: () => {
+                setDetailsVisible(false);
+                showFeedback('success', 'Return Processed', 'Sale returned items have been restocked.');
+            },
+            onError: (err) => showFeedback('error', 'Return Failed', err.message)
+        });
+    };
+
+    return (
+        <View style={[styles.container, { paddingTop: 50 }]}>
+            <View style={styles.header}>
+                <View>
+                    <Text style={styles.headerTitle}>Sales History</Text>
+                    <Text style={styles.headerSubtitle}>Track your recent transactions</Text>
+                </View>
+                <AppButton
+                    title="+ New Sale"
+                    onPress={() => router.push('/(tabs)/sales/new')}
+                    style={styles.newButton}
+                    textStyle={styles.newButtonText}
+                />
+            </View>
+
+            <SearchFilterHeader
+                onSearch={(text: string) => setSearchQuery(text)}
+                onFilter={(newFilters: Record<string, string>) => setFilters(newFilters)}
+                filterGroups={[
+                    {
+                        key: 'status',
+                        title: 'Status',
+                        options: [
+                            { label: 'Completed', value: 'completed' },
+                            { label: 'Returned', value: 'returned' }
+                        ]
+                    }
+                ]}
+                activeFilters={filters}
+                placeholder="Search Invoice ID..."
+            />
+
+            {loading ? (
+                <View style={styles.center}><ActivityIndicator size="large" color={Colors.light.primary} /></View>
+            ) : (
+                <FlatList
+                    data={sales}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.list}
+                    renderItem={({ item }) => (
+                        <SaleListItem
+                            date={item.created_at}
+                            total={item.total_amount}
+                            customerName={item.customers?.name}
+                            status={item.status}
+                            onPress={() => openDetails(item)}
+                        />
+                    )}
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <View style={styles.emptyIconCircle}>
+                                <Text style={{ fontSize: 32 }}>🏷️</Text>
+                            </View>
+                            <Text style={styles.emptyText}>No sales yet</Text>
+                            <Text style={styles.emptySubtext}>Your sales history will appear here once you start making transactions.</Text>
+                            <AppButton
+                                title="Start Selling"
+                                onPress={() => router.push('/(tabs)/sales/new')}
+                                style={{ marginTop: 20 }}
+                            />
+                        </View>
+                    }
+                />
+            )}
+
+            <ModernModal visible={detailsVisible} title="Sale Details" onClose={() => setDetailsVisible(false)}>
+                <ScrollView contentContainerStyle={{ padding: 16 }} style={{ maxHeight: 500 }}>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Sale ID:</Text>
+                        <Text style={styles.detailValue}>{selectedSale?.id.split('-')[0]}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Date:</Text>
+                        <Text style={styles.detailValue}>{selectedSale && new Date(selectedSale.created_at).toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Customer:</Text>
+                        <Text style={styles.detailValue}>{selectedSale?.customers?.name || 'Guest'}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Total:</Text>
+                        <Text style={[styles.detailValue, { fontWeight: 'bold' }]}>${selectedSale?.total_amount}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Status:</Text>
+                        <Text style={[styles.detailValue, { color: selectedSale?.status === 'returned' ? Colors.light.danger : Colors.light.success }]}>
+                            {selectedSale?.status.toUpperCase()}
+                        </Text>
+                    </View>
+
+                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Items</Text>
+                    {selectedSaleItems.map((item, i) => (
+                        <View key={i} style={styles.itemRow}>
+                            <Text style={styles.itemName}>{item.quantity}x {item.product_name}</Text>
+                            <Text style={styles.itemPrice}>${item.total_price}</Text>
+                        </View>
+                    ))}
+
+                    {selectedSale?.status !== 'returned' && (
+                        <AppButton
+                            title="Return / Refund"
+                            onPress={handleReturn}
+                            style={{ marginTop: 24, backgroundColor: Colors.light.danger }}
+                            loading={isReturning}
+                        />
+                    )}
+                </ScrollView>
+            </ModernModal>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: Colors.light.background,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: Layout.spacing.lg,
+        paddingVertical: Layout.spacing.md,
+        backgroundColor: Colors.light.background, // Seamless integration
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: Colors.light.text,
+        letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+        fontSize: 14,
+        color: Colors.light.textSecondary,
+        marginTop: 2,
+    },
+    newButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        height: 40,
+        borderRadius: 20, // Pill shape
+        ...Layout.shadows.small,
+    },
+    newButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    list: {
+        padding: Layout.spacing.lg,
+        paddingTop: Layout.spacing.xs,
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 60,
+    },
+    emptyIconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#e3e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: Layout.spacing.md,
+    },
+    emptyText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.light.text,
+        marginBottom: 8,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: Colors.light.textSecondary,
+        textAlign: 'center',
+        maxWidth: '70%',
+        lineHeight: 20,
+    },
+    detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, borderBottomWidth: 1, borderColor: '#f0f0f0', paddingBottom: 8 },
+    detailLabel: { color: '#666', fontSize: 16 },
+    detailValue: { fontSize: 16, fontWeight: '500' },
+    sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+    itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    itemName: { fontSize: 16 },
+    itemPrice: { fontSize: 16, fontWeight: '500' },
+});
