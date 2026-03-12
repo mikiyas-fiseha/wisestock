@@ -1,7 +1,8 @@
 
-import { Colors } from '@/constants/Colors';
 import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
+import { BlurView } from 'expo-blur';
 
 interface CardProps {
     children: React.ReactNode;
@@ -9,26 +10,34 @@ interface CardProps {
 }
 
 export function Card({ children, style }: CardProps) {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
-        <View style={[styles.card, style]}>
+        <BlurView
+            tint={theme === 'dark' ? 'dark' : 'light'}
+            intensity={80}
+            style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight, style]}
+        >
             {children}
-        </View>
+        </BlurView>
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     card: {
-        backgroundColor: Colors.light.card,
         borderRadius: 12,
         padding: 16,
         marginVertical: 8,
-        // Simple shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        overflow: 'hidden',
+    },
+    cardLight: {
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        borderColor: 'rgba(255,255,255,0.8)',
         borderWidth: 1,
-        borderColor: Colors.light.border,
+    },
+    cardDark: {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
     },
 });

@@ -2,13 +2,18 @@
 import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
-import { Colors } from '@/constants/Colors';
+
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function AddSupplierScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { createSupplier, isCreating } = useSuppliers();
 
@@ -68,6 +73,7 @@ export default function AddSupplierScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <ResponsiveContainer>
                 <ScrollView contentContainerStyle={styles.content}>
                     <Text style={styles.headerTitle}>New Supplier</Text>
@@ -185,35 +191,35 @@ export default function AddSupplierScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     content: {
         padding: 20,
-        paddingTop: 60,
+        paddingTop: 16,
     },
     headerTitle: {
         fontSize: 28,
         fontWeight: '800',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 4,
         textAlign: 'center',
     },
     headerSubtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         marginBottom: 32,
         textAlign: 'center',
     },
     formCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 20,
         padding: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 12,
         elevation: 3,
     },
@@ -223,21 +229,20 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 8,
     },
     required: {
-        color: Colors.light.danger,
+        color: colors.danger,
     },
     input: {
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+        backgroundColor: 'transparent',
+
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12, // Increased for touch target
         fontSize: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     row: {
         flexDirection: 'row',

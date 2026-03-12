@@ -1,8 +1,9 @@
 
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
-import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
+import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react';
 
 // Re-exporting types for app compatibility
 export interface User {
@@ -12,6 +13,7 @@ export interface User {
     email: string;
     role: 'Admin' | 'Sales' | 'Manager';
     isSuperAdmin: boolean;
+    branchId?: string; // assigned branch from profile
 }
 
 export interface Company {
@@ -20,11 +22,10 @@ export interface Company {
     type?: string;
     contactEmail?: string;
     joinedDate: string;
-    // New fields
     tin?: string;
     vatNo?: string;
     vatRegDate?: string;
-    address?: string; // Kept generic address if used, or map to street/etc
+    address?: string;
     city?: string;
     subCity?: string;
     woreda?: string;
@@ -36,14 +37,20 @@ export interface Branch {
     isMain: boolean;
     address?: string;
     phone?: string;
+    status?: string;
 }
 
 interface AuthContextType {
     session: Session | null;
     user: User | null;
     company: Company | null;
-    branch: Branch | null;
-    setBranch: (branch: Branch) => void;
+    // Branch state
+    branch: Branch | null;           // Current selected branch (null = All Branches)
+    allBranches: Branch[];           // All company branches (for admins)
+    isAllBranches: boolean;          // true when viewing all branches
+    switchBranch: (branch: Branch | null) => void; // null = All Branches
+    setBranch: (branch: Branch) => void; // backward compat
+    // Auth
     login: (email: string, password: string) => Promise<{ error: any }>;
     logout: () => void;
     register: (companyName: string, userName: string, email: string, password: string) => Promise<{ error: any }>;
@@ -57,14 +64,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BRANCH_STORAGE_KEY = 'selected_branch_id';
+
 export function AuthProvider({ children }: PropsWithChildren) {
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [company, setCompany] = useState<Company | null>(null);
-    const [branch, setBranch] = useState<Branch | null>(null);
+    const [branch, setBranchState] = useState<Branch | null>(null);
+    const [allBranches, setAllBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const segments = useSegments();
+
+    // Computed
+    const isAdmin = user?.role === 'Admin';
+    const isManager = user?.role === 'Manager';
+    const isSales = user?.role === 'Sales';
+    const isSuperAdmin = user?.isSuperAdmin || false;
+    const isAllBranches = branch === null && (isAdmin || isSuperAdmin);
+
+    // Switch branch (null = All Branches for admins)
+    const switchBranch = useCallback(async (newBranch: Branch | null) => {
+        setBranchState(newBranch);
+        try {
+            if (newBranch) {
+                await AsyncStorage.setItem(BRANCH_STORAGE_KEY, newBranch.id);
+            } else {
+                await AsyncStorage.setItem(BRANCH_STORAGE_KEY, 'all');
+            }
+        } catch (e) {
+            console.warn('Could not persist branch selection', e);
+        }
+    }, []);
+
+    // backward compat
+    const setBranch = useCallback((b: Branch) => {
+        switchBranch(b);
+    }, [switchBranch]);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -82,7 +118,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             else {
                 setUser(null);
                 setCompany(null);
-                setBranch(null);
+                setBranchState(null);
+                setAllBranches([]);
                 setIsLoading(false);
             }
         });
@@ -98,11 +135,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const inAuthRoute = segments[0] === 'login' || segments[0] === 'register';
 
         if (!session && inTabsGroup) {
-            // Redirect to login if user is not signed in and trying to access tabs
             router.replace('/login');
         } else if (session && (inAuthRoute || segments[0] === undefined)) {
-            // Redirect to dashboard if user is signed in and trying to access login/register or root
-            router.replace('/(tabs)/dashboard');
+            if (isSuperAdmin) {
+                router.replace('/(super-admin)/superadminDasboarde');
+            } else {
+                router.replace('/(tabs)/dashboard');
+            }
         }
     }, [session, segments, isLoading]);
 
@@ -128,7 +167,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
             if (error) throw error;
 
-            // Update local state
             setCompany(prev => prev ? { ...prev, ...updates } : null);
             return { error: null };
         } catch (e) {
@@ -154,13 +192,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
             if (error) throw error;
 
             if (profile && profile.companies) {
+                const userRole = profile.role;
+                const userIsSuperAdmin = !!superAdmin;
+                const userIsAdmin = userRole === 'Admin' || userIsSuperAdmin;
+
                 setUser({
                     id: profile.id,
                     companyId: profile.company_id,
                     name: profile.full_name,
                     email: session?.user.email || '',
                     role: profile.role,
-                    isSuperAdmin: !!superAdmin,
+                    isSuperAdmin: userIsSuperAdmin,
+                    branchId: profile.branch_id || undefined,
                 });
                 setCompany({
                     id: profile.companies.id,
@@ -177,36 +220,51 @@ export function AuthProvider({ children }: PropsWithChildren) {
                     address: profile.companies.address,
                 });
 
-                // Fetch Branch
-                let branchIdToFetch = profile.branch_id;
+                // Fetch all branches for this company
+                const { data: branchesData } = await supabase
+                    .from('branches')
+                    .select('*')
+                    .eq('company_id', profile.companies.id)
+                    .eq('status', 'active')
+                    .order('is_main', { ascending: false })
+                    .order('name');
 
-                // If not assigned, try to get Main Branch
-                if (!branchIdToFetch) {
-                    const { data: mainBranch } = await supabase
-                        .from('branches')
-                        .select('id')
-                        .eq('company_id', profile.companies.id)
-                        .eq('is_main', true)
-                        .single();
-                    if (mainBranch) branchIdToFetch = mainBranch.id;
-                }
+                const mappedBranches: Branch[] = (branchesData || []).map((b: any) => ({
+                    id: b.id,
+                    name: b.name,
+                    isMain: b.is_main || false,
+                    address: b.address || undefined,
+                    phone: b.phone || undefined,
+                    status: b.status,
+                }));
 
-                if (branchIdToFetch) {
-                    const { data: branchData } = await supabase
-                        .from('branches')
-                        .select('*')
-                        .eq('id', branchIdToFetch)
-                        .single();
+                setAllBranches(mappedBranches);
 
-                    if (branchData) {
-                        setBranch({
-                            id: branchData.id,
-                            name: branchData.name,
-                            isMain: branchData.is_main || false,
-                            address: branchData.address || undefined,
-                            phone: branchData.phone || undefined
-                        });
+                // Determine which branch to select
+                let savedBranchId: string | null = null;
+                try {
+                    savedBranchId = await AsyncStorage.getItem(BRANCH_STORAGE_KEY);
+                } catch (e) { /* ignore */ }
+
+                if (userIsAdmin && savedBranchId === 'all') {
+                    // Admin had "All Branches" selected
+                    setBranchState(null);
+                } else if (savedBranchId && savedBranchId !== 'all') {
+                    // Previously selected branch
+                    const savedBranch = mappedBranches.find(b => b.id === savedBranchId);
+                    if (savedBranch) {
+                        setBranchState(savedBranch);
+                    } else {
+                        // Saved branch no longer valid, fall back
+                        setBranchState(mappedBranches.find(b => b.id === profile.branch_id) || mappedBranches[0] || null);
                     }
+                } else if (profile.branch_id) {
+                    // User has assigned branch
+                    const assignedBranch = mappedBranches.find(b => b.id === profile.branch_id);
+                    setBranchState(assignedBranch || mappedBranches[0] || null);
+                } else {
+                    // Default to main branch or first branch
+                    setBranchState(mappedBranches.find(b => b.isMain) || mappedBranches[0] || null);
                 }
             }
         } catch (e) {
@@ -219,7 +277,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const login = async (email: string, password: string) => {
         setIsLoading(true);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) setIsLoading(false); // Auth state change will handle the rest
+        if (error) setIsLoading(false);
         return { error };
     };
 
@@ -230,14 +288,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
             setSession(null);
             setUser(null);
             setCompany(null);
-            setBranch(null);
+            setBranchState(null);
+            setAllBranches([]);
+            try { await AsyncStorage.removeItem(BRANCH_STORAGE_KEY); } catch (e) { /* ignore */ }
         }
         setIsLoading(false);
     };
 
     const register = async (companyName: string, userName: string, email: string, password: string) => {
         setIsLoading(true);
-        // 1. Sign Up
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
@@ -253,14 +312,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
             return { error: { message: "No user created. Please check your email for confirmation link if enabled." } };
         }
 
-        // Checking if we have a session (means auto-confirm is on)
         if (!authData.session) {
             setIsLoading(false);
             return { error: { message: "Please check your email to confirm your account." } };
         }
 
         try {
-            // 2. Call RPC to create Company and Profile atomically
             const { error: rpcError } = await supabase.rpc('create_company_and_user', {
                 company_name: companyName,
                 user_name: userName,
@@ -269,7 +326,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
             if (rpcError) throw rpcError;
 
-            // Force fetch profile immediately to update state
             await fetchProfile(authData.user.id);
 
         } catch (e) {
@@ -281,13 +337,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return { error: null };
     };
 
-    const isAdmin = user?.role === 'Admin';
-    const isManager = user?.role === 'Manager';
-    const isSales = user?.role === 'Sales';
-    const isSuperAdmin = user?.isSuperAdmin || false;
-
     return (
-        <AuthContext.Provider value={{ session, user, company, branch, setBranch, login, logout, register, updateCompanyProfile, isLoading, isAdmin, isManager, isSales, isSuperAdmin }}>
+        <AuthContext.Provider value={{
+            session, user, company,
+            branch, allBranches, isAllBranches, switchBranch, setBranch,
+            login, logout, register, updateCompanyProfile,
+            isLoading,
+            isAdmin, isManager, isSales, isSuperAdmin,
+        }}>
             {children}
         </AuthContext.Provider>
     );

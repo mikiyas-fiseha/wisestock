@@ -1,7 +1,7 @@
 
-import { Colors } from '@/constants/Colors';
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ResponsiveContainerProps {
     children: React.ReactNode;
@@ -10,6 +10,8 @@ interface ResponsiveContainerProps {
 }
 
 export function ResponsiveContainer({ children, style, maxWidth = 1200 }: ResponsiveContainerProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
         <View style={[styles.outerContainer, style]}>
             <View style={[styles.innerContainer, { maxWidth }]}>
@@ -19,11 +21,11 @@ export function ResponsiveContainer({ children, style, maxWidth = 1200 }: Respon
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     outerContainer: {
         flex: 1,
         alignItems: 'center', // Center content horizontally
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
         width: '100%',
     },
     innerContainer: {

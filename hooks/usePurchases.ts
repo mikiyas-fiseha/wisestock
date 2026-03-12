@@ -54,7 +54,7 @@ export function usePurchases() {
 
     const queries = {
         list: useQuery({
-            queryKey: ['purchases', company?.id],
+            queryKey: ['purchases', company?.id, branch?.id],
             queryFn: fetchPurchases,
             enabled: !!company?.id,
         }),

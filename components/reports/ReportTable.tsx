@@ -1,4 +1,5 @@
-import { Colors } from '@/constants/Colors';
+
+import { useTheme } from '@/context/ThemeContext';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -19,6 +20,8 @@ interface ReportTableProps {
 }
 
 export function ReportTable({ data, columns, totals }: ReportTableProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     if (!data || data.length === 0) {
         return (
             <View style={styles.emptyContainer}>
@@ -100,46 +103,45 @@ export function ReportTable({ data, columns, totals }: ReportTableProps) {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: (colors.card + 'E0'),
         borderRadius: 8,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#eee',
+
         width: '100%', // Ensure it takes full available width
     },
     headerRow: {
         flexDirection: 'row',
-        backgroundColor: '#f8f9fa',
+        backgroundColor: 'transparent',
         borderBottomWidth: 1,
-        borderColor: '#ddd',
+        borderColor: colors.border,
         paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingHorizontal: 0,
     },
     headerText: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.textSecondary,
         textTransform: 'uppercase',
     },
     row: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderColor: '#f0f0f0',
+        borderColor: colors.border,
         paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingHorizontal: 0,
     },
     rowAlt: {
-        backgroundColor: '#fcfcfc',
+        backgroundColor: 'transparent',
     },
     cell: {
         paddingHorizontal: 4,
     },
     cellText: {
         fontSize: 14,
-        color: Colors.light.text,
+        color: colors.text,
     },
     textCenter: { textAlign: 'center' },
     textRight: { textAlign: 'right' },
@@ -148,24 +150,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     emptyText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontStyle: 'italic',
     },
     totalRow: {
         flexDirection: 'row',
-        backgroundColor: '#edf2f7',
+        backgroundColor: colors.primary + '10',
         borderTopWidth: 2,
-        borderColor: '#e2e8f0',
+        borderColor: colors.primary + '30',
         paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingHorizontal: 0,
     },
     totalLabel: {
         fontSize: 14,
         fontWeight: '800',
-        color: Colors.light.text,
+        color: colors.text,
     },
     totalText: {
         fontWeight: '800',
-        color: Colors.light.text,
+        color: colors.text,
     }
 });

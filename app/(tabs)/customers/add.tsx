@@ -1,15 +1,20 @@
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useAddCustomer, useUpdateCustomer } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function AddCustomerScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company } = useAuth();
@@ -18,6 +23,9 @@ export default function AddCustomerScreen() {
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [address, setAddress] = useState('');
+    const [taxId, setTaxId] = useState('');
+    const [customerType, setCustomerType] = useState('retail');
+    const [status, setStatus] = useState('active');
     const [creditLimit, setCreditLimit] = useState('');
     const [loading, setLoading] = useState(false);
     const { showFeedback } = useFeedback();
@@ -40,6 +48,9 @@ export default function AddCustomerScreen() {
             setPhone(data.phone || '');
             setEmail(data.email || '');
             setAddress(data.address || '');
+            setTaxId(data.tax_id || '');
+            setCustomerType(data.customer_type || 'retail');
+            setStatus(data.status || 'active');
             setCreditLimit(data.credit_limit?.toString() || '');
         } catch (e) {
             console.error(e);
@@ -69,6 +80,9 @@ export default function AddCustomerScreen() {
             phone,
             email,
             address,
+            tax_id: taxId,
+            customer_type: customerType,
+            status,
             credit_limit: creditLimit ? parseFloat(creditLimit) : 0
         };
 
@@ -88,6 +102,7 @@ export default function AddCustomerScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <View style={styles.header}>
                 <Text style={styles.title}>{id ? 'Edit Customer' : 'New Customer'}</Text>
                 <AppButton title="Close" onPress={() => router.back()} variant="outline" style={{ width: 80 }} />
@@ -98,6 +113,43 @@ export default function AddCustomerScreen() {
                 <AppTextInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+123456789" />
                 <AppTextInput label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="john@example.com" />
                 <AppTextInput label="Address" value={address} onChangeText={setAddress} placeholder="123 Main St" />
+                <AppTextInput label="Tax ID" value={taxId} onChangeText={setTaxId} placeholder="Optional" />
+
+                <View style={styles.selectGroup}>
+                    <Text style={styles.label}>Customer Type</Text>
+                    <View style={styles.row}>
+                        <TouchableOpacity
+                            style={[styles.chip, customerType === 'retail' && styles.chipActive]}
+                            onPress={() => setCustomerType('retail')}
+                        >
+                            <Text style={[styles.chipText, customerType === 'retail' && styles.chipTextActive]}>Retail</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.chip, customerType === 'wholesale' && styles.chipActive]}
+                            onPress={() => setCustomerType('wholesale')}
+                        >
+                            <Text style={[styles.chipText, customerType === 'wholesale' && styles.chipTextActive]}>Wholesale</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <View style={styles.selectGroup}>
+                    <Text style={styles.label}>Status</Text>
+                    <View style={styles.row}>
+                        {['active', 'blocked', 'inactive'].map((s) => (
+                            <TouchableOpacity
+                                key={s}
+                                style={[styles.chip, status === s && styles.chipActive]}
+                                onPress={() => setStatus(s)}
+                            >
+                                <Text style={[styles.chipText, status === s && styles.chipTextActive]}>
+                                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
                 <AppTextInput label="Credit Limit" value={creditLimit} onChangeText={setCreditLimit} keyboardType="numeric" prefix="$" placeholder="0.00" />
             </ScrollView>
 
@@ -108,10 +160,17 @@ export default function AddCustomerScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.light.background },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee', paddingTop: 60 },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: 'transparent' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee', paddingTop: 16 },
     title: { fontSize: 20, fontWeight: 'bold' },
     content: { padding: 16 },
     footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' },
+    selectGroup: { marginBottom: 16 },
+    label: { fontSize: 14, color: '#666', marginBottom: 8, fontWeight: '500' },
+    row: { flexDirection: 'row', gap: 8 },
+    chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: '#666', fontWeight: '500' },
+    chipTextActive: { color: '#fff' },
 });

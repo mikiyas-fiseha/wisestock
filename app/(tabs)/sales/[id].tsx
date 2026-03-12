@@ -1,16 +1,20 @@
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useReceiptGenerator } from '@/hooks/useReceiptGenerator';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SaleDetailsScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company, user, isAdmin, isManager, isSales } = useAuth();
@@ -167,95 +171,97 @@ export default function SaleDetailsScreen() {
         }
     };
 
-    if (loading) return <View style={styles.center}><ActivityIndicator /></View>;
-    if (!sale) return <View style={styles.center}><Text>Sale not found</Text></View>;
+    if (loading) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
+    if (!sale) return <View style={styles.center}><Text style={{ color: colors.text }}>Sale not found</Text></View>;
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>Sale #{sale.id.split('-')[0]}</Text>
-                    <Text style={styles.date}>{new Date(sale.created_at).toLocaleString()}</Text>
-                    <Text style={[styles.statusItem, sale.status === 'completed' ? { color: Colors.light.success } : { color: Colors.light.danger }]}>
-                        {sale.status.toUpperCase()}
-                    </Text>
-                </View>
-                {(isAdmin || isManager || (isSales && sale.status !== 'completed')) && sale.status !== 'cancelled' && (
-                    <AppButton
-                        title="Reverse / Cancel"
-                        onPress={handleReverseSale}
-                        variant="outline"
-                        loading={actionLoading}
-                        style={{ borderColor: Colors.light.danger }}
-                        textStyle={{ color: Colors.light.danger }}
-                    />
-                )}
-            </View>
-
-
-            <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-                <View style={styles.section}>
-                    <Text style={styles.label}>Customer</Text>
-                    <Text style={styles.value}>{sale.customers?.name || 'Guest'}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Items</Text>
-                    {items.map((item, i) => (
-                        <View key={i} style={styles.itemRow}>
-                            <Text style={styles.itemName}>{item.product_name} x {item.quantity}</Text>
-                            <Text style={styles.itemPrice}>${item.total_price.toFixed(2)}</Text>
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.footer}>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Total Amount</Text>
-                        <Text style={styles.value}>${sale.total_amount.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Paid Amount</Text>
-                        <Text style={styles.value}>${sale.paid_amount.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Balance Due</Text>
-                        <Text style={[styles.value, { color: Colors.light.danger }]}>
-                            ${(sale.total_amount - sale.paid_amount).toFixed(2)}
+        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.title}>Sale #{sale.id.split('-')[0]}</Text>
+                        <Text style={styles.date}>{new Date(sale.created_at).toLocaleString()}</Text>
+                        <Text style={[styles.statusItem, sale.status === 'completed' ? { color: colors.success } : { color: colors.danger }]}>
+                            {sale.status.toUpperCase()}
                         </Text>
                     </View>
-
-                    <AppButton
-                        title="Download Receipt"
-                        onPress={handleDownloadReceipt}
-                        loading={generating}
-                        style={{ marginTop: 24 }}
-                        icon={<Ionicons name="document-text-outline" size={20} color="#fff" style={{ marginRight: 8 }} />}
-                    />
+                    {(isAdmin || isManager || (isSales && sale.status !== 'completed')) && sale.status !== 'cancelled' && (
+                        <AppButton
+                            title="Reverse / Cancel"
+                            onPress={handleReverseSale}
+                            variant="outline"
+                            loading={actionLoading}
+                            style={{ borderColor: colors.danger }}
+                            textStyle={{ color: colors.danger }}
+                        />
+                    )}
                 </View>
-            </ScrollView>
-        </SafeAreaView >
+
+                <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+                    <View style={styles.section}>
+                        <Text style={styles.label}>Customer</Text>
+                        <Text style={styles.value}>{sale.customers?.name || 'Guest'}</Text>
+                    </View>
+
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Items</Text>
+                        {items.map((item, i) => (
+                            <View key={i} style={styles.itemRow}>
+                                <Text style={styles.itemName}>{item.product_name} x {item.quantity}</Text>
+                                <Text style={styles.itemPrice}>${item.total_price.toFixed(2)}</Text>
+                            </View>
+                        ))}
+                    </View>
+
+                    <View style={styles.footer}>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Amount</Text>
+                            <Text style={styles.value}>${sale.total_amount.toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Paid Amount</Text>
+                            <Text style={styles.value}>${sale.paid_amount.toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Balance Due</Text>
+                            <Text style={[styles.value, { color: colors.danger }]}>
+                                ${(sale.total_amount - sale.paid_amount).toFixed(2)}
+                            </Text>
+                        </View>
+
+                        <AppButton
+                            title="Download Receipt"
+                            onPress={handleDownloadReceipt}
+                            loading={generating}
+                            style={{ marginTop: 24 }}
+                            icon={<Ionicons name="document-text-outline" size={20} color="#fff" style={{ marginRight: 8 }} />}
+                        />
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.light.background },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { fontSize: 20, fontWeight: 'bold' },
-    date: { color: '#666', marginTop: 4 },
+    header: { padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', borderBottomWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    title: { fontSize: 20, fontWeight: 'bold', color: colors.text },
+    date: { color: colors.textSecondary, marginTop: 4 },
     statusItem: { fontWeight: 'bold', marginTop: 4 },
-    section: { padding: 16, backgroundColor: '#fff', marginTop: 8 },
-    label: { color: '#666', marginBottom: 4 },
-    value: { fontSize: 16, fontWeight: '500' },
-    sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-    itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' },
-    itemName: { fontSize: 15 },
-    itemPrice: { fontWeight: 'bold' },
-    footer: { padding: 16, backgroundColor: '#fff', marginTop: 8, marginBottom: 32 },
+    section: { padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, marginTop: 8, marginHorizontal: 16 },
+    label: { color: colors.textSecondary, marginBottom: 4 },
+    value: { fontSize: 16, fontWeight: '500', color: colors.text },
+    sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, color: colors.text },
+    itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border },
+    itemName: { fontSize: 15, color: colors.text },
+    itemPrice: { fontWeight: 'bold', color: colors.text },
+    footer: { padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, marginTop: 8, marginBottom: 32, marginHorizontal: 16 },
     row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
 });
 

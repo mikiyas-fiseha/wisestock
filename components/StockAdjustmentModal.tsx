@@ -1,10 +1,11 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { supabase } from '@/lib/supabase';
 import React, { useState } from 'react';
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface StockAdjustmentModalProps {
     visible: boolean;
@@ -17,6 +18,8 @@ interface StockAdjustmentModalProps {
 }
 
 export function StockAdjustmentModal({ visible, onClose, onSuccess, productId, variantId, currentStock, companyId }: StockAdjustmentModalProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [adjustmentType, setAdjustmentType] = useState<'add' | 'remove' | 'set'>('add');
     const [quantity, setQuantity] = useState('');
     const [reason, setReason] = useState('');
@@ -123,15 +126,15 @@ export function StockAdjustmentModal({ visible, onClose, onSuccess, productId, v
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
     content: { backgroundColor: 'white', borderRadius: 12, padding: 20 },
     title: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
     subtitle: { fontSize: 14, color: '#666', marginBottom: 20 },
     typeContainer: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-    typeButton: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.light.primary, alignItems: 'center' },
-    typeActive: { backgroundColor: Colors.light.primary },
-    typeText: { color: Colors.light.primary, fontWeight: '600' },
+    typeButton: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, alignItems: 'center' },
+    typeActive: { backgroundColor: colors.primary },
+    typeText: { color: colors.primary, fontWeight: '600' },
     typeTextActive: { color: 'white' },
     footer: { flexDirection: 'row', marginTop: 16 }
 });

@@ -1,9 +1,10 @@
 
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/constants/Colors';
+
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface RecordPaymentModalProps {
     visible: boolean;
@@ -15,6 +16,8 @@ interface RecordPaymentModalProps {
 }
 
 export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, currentBalance, isLoading }: RecordPaymentModalProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('cash'); // cash, bank, check
     const [notes, setNotes] = useState('');
@@ -53,7 +56,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                             <Text style={styles.subtitle}>To: {supplierName}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose}>
-                            <FontAwesome name="times" size={24} color={Colors.light.textSecondary} />
+                            <FontAwesome name="times" size={24} color={colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
 
@@ -116,7 +119,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
@@ -138,11 +141,11 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     balanceContainer: {
         flexDirection: 'row',
@@ -168,7 +171,7 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 4,
     },
     input: {
@@ -193,10 +196,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     methodChipActive: {
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
     },
     methodText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '600',
         fontSize: 12,
     },

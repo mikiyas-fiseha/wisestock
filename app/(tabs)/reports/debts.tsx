@@ -1,66 +1,241 @@
-import { DateRange } from '@/components/reports/DateFilter';
-import { ReportChart } from '@/components/reports/ReportChart';
-import { ReportLayout } from '@/components/reports/ReportLayout';
-import { ReportColumn, ReportTable } from '@/components/reports/ReportTable';
-import { useAdvancedReports } from '@/hooks/useAdvancedReports';
+import { AgingBadge } from '@/components/reports/AgingBadge';
+import { DateRange, ReportLayout } from '@/components/reports/ReportLayout';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { useAuth } from '@/context/AuthContext';
+import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useCollectPayment } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/lib/supabase';
+import { FontAwesome } from '@expo/vector-icons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function DebtsReport() {
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+function useARaging() {
+    const { company, branch } = useAuth();
+    return useQuery({
+        queryKey: ['ar-aging', company?.id, branch?.id],
+        queryFn: async () => {
+            if (!company?.id) return [];
+            const { data, error } = await supabase.rpc('get_ar_aging', {
+                p_company_id: company.id,
+                p_branch_id: branch?.id || null,
+            });
+            if (error) throw error;
+            return data || [];
+        },
+        enabled: !!company?.id,
+    });
+}
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+export default function ReceivablesReport() {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const router = useRouter();
+    const { data = [], isLoading, refetch } = useARaging();
+    const { showFeedback } = useFeedback();
+    const queryClient = useQueryClient();
+
     const [range, setRange] = useState<DateRange>({
-        start: new Date(),
+        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         end: new Date()
     });
 
-    const { data, isLoading } = useAdvancedReports(range);
-    const receivables = data?.financials?.receivables || [];
 
-    // Columns
-    const columns: ReportColumn[] = [
-        { key: 'name', title: 'Customer', width: 140 },
-        { key: 'phone', title: 'Phone', width: 100 },
-        { key: 'current_balance', title: 'Balance', width: 100, align: 'right', isCurrency: true },
-    ];
+    // Collection State
+    const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentNotes, setPaymentNotes] = useState('');
+    const { mutate: collectPayment, isPending: isCollecting } = useCollectPayment();
 
-    // Totals
-    const totals = useMemo(() => {
-        return receivables.reduce((acc, curr) => ({
-            current_balance: (acc.current_balance || 0) + (curr.current_balance || 0)
-        }), { current_balance: 0 });
-    }, [receivables]);
+    const totals = useMemo(() => ({
+        total: data.reduce((s: number, r: any) => s + Number(r.current_balance || 0), 0),
+        b0_30: data.reduce((s: number, r: any) => s + Number(r.bucket_0_30 || 0), 0),
+        b31_60: data.reduce((s: number, r: any) => s + Number(r.bucket_31_60 || 0), 0),
+        b61: data.reduce((s: number, r: any) => s + Number(r.bucket_61_plus || 0), 0),
+    }), [data]);
 
-    // Export Data
-    const exportData = receivables.map(c => ({
-        Customer: c.name,
-        Phone: c.phone,
-        Balance: c.current_balance
-    }));
+    const handlePaymentSubmit = () => {
+        if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+            showFeedback('error', 'Error', "Please enter a valid amount");
+            return;
+        }
 
-    // Chart Data: Top 5 Debtors
-    const chartData = receivables.slice(0, 5).map(c => ({
-        value: c.current_balance,
-        label: c.name.split(' ')[0],
-    }));
+        collectPayment({
+            customerId: selectedCustomer.customer_id,
+            amount: paymentAmount,
+            notes: paymentNotes
+        }, {
+            onSuccess: () => {
+                setSelectedCustomer(null);
+                setPaymentAmount('');
+                setPaymentNotes('');
+                showFeedback('success', 'Success', "Payment recorded");
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            },
+            onError: (err) => {
+                showFeedback('error', 'Error', err.message);
+            }
+        });
+    };
 
     return (
         <ReportLayout
-            title="Customer Debts"
-            subtitle="Outstanding Balances"
-            showDateFilter={false} // Debts are current state
+            title="Receivables (AR)"
+            subtitle="Customer outstanding balances & aging"
+            onDateRangeChange={setRange}
             isLoading={isLoading}
-            exportData={exportData}
-            exportFilename="customer_debts"
-            chartContent={
-                <View>
-                    <ReportChart type="bar" data={chartData} yAxisLabelPrefix="$" color="#EF4444" />
-                </View>
-            }
         >
-            <ReportTable
-                data={receivables}
-                columns={columns}
-                totals={totals}
-            />
+            <View style={styles.container}>
+                {/* Summary Banner */}
+                <View style={styles.banner}>
+                    <View style={styles.bannerItem}>
+                        <Text style={styles.bannerLabel}>Total Receivables</Text>
+                        <Text style={[styles.bannerValue, { color: colors.secondary || '#0EA5E9' }]}>{totals.total.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.bannerItem}>
+                        <Text style={styles.bannerLabel}>0–30 Days</Text>
+                        <Text style={[styles.bannerValue, { color: colors.success }]}>{totals.b0_30.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.bannerItem}>
+                        <Text style={styles.bannerLabel}>31–60 Days</Text>
+                        <Text style={[styles.bannerValue, { color: colors.warning }]}>{totals.b31_60.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.bannerItem}>
+                        <Text style={styles.bannerLabel}>60+ Days</Text>
+                        <Text style={[styles.bannerValue, { color: colors.danger }]}>{totals.b61.toFixed(2)}</Text>
+                    </View>
+                </View>
+
+                {data.length === 0 ? (
+                    <View style={styles.center}>
+                        <Text style={{ fontSize: 40, marginBottom: 12 }}>✅</Text>
+                        <Text style={styles.emptyTitle}>No Outstanding Receivables</Text>
+                        <Text style={styles.emptyText}>All customer balances are settled.</Text>
+                    </View>
+                ) : (
+                    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+                        {(data as any[]).map((row) => (
+                            <TouchableOpacity
+                                key={row.customer_id}
+                                style={styles.card}
+                                onPress={() => router.push(`/(tabs)/customers/${row.customer_id}`)}
+                            >
+                                <View style={styles.cardHeader}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.name}>{row.customer_name}</Text>
+                                        {row.phone ? <Text style={styles.phone}>{row.phone}</Text> : null}
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <TouchableOpacity
+                                                style={styles.actionBtn}
+                                                onPress={() => {
+                                                    setSelectedCustomer(row);
+                                                    setPaymentAmount(row.current_balance.toString());
+                                                }}
+                                            >
+                                                <FontAwesome name="money" size={16} color={colors.primary} />
+                                                <Text style={styles.actionText}>Collect</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.balance}>{Number(row.current_balance).toFixed(2)}</Text>
+                                        </View>
+                                        <AgingBadge days={row.overdue_days || 0} />
+                                    </View>
+                                </View>
+                                {/* Bucket breakdown */}
+                                <View style={styles.buckets}>
+                                    <View style={styles.bucket}>
+                                        <Text style={styles.bucketLabel}>0–30 Days</Text>
+                                        <Text style={[styles.bucketValue, !Number(row.bucket_0_30) && { color: colors.border }]}>
+                                            {Number(row.bucket_0_30).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.bucket}>
+                                        <Text style={styles.bucketLabel}>31–60 Days</Text>
+                                        <Text style={[styles.bucketValue, Number(row.bucket_31_60) > 0 && { color: colors.warning }, !Number(row.bucket_31_60) && { color: colors.border }]}>
+                                            {Number(row.bucket_31_60).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.bucket}>
+                                        <Text style={styles.bucketLabel}>60+ Days</Text>
+                                        <Text style={[styles.bucketValue, Number(row.bucket_61_plus) > 0 && { color: colors.danger }, !Number(row.bucket_61_plus) && { color: colors.border }]}>
+                                            {Number(row.bucket_61_plus).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                )}
+                {/* Payment Modal */}
+                <Modal visible={!!selectedCustomer} animationType="fade" transparent>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Collect Payment</Text>
+                            <Text style={styles.modalSubtitle}>Record a payment from {selectedCustomer?.customer_name}</Text>
+
+                            <View style={{ marginBottom: 16 }}>
+                                <AppTextInput
+                                    label="Amount"
+                                    value={paymentAmount}
+                                    onChangeText={setPaymentAmount}
+                                    keyboardType="numeric"
+                                    prefix="$"
+                                    placeholder="0.00"
+                                />
+                                <AppTextInput
+                                    label="Notes (Optional)"
+                                    value={paymentNotes}
+                                    onChangeText={setPaymentNotes}
+                                    placeholder="Ref #, Bank info..."
+                                />
+                            </View>
+
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <AppButton title="Cancel" variant="outline" onPress={() => setSelectedCustomer(null)} style={{ flex: 1 }} />
+                                <AppButton title="Confirm Payment" onPress={handlePaymentSubmit} loading={isCollecting} style={{ flex: 1 }} />
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            </View>
         </ReportLayout>
     );
 }
+
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: 'transparent' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+    banner: { flexDirection: 'row', backgroundColor: colors.card + 'E0', paddingVertical: 16, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+    bannerItem: { flex: 1, alignItems: 'center' },
+    bannerLabel: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+    bannerValue: { fontSize: 15, fontWeight: '800', color: colors.text },
+    divider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: colors.border },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+    name: { fontSize: 15, fontWeight: '700', color: colors.text },
+    phone: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    balance: { fontSize: 18, fontWeight: '800', color: colors.text },
+    buckets: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
+    bucket: { flex: 1, alignItems: 'center' },
+    bucketLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', marginBottom: 3 },
+    bucketValue: { fontSize: 13, fontWeight: '700', color: colors.text },
+    // Modal & Buttons
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary + '15', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    actionText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: colors.card + 'E0', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: colors.border },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 8, textAlign: 'center' },
+    modalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24, textAlign: 'center' },
+});

@@ -175,11 +175,15 @@ export interface Database {
                     city: string | null
                     company_id: string
                     created_at: string
+                    customer_type: string | null
                     email: string | null
                     id: string
+                    last_purchase_date: string | null
                     name: string
                     notes: string | null
                     phone: string | null
+                    status: string | null
+                    tax_id: string | null
                     total_spent: number | null
                     updated_at: string
                 }
@@ -188,11 +192,15 @@ export interface Database {
                     city?: string | null
                     company_id: string
                     created_at?: string
+                    customer_type?: string | null
                     email?: string | null
                     id?: string
+                    last_purchase_date?: string | null
                     name: string
                     notes?: string | null
                     phone?: string | null
+                    status?: string | null
+                    tax_id?: string | null
                     total_spent?: number | null
                     updated_at?: string
                 }
@@ -201,11 +209,15 @@ export interface Database {
                     city?: string | null
                     company_id?: string
                     created_at?: string
+                    customer_type?: string | null
                     email?: string | null
                     id?: string
+                    last_purchase_date?: string | null
                     name?: string
                     notes?: string | null
                     phone?: string | null
+                    status?: string | null
+                    tax_id?: string | null
                     total_spent?: number | null
                     updated_at?: string
                 }

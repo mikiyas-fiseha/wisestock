@@ -1,42 +1,81 @@
 
-import { Gradients, Layout } from '@/constants/Colors';
+import { Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+
+type IconName = React.ComponentProps<typeof FontAwesome>['name'];
 
 interface SummaryCardProps {
     title: string;
     value: string;
     type?: 'neutral' | 'success' | 'danger' | 'warning' | 'primary';
+    icon?: IconName;
+    change?: number;      // e.g. +12 or -5 (percentage)
     style?: StyleProp<ViewStyle>;
+    compact?: boolean;     // Mobile compact mode
 }
 
-export function SummaryCard({ title, value, type = 'neutral', style }: SummaryCardProps) {
-    const getGradientColors = () => {
-        switch (type) {
-            case 'success': return ['#D1FAE5', '#A7F3D0'] as const; // Light Green for success
-            case 'danger': return ['#FEE2E2', '#FECACA'] as const; // Light Red for danger
-            case 'warning': return ['#FEF3C7', '#FDE68A'] as const; // Light Yellow for warning
-            case 'primary': return Gradients.primary;
-            default: return ['#FFFFFF', '#F9F9F9'] as const;
-        }
+export function SummaryCard({ title, value, type = 'neutral', icon, change, style, compact }: SummaryCardProps) {
+    const { colors } = useTheme();
+    const hasChange = change !== undefined && change !== 0;
+    const isPositive = (change || 0) >= 0;
+
+    const gradientMap = {
+        neutral: [(colors.card + '80'), (colors.card + '40')] as const,
+        success: [`${colors.success}15`, `${colors.success}25`] as const,
+        danger: [`${colors.danger}15`, `${colors.danger}25`] as const,
+        warning: [`${colors.warning}15`, `${colors.warning}25`] as const,
+        primary: [`${colors.primary}15`, `${colors.primary}25`] as const,
     };
 
-    const isNeutral = type === 'neutral';
-    // Darker text for light backgrounds
-    const textColor = type === 'primary' ? '#FFFFFF' : '#1F2937';
-    const subTextColor = type === 'primary' ? 'rgba(255,255,255,0.9)' : '#6B7280';
+    const iconColorMap = {
+        neutral: colors.textSecondary,
+        success: colors.success,
+        danger: colors.danger,
+        warning: colors.warning,
+        primary: colors.primary,
+    };
+
+    const valueColorMap = {
+        neutral: colors.text,
+        success: colors.success,
+        danger: colors.danger,
+        warning: colors.warning,
+        primary: colors.primary,
+    };
 
     return (
-        <View style={[styles.container, style]}>
+        <View style={[styles.container, compact && styles.containerCompact, style]}>
             <LinearGradient
-                colors={[...getGradientColors()]}
+                colors={[...gradientMap[type]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.card}
+                style={[styles.card, compact && styles.cardCompact, { borderColor: colors.border, borderWidth: 1 }]}
             >
-                <Text style={[styles.value, { color: textColor }]}>{value}</Text>
-                <Text style={[styles.title, { color: subTextColor }]}>{title}</Text>
+                <View style={styles.topRow}>
+                    {icon && (
+                        <View style={[styles.iconBg, { backgroundColor: `${iconColorMap[type]}14` }]}>
+                            <FontAwesome name={icon} size={compact ? 14 : 16} color={iconColorMap[type]} />
+                        </View>
+                    )}
+                    {hasChange && (
+                        <View style={[styles.changeBadge, { backgroundColor: isPositive ? `${colors.success}15` : `${colors.danger}15` }]}>
+                            <FontAwesome
+                                name={isPositive ? 'arrow-up' : 'arrow-down'}
+                                size={8}
+                                color={isPositive ? colors.success : colors.danger}
+                            />
+                            <Text style={[styles.changeText, { color: isPositive ? colors.success : colors.danger }]}>
+                                {Math.abs(change!)}%
+                            </Text>
+                        </View>
+                    )}
+                </View>
+                <Text style={[styles.value, { color: valueColorMap[type] }, compact && styles.valueCompact]}>{value}</Text>
+                <Text style={[styles.title, { color: colors.textSecondary }, compact && styles.titleCompact]}>{title}</Text>
             </LinearGradient>
         </View>
     );
@@ -45,30 +84,67 @@ export function SummaryCard({ title, value, type = 'neutral', style }: SummaryCa
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        minWidth: '45%',
-        margin: Layout.spacing.xs,
-        borderRadius: Layout.borderRadius.lg,
+        minWidth: '22%',
+        margin: 4,
+        borderRadius: 14,
         ...Layout.shadows.medium,
-        backgroundColor: 'transparent', // Shadow needs background, but gradient handles it
+        backgroundColor: 'transparent',
+    },
+    containerCompact: {
+        minWidth: '44%',
     },
     card: {
-        borderRadius: Layout.borderRadius.lg,
-        paddingVertical: Layout.spacing.lg,
-        paddingHorizontal: Layout.spacing.md,
+        borderRadius: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 14,
+        minHeight: 110,
+    },
+    cardCompact: {
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        minHeight: 90,
+    },
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: 8,
+    },
+    iconBg: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
         justifyContent: 'center',
+        alignItems: 'center',
+    },
+    changeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        gap: 3,
+    },
+    changeText: {
+        fontSize: 10,
+        fontWeight: '700',
     },
     title: {
-        fontSize: 13,
-        marginTop: 4,
-        textAlign: 'center',
+        fontSize: 11,
+        marginTop: 2,
         fontWeight: '600',
-        letterSpacing: 0.5,
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+    },
+    titleCompact: {
+        fontSize: 10,
     },
     value: {
-        fontSize: 26,
-        fontWeight: '800',
-        textAlign: 'center',
-        letterSpacing: -0.5,
+        fontSize: 28,
+        fontWeight: '900',
+        letterSpacing: -1,
+    },
+    valueCompact: {
+        fontSize: 22,
     },
 });

@@ -1,4 +1,5 @@
-import { Colors, Layout } from '@/constants/Colors';
+import { Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -12,6 +13,8 @@ interface SaleListItemProps {
 }
 
 export const SaleListItem = ({ date, total, customerName, status, onPress }: SaleListItemProps) => {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
         <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
             <View style={styles.header}>
@@ -33,7 +36,7 @@ export const SaleListItem = ({ date, total, customerName, status, onPress }: Sal
 
             <View style={styles.footer}>
                 <View style={styles.customer}>
-                    <FontAwesome name="user" size={12} color={Colors.light.textSecondary} style={{ marginRight: 4 }} />
+                    <FontAwesome name="user" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
                     <Text style={styles.customerName}>{customerName || 'Cash Customer'}</Text>
                 </View>
                 <Text style={styles.amount}>${total.toFixed(2)}</Text>
@@ -42,15 +45,13 @@ export const SaleListItem = ({ date, total, customerName, status, onPress }: Sal
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
-        backgroundColor: Colors.light.card,
+        backgroundColor: (colors.card + 'E0'),
         borderRadius: Layout.borderRadius.lg,
         marginBottom: Layout.spacing.md,
         padding: Layout.spacing.md,
-        ...Layout.shadows.medium, // Using standardized shadow
-        borderWidth: 1,
-        borderColor: 'transparent', // Remove border, rely on shadow for depth
+        ...Layout.shadows.small,
     },
     header: {
         flexDirection: 'row',
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: Layout.borderRadius.sm,
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: Layout.spacing.sm,
@@ -72,11 +73,11 @@ const styles = StyleSheet.create({
     saleId: {
         fontSize: 14,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: colors.text,
     },
     date: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     badge: {
         paddingVertical: 4,
@@ -84,10 +85,10 @@ const styles = StyleSheet.create({
         borderRadius: Layout.borderRadius.sm,
     },
     badgeSuccess: {
-        backgroundColor: '#E3FCEF', // Light green background
+        backgroundColor: '#E3FCEF',
     },
     badgeWarning: {
-        backgroundColor: '#FFFAE6', // Light yellow/amber background
+        backgroundColor: '#FFFAE6',
     },
     badgeText: {
         fontSize: 10,
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: Colors.light.border,
+        backgroundColor: colors.border,
         marginVertical: Layout.spacing.sm,
     },
     footer: {
@@ -115,12 +116,12 @@ const styles = StyleSheet.create({
     },
     customerName: {
         fontSize: 13,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '500',
     },
     amount: {
         fontSize: 18,
-        fontWeight: '800', // Extra bold for emphasis
-        color: Colors.light.text,
+        fontWeight: '800',
+        color: colors.text,
     },
 });

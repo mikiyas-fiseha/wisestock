@@ -1,9 +1,10 @@
 
-import { Colors } from '@/constants/Colors';
+
 import { useAuth, User } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface RoleGuardProps {
     children: React.ReactNode;
@@ -11,6 +12,8 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
@@ -23,7 +26,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     if (isLoading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -40,7 +43,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     return <>{children}</>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     center: {
         flex: 1,
         justifyContent: 'center',
@@ -52,11 +55,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 8,
         textAlign: 'center',
-        color: Colors.light.text,
+        color: colors.text,
     },
     subText: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     },
 });

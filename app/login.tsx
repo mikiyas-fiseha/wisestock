@@ -1,17 +1,21 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors, Gradients } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 export default function LoginScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { login, isLoading } = useAuth();
     const [email, setEmail] = useState('');
@@ -41,7 +45,7 @@ export default function LoginScreen() {
         <View style={styles.container}>
             <StatusBar style="light" />
             <LinearGradient
-                colors={Gradients.primary}
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
                 style={[styles.background, { paddingTop: insets.top }]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -51,13 +55,17 @@ export default function LoginScreen() {
                     style={styles.keyboardView}
                 >
                     <View style={styles.logoContainer}>
-                        <View style={styles.logoCircle}>
-                            <Text style={styles.logoText}>S</Text>
+                        <View style={[styles.logoCircle, theme === 'dark' ? styles.logoCircleDark : styles.logoCircleLight]}>
+                            <Text style={[styles.logoText, theme === 'dark' ? styles.logoTextDark : styles.logoTextLight]}>S</Text>
                         </View>
-                        <Text style={styles.appName}>StockFlow</Text>
+                        <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>StockFlow</Text>
                     </View>
 
-                    <View style={styles.card}>
+                    <BlurView
+                        tint={theme === 'dark' ? 'dark' : 'light'}
+                        intensity={theme === 'dark' ? 60 : 80}
+                        style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
+                    >
                         <View style={styles.header}>
                             <Text style={styles.title}>Welcome Back</Text>
                             <Text style={styles.subtitle}>Sign in to your account</Text>
@@ -71,6 +79,7 @@ export default function LoginScreen() {
                             autoCapitalize="none"
                             keyboardType="email-address"
                             style={styles.input}
+                            icon="envelope-o"
                         />
 
                         <AppTextInput
@@ -80,6 +89,7 @@ export default function LoginScreen() {
                             onChangeText={setPassword}
                             secureTextEntry
                             style={styles.input}
+                            icon="lock"
                         />
 
                         <AppButton
@@ -95,7 +105,7 @@ export default function LoginScreen() {
                                 <Text style={styles.registerLink}>Create Company Account</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
+                    </BlurView>
 
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Secure Business Management v1.0</Text>
@@ -106,7 +116,7 @@ export default function LoginScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
     },
@@ -118,6 +128,9 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         padding: 24,
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 500,
     },
     logoContainer: {
         alignItems: 'center',
@@ -127,36 +140,60 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.4)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    logoCircleLight: {
+        backgroundColor: '#e2e8f0', // Silver metallic light
+        borderColor: '#cbd5e1',
+        shadowColor: '#94a3b8',
+    },
+    logoCircleDark: {
+        backgroundColor: '#1e293b', // Dark metallic
+        borderColor: '#334155',
+        shadowColor: '#000',
     },
     logoText: {
         fontSize: 40,
         fontWeight: 'bold',
-        color: '#fff',
+    },
+    logoTextLight: {
+        color: '#64748b',
+        textShadowColor: 'rgba(255,255,255,0.8)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 1,
+    },
+    logoTextDark: {
+        color: '#cbd5e1',
+        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     appName: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#fff',
         letterSpacing: 1,
     },
     card: {
-        backgroundColor: '#fff',
         borderRadius: 24,
         padding: 32,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 10,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 10,
+        overflow: 'hidden',
+    },
+    cardLight: {
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        borderColor: 'rgba(255,255,255,0.8)',
+        borderWidth: 1,
+    },
+    cardDark: {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
     },
     header: {
         marginBottom: 24,
@@ -164,21 +201,21 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     input: {
-        backgroundColor: '#F7F8FA',
+        backgroundColor: 'transparent',
     },
     button: {
         marginTop: 12,
         borderRadius: 12,
         height: 56,
-        shadowColor: Colors.light.primary,
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -190,11 +227,11 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
     registerText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontSize: 15,
     },
     registerLink: {
-        color: Colors.light.primary,
+        color: colors.primary,
         fontWeight: '600',
         fontSize: 15,
     },

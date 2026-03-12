@@ -2,16 +2,20 @@
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { User } from '@/constants/MockData';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { supabase } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React from 'react';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
+import { useTheme } from '@/context/ThemeContext';
 
 export default function TeamScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { user, company } = useAuth();
     const { showFeedback } = useFeedback();
 
@@ -60,7 +64,6 @@ export default function TeamScreen() {
     React.useEffect(() => {
         fetchTeam();
     }, [company?.id]);
-
 
     const handleInvite = async () => {
         if (!inviteEmail || !inviteName || !invitePassword) {
@@ -148,6 +151,7 @@ export default function TeamScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <FlatList
                 data={teamMembers}
                 keyExtractor={(item) => item.id}
@@ -223,10 +227,10 @@ export default function TeamScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     header: {
         padding: 16,
@@ -234,7 +238,7 @@ const styles = StyleSheet.create({
     },
     headerText: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     },
     fabContainer: {
@@ -258,7 +262,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         marginBottom: 6,
-        color: Colors.light.text,
+        color: colors.text,
     },
     roleContainer: {
         flexDirection: 'row',
@@ -268,17 +272,16 @@ const styles = StyleSheet.create({
     roleButton: {
         flex: 1,
         paddingVertical: 10,
-        borderWidth: 1,
-        borderColor: Colors.light.border,
+
         borderRadius: 8,
         alignItems: 'center',
     },
     roleButtonActive: {
-        backgroundColor: Colors.light.primary,
-        borderColor: Colors.light.primary,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
     roleText: {
-        color: Colors.light.text,
+        color: colors.text,
     },
     roleTextActive: {
         color: '#fff',

@@ -1,20 +1,19 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
-import { usePurchases } from '@/hooks/usePurchases';
 import { useAddProduct, useUpdateProduct } from '@/hooks/useSupabaseQuery';
-import { useSuppliers } from '@/hooks/useSuppliers';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Picker } from '@react-native-picker/picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+
+const UNIT_TYPES = ['pcs', 'kg', 'liter', 'carton', 'bag'];
 
 interface Category {
     id: string;
@@ -36,8 +35,11 @@ interface Variant {
 }
 
 import { RoleGuard } from '@/components/auth/RoleGuard';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function AddProductScreen() {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company } = useAuth();
@@ -50,7 +52,9 @@ export default function AddProductScreen() {
     const [primarySku, setPrimarySku] = useState('');
     const [costPrice, setCostPrice] = useState('');
     const [salePrice, setSalePrice] = useState('');
-    const [stock, setStock] = useState('');
+    const [minStockLevel, setMinStockLevel] = useState('');
+    const [unitType, setUnitType] = useState('pcs');
+    const [customUnit, setCustomUnit] = useState('');
     const [isActive, setIsActive] = useState(true);
     const [imageUri, setImageUri] = useState<string | null>(null);
     const [localLoading, setLocalLoading] = useState(false);
@@ -58,9 +62,14 @@ export default function AddProductScreen() {
 
     const addProduct = useAddProduct();
     const updateProduct = useUpdateProduct();
-    const { suppliers } = useSuppliers();
-    const { createPurchase } = usePurchases();
     const loading = addProduct.isPending || updateProduct.isPending || isUploading || localLoading;
+
+    // Auto-calculated profit
+    const profit = useMemo(() => {
+        const cost = parseFloat(costPrice) || 0;
+        const sale = parseFloat(salePrice) || 0;
+        return sale - cost;
+    }, [costPrice, salePrice]);
 
     // Scanner State
     const [showScanner, setShowScanner] = useState(false);
@@ -86,13 +95,6 @@ export default function AddProductScreen() {
     const [newFieldType, setNewFieldType] = useState('text');
     const [baseAttributes, setBaseAttributes] = useState<Record<string, string>>({});
 
-    // Purchase / Initial Stock State
-    const [supplierId, setSupplierId] = useState('');
-    const [amountPaid, setAmountPaid] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('cash'); // cash, bank, credit
-    const [invoiceNumber, setInvoiceNumber] = useState('');
-    const [purchaseNotes, setPurchaseNotes] = useState('');
-
     useEffect(() => {
         if (company) {
             fetchCategories(); // Always fetch categories first to map attributes correctly
@@ -105,38 +107,6 @@ export default function AddProductScreen() {
         }
     }, [id, categories]); // Depend on categories to ensure mapping works
 
-    // Auto-select Default Supplier if not selected
-    useEffect(() => {
-        if (!id && !supplierId && suppliers?.length) {
-            // Try to find "Default Supplier" or failover to first one?
-            // User requested "automatically assign a Default Supplier"
-            const defaultSup = suppliers.find(s => s.name === "Default Supplier");
-            if (defaultSup) {
-                setSupplierId(defaultSup.id);
-            }
-        }
-    }, [suppliers, id, supplierId]);
-
-    // Payment Logic Effect: Auto-calc Amount Paid based on Method
-    useEffect(() => {
-        if (!id && !isVariable) {
-            const cost = parseFloat(costPrice) || 0;
-            const qty = parseFloat(stock) || 0;
-            const total = cost * qty;
-
-            if (paymentMethod === 'cash') {
-                // If Cash, assume fully paid
-                setAmountPaid(total.toFixed(2));
-            } else if (paymentMethod === 'credit') {
-                // If Credit, default to 0 (pay later) if empty, or leave as is?
-                // User said "defaulting to zero".
-                // Only reset if it looks like we switched modes or it's empty
-                if (!amountPaid || amountPaid === total.toFixed(2)) {
-                    setAmountPaid('0');
-                }
-            }
-        }
-    }, [paymentMethod, costPrice, stock, isVariable, id]);
 
     const fetchProductForEdit = async () => {
         if (!id) return;
@@ -154,6 +124,16 @@ export default function AddProductScreen() {
             setDescription(product.description || '');
             setIsActive(product.status === 'active');
             setImageUri(product.image_url);
+
+            // Load unit type
+            if (product.unit) {
+                if (UNIT_TYPES.includes(product.unit)) {
+                    setUnitType(product.unit);
+                } else {
+                    setUnitType('custom');
+                    setCustomUnit(product.unit);
+                }
+            }
 
             // Map Base Attributes
             if (product.attributes) {
@@ -177,7 +157,6 @@ export default function AddProductScreen() {
                 setPrimarySku(product.primary_sku);
                 setCostPrice(product.cost_price?.toString() || '');
                 setSalePrice(product.sale_price?.toString() || '');
-                setStock(product.stock?.toString() || '');
             }
 
             // Set Category and Attributes
@@ -312,17 +291,11 @@ export default function AddProductScreen() {
     };
 
     const handleSave = async () => {
-        // Validation Updates
+        // Validation
         if (!name) { showFeedback('error', 'Error', 'Product Name is required'); return; }
 
-        // Revised Validation: Supplier Required for new simple products
-        if (!id && !isVariable && !supplierId) {
-            showFeedback('error', 'Error', 'Supplier is required for initial stock');
-            return;
-        }
-
-        if (!isVariable && (!primarySku || !costPrice || !salePrice || !stock)) {
-            showFeedback('error', 'Error', 'Please fill in all required fields');
+        if (!isVariable && (!primarySku || !costPrice || !salePrice)) {
+            showFeedback('error', 'Error', 'Please fill in SKU, Cost Price, and Sale Price');
             return;
         }
         if (isVariable && variants.length === 0) {
@@ -343,19 +316,23 @@ export default function AddProductScreen() {
             }
             setIsUploading(false);
 
+            const resolvedUnit = unitType === 'custom' ? (customUnit || 'pcs') : unitType;
             const productData = {
                 company_id: company?.id,
                 name,
+                unit: resolvedUnit,
                 description,
                 primary_sku: isVariable ? variants[0].sku : primarySku,
                 cost_price: isVariable ? 0 : parseFloat(costPrice),
                 sale_price: isVariable ? parseFloat(variants[0].price) : parseFloat(salePrice),
-                stock: isVariable ? variants.reduce((acc, v) => acc + parseInt(v.stock, 10), 0) : parseInt(stock, 10),
+                stock: 0, // Stock always starts at 0 — use Purchases to add stock
                 status: isActive ? 'active' : 'inactive',
                 image_url: publicImageUrl,
                 category_id: selectedCategory?.id,
                 attributes: baseAttributes
             };
+
+            const minStock = parseInt(minStockLevel) || 0;
 
             const onSuccess = () => {
                 showFeedback('success', 'Success', id ? 'Product updated' : 'Product saved');
@@ -369,41 +346,9 @@ export default function AddProductScreen() {
             if (id) {
                 updateProduct.mutate({ id, productData, variants, isVariable }, { onSuccess, onError });
             } else {
-                const initialStock = productData.stock || 0;
-                // Force initial stock to 0 so purchase adds it
-                productData.stock = 0;
-
-                addProduct.mutate({ productData, variants, isVariable }, {
-                    onSuccess: async (newProduct) => {
-                        if (!isVariable) {
-                            try {
-                                const cost = parseFloat(costPrice) || 0;
-                                const qty = initialStock;
-                                const total = cost * qty;
-
-                                await createPurchase({
-                                    supplier_id: supplierId,
-                                    purchase_date: new Date(),
-                                    invoice_number: invoiceNumber || `INIT-${Date.now()}`,
-                                    total_amount: total,
-                                    amount_paid: parseFloat(amountPaid) || 0,
-                                    payment_method: paymentMethod,
-                                    notes: purchaseNotes || 'Initial Stock Purchase',
-                                    items: [{
-                                        product_id: newProduct.id,
-                                        quantity: qty,
-                                        unit_cost: cost
-                                    }]
-                                });
-                            } catch (err: any) {
-                                console.error("Failed to create purchase", err);
-                                showFeedback('warning', 'Product Created', 'But failed to record purchase: ' + err.message);
-                                router.back();
-                                return;
-                            }
-                        }
-                        onSuccess();
-                    },
+                // Create product — useAddProduct will auto-create branch_products with stock=0
+                addProduct.mutate({ productData, variants, isVariable, minStockLevel: minStock }, {
+                    onSuccess,
                     onError
                 });
             }
@@ -439,7 +384,7 @@ export default function AddProductScreen() {
     const SectionHeader = ({ title, isOpen, onToggle, rightElement }: { title: string, isOpen: boolean, onToggle: () => void, rightElement?: React.ReactNode }) => (
         <TouchableOpacity onPress={onToggle} style={styles.sectionHeader} activeOpacity={0.7}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <FontAwesome name={isOpen ? "chevron-down" : "chevron-right"} size={14} color="#666" style={{ marginRight: 8 }} />
+                <FontAwesome name={isOpen ? "chevron-down" : "chevron-right"} size={14} color={colors.textSecondary} style={{ marginRight: 8 }} />
                 <Text style={styles.sectionTitleText}>{title}</Text>
             </View>
             {rightElement}
@@ -453,13 +398,23 @@ export default function AddProductScreen() {
             <View style={styles.container}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
+                    {/* Inline Header */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                        <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8, marginLeft: -8 }}>
+                            <FontAwesome name="arrow-left" size={20} color={colors.text} />
+                        </TouchableOpacity>
+                        <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
+                            {id ? 'Edit Product' : 'Add Product'}
+                        </Text>
+                    </View>
+
                     {/* Primary Section: Photo + Core Details */}
                     <View style={styles.card}>
                         <View style={styles.paramountRow}>
                             {/* Photo Left */}
                             <TouchableOpacity onPress={pickImage} style={styles.compactImageBtn}>
                                 {imageUri ? <Image source={{ uri: imageUri }} style={styles.compactImage} /> :
-                                    <View style={styles.imagePlaceholder}><FontAwesome name="camera" size={20} color="#999" /></View>
+                                    <View style={styles.imagePlaceholder}><FontAwesome name="camera" size={20} color={colors.textSecondary} /></View>
                                 }
                             </TouchableOpacity>
 
@@ -473,94 +428,83 @@ export default function AddProductScreen() {
                                             <AppTextInput label="SKU *" value={primarySku} onChangeText={setPrimarySku} placeholder="Scan/Enter" />
                                         </View>
                                         <TouchableOpacity onPress={handleScan} style={styles.miniScanBtn}>
-                                            <FontAwesome name="barcode" size={18} color={Colors.light.primary} />
+                                            <FontAwesome name="barcode" size={18} color={colors.primary} />
                                         </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
                         </View>
 
+                        {/* Unit Type */}
+                        <Text style={styles.label}>Unit Type *</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                            {UNIT_TYPES.map(u => (
+                                <TouchableOpacity
+                                    key={u}
+                                    onPress={() => setUnitType(u)}
+                                    style={{
+                                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                                        borderWidth: 1.5,
+                                        borderColor: unitType === u ? colors.primary : colors.border,
+                                        backgroundColor: unitType === u ? colors.primary + '15' : (colors.card + 'E0'),
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === u ? colors.primary : colors.textSecondary }}>{u}</Text>
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                                onPress={() => setUnitType('custom')}
+                                style={{
+                                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                                    borderWidth: 1.5,
+                                    borderColor: unitType === 'custom' ? colors.primary : colors.border,
+                                    backgroundColor: unitType === 'custom' ? colors.primary + '15' : (colors.card + 'E0'),
+                                }}
+                            >
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === 'custom' ? colors.primary : colors.textSecondary }}>Custom</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {unitType === 'custom' && (
+                            <AppTextInput
+                                label="Custom Unit"
+                                value={customUnit}
+                                onChangeText={setCustomUnit}
+                                placeholder="e.g. dozen, box, meter"
+                                style={{ marginBottom: 8 }}
+                            />
+                        )}
+
                         {/* Prices Row */}
                         {!isVariable && (
-                            <View style={styles.row}>
-                                <View style={styles.half}><AppTextInput label="Cost Price *" value={costPrice} onChangeText={setCostPrice} keyboardType="numeric" prefix="$" /></View>
-                                <View style={styles.half}><AppTextInput label="Sale Price *" value={salePrice} onChangeText={setSalePrice} keyboardType="numeric" prefix="$" /></View>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Inventory & Supplier Section */}
-                    <View style={styles.card}>
-
-                        {/* Supplier & Purchase (Required for new) */}
-                        {!id && !isVariable && (
-                            <View style={{ paddingTop: 4 }}>
-                                <Text style={styles.label}>Supplier *</Text>
-                                <View style={styles.pickerWrapper}>
-                                    <Picker
-                                        selectedValue={supplierId}
-                                        onValueChange={(itemValue) => setSupplierId(itemValue)}
-                                        style={styles.picker}
-                                    >
-                                        <Picker.Item label="Select Supplier..." value="" color="#999" />
-                                        {suppliers?.map(s => (
-                                            <Picker.Item key={s.id} label={s.name} value={s.id} />
-                                        ))}
-                                    </Picker>
+                            <>
+                                <View style={styles.row}>
+                                    <View style={styles.half}><AppTextInput label="Cost Price *" value={costPrice} onChangeText={setCostPrice} keyboardType="numeric" prefix="$" /></View>
+                                    <View style={styles.half}><AppTextInput label="Sale Price *" value={salePrice} onChangeText={setSalePrice} keyboardType="numeric" prefix="$" /></View>
                                 </View>
 
-                                {supplierId ? (
-                                    <>
-                                        <View style={styles.row}>
-                                            <View style={styles.half}>
-                                                <AppTextInput
-                                                    label="Quantity *"
-                                                    value={stock}
-                                                    onChangeText={setStock}
-                                                    keyboardType="numeric"
-                                                    placeholder="0"
-                                                />
-                                            </View>
-                                            <View style={styles.half}>
-                                                <Text style={styles.label}>Payment Type *</Text>
-                                                <View style={styles.pickerWrapperSmall}>
-                                                    <Picker
-                                                        selectedValue={paymentMethod}
-                                                        onValueChange={(itemValue) => setPaymentMethod(itemValue)}
-                                                        style={styles.miniPicker}
-                                                    >
-                                                        <Picker.Item label="Cash (Fully Paid)" value="cash" style={{ fontSize: 13 }} />
-                                                        <Picker.Item label="Credit (Pay Later)" value="credit" style={{ fontSize: 13 }} />
-                                                    </Picker>
-                                                </View>
-                                            </View>
-                                        </View>
-
-                                        {/* Show Amount Paid only if Credit */}
-                                        {paymentMethod === 'credit' && (
-                                            <View style={[styles.row, { marginTop: 12 }]}>
-                                                <View style={styles.half}>
-                                                    <AppTextInput
-                                                        label="Amount Paid Now"
-                                                        value={amountPaid}
-                                                        onChangeText={setAmountPaid}
-                                                        keyboardType="numeric"
-                                                        placeholder="0.00"
-                                                    />
-                                                </View>
-                                                <View style={styles.half} />
-                                            </View>
-                                        )}
-                                    </>
-                                ) : null}
-                            </View>
+                                {/* Auto Profit */}
+                                {(costPrice || salePrice) && (
+                                    <View style={styles.profitRow}>
+                                        <Text style={styles.profitLabel}>Profit per unit</Text>
+                                        <Text style={[styles.profitValue, profit < 0 && { color: colors.danger }]}>
+                                            {profit >= 0 ? '+' : ''}{profit.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                )}
+                            </>
                         )}
 
-                        {/* For Edit Mode or Variable, we might need different fields, 
-                            but user specifically asked to remove "Status" and "Opening Stock".
-                            If editing, we usually show current stock. 
-                            Let's keep it clean for now as requested. 
-                        */}
+                        {/* Min Stock Level */}
+                        {!isVariable && (
+                            <AppTextInput
+                                label="Minimum Stock Level"
+                                value={minStockLevel}
+                                onChangeText={setMinStockLevel}
+                                keyboardType="numeric"
+                                placeholder="Alert when stock falls below this"
+                                style={{ marginTop: 8 }}
+                            />
+                        )}
                     </View>
 
                     {/* Advanced: Variants (Toggle) */}
@@ -569,15 +513,15 @@ export default function AddProductScreen() {
                             title="Product Variants"
                             isOpen={isVariable}
                             onToggle={() => setIsVariable(!isVariable)}
-                            rightElement={<Switch value={isVariable} onValueChange={setIsVariable} trackColor={{ false: '#eee', true: Colors.light.primary }} style={{ transform: [{ scale: 0.7 }] }} />}
+                            rightElement={<Switch value={isVariable} onValueChange={setIsVariable} trackColor={{ false: colors.border, true: colors.primary }} style={{ transform: [{ scale: 0.7 }] }} />}
                         />
 
                         {isVariable && (
                             <View style={styles.sectionContent}>
                                 {variants.map((v, i) => (
                                     <View key={i} style={styles.variantRow}>
-                                        <Text style={{ fontWeight: '500' }}>{v.sku}</Text>
-                                        <Text style={{ color: '#666' }}>${v.price}</Text>
+                                        <Text style={{ fontWeight: '500', color: colors.text }}>{v.sku}</Text>
+                                        <Text style={{ color: colors.textSecondary }}>${v.price}</Text>
                                     </View>
                                 ))}
                                 <AppButton title="+ Add Variant" onPress={() => setVariantModalVisible(true)} variant="outline" style={{ marginTop: 8 }} />
@@ -596,7 +540,7 @@ export default function AddProductScreen() {
                         {showCustomFields && (
                             <View style={styles.sectionContent}>
                                 <TouchableOpacity onPress={() => setFieldModalVisible(true)} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
-                                    <Text style={{ color: Colors.light.primary, fontSize: 13, fontWeight: '600' }}>+ Add Field</Text>
+                                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>+ Add Field</Text>
                                 </TouchableOpacity>
 
                                 {categoryAttributes.map(attr => (
@@ -607,7 +551,7 @@ export default function AddProductScreen() {
                                         onChangeText={(text) => setBaseAttributes({ ...baseAttributes, [attr.name]: text })}
                                     />
                                 ))}
-                                {categoryAttributes.length === 0 && <Text style={{ color: '#999', fontSize: 13, fontStyle: 'italic' }}>No fields configured.</Text>}
+                                {categoryAttributes.length === 0 && <Text style={{ color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' }}>No fields configured.</Text>}
                             </View>
                         )}
                     </View>
@@ -680,10 +624,10 @@ export default function AddProductScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8F9FA' },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: 'transparent' },
     content: { padding: 12, paddingBottom: 100 },
-    card: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 2 },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 10, padding: 12, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: colors.border },
 
     // Rows
     paramountRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
@@ -691,48 +635,52 @@ const styles = StyleSheet.create({
     half: { flex: 1 },
 
     // Components
-    compactImageBtn: { width: 70, height: 70, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
+    compactImageBtn: { width: 70, height: 70, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
     compactImage: { width: '100%', height: '100%' },
     imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
 
     miniScanBtn: { padding: 8, justifyContent: 'center' },
 
     // Switch / Status
-    switchContainer: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: '#f9f9f9', borderRadius: 8, paddingHorizontal: 8 },
-    switchText: { fontSize: 12, color: '#999', marginHorizontal: 4 },
-    activeSwitchText: { color: Colors.light.primary, fontWeight: '600' },
+    switchContainer: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.card + 'E0', borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border },
+    switchText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 4 },
+    activeSwitchText: { color: colors.primary, fontWeight: '600' },
 
     // Section Headers (Collapsible)
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-    sectionTitleText: { fontSize: 14, fontWeight: '600', color: '#333' },
-    sectionContent: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderColor: '#eee' },
+    sectionTitleText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    sectionContent: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderColor: colors.border },
 
     // Pickers
-    topBorder: { borderTopWidth: 1, borderColor: '#eee', marginTop: 12, paddingTop: 12 },
-    pickerWrapper: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: '#fff', height: 48, justifyContent: 'center', marginBottom: 12 },
-    pickerWrapperSmall: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: '#fff', height: 48, justifyContent: 'center' },
+    topBorder: { borderTopWidth: 1, borderColor: colors.border, marginTop: 12, paddingTop: 12 },
+    pickerWrapper: { borderRadius: 8, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center', marginBottom: 12 },
+    pickerWrapperSmall: { borderRadius: 8, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center' },
     picker: { height: 48, width: '100%' },
     miniPicker: { height: 48, width: '100%' },
 
-    label: { fontSize: 13, fontWeight: '500', color: '#555', marginBottom: 4 },
+    label: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginBottom: 4 },
 
     // Variant Row
-    variantRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' },
+    variantRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, borderBottomWidth: 1, borderColor: colors.border },
 
     // Footer
-    footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' },
+    footer: { padding: 16, backgroundColor: colors.card + 'E0', borderTopWidth: 1, borderColor: colors.border },
 
     // Modals
-    modalContainer: { flex: 1, backgroundColor: '#fff' },
-    modalHeader: { padding: 16, paddingTop: 60, borderBottomWidth: 1, borderColor: '#eee' },
-    modalTitle: { fontSize: 18, fontWeight: 'bold' },
+    modalContainer: { flex: 1, backgroundColor: 'transparent' },
+    modalHeader: { padding: 16, paddingTop: 16, borderBottomWidth: 1, borderColor: colors.border },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
     scannerContainer: { flex: 1, backgroundColor: 'black' },
     scannerOverlay: { flex: 1, justifyContent: 'flex-end', paddingBottom: 50, alignItems: 'center' },
     scannerText: { color: 'white', fontSize: 24, marginBottom: 20 },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-    modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 24 },
-    sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 8 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 16 },
+    modalContent: { backgroundColor: colors.card + 'E0', borderRadius: 12, padding: 24, borderWidth: 1, borderColor: colors.border },
+    sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 8, color: colors.text },
     skuContainer: { flexDirection: 'row', gap: 8 },
-    scanButton: { backgroundColor: Colors.light.primary, height: 48, width: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 26 },
+    scanButton: { backgroundColor: colors.primary, height: 48, width: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 26 },
 
+    // Profit Display
+    profitRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.success + '15', borderRadius: 8, padding: 10, marginTop: 8 },
+    profitLabel: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
+    profitValue: { fontSize: 15, fontWeight: '700', color: colors.success },
 });

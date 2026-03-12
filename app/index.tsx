@@ -4,7 +4,7 @@ import { Redirect } from 'expo-router';
 import { Text, View } from 'react-native';
 
 export default function Index() {
-    const { session, isLoading } = useAuth();
+    const { session, isLoading, isSuperAdmin } = useAuth();
 
     if (isLoading) {
         return (
@@ -15,6 +15,9 @@ export default function Index() {
     }
 
     if (session) {
+        if (isSuperAdmin) {
+            return <Redirect href="/(super-admin)/superadminDasboarde" />;
+        }
         return <Redirect href="/(tabs)/dashboard" />;
     }
 

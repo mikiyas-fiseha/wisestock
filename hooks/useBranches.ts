@@ -10,6 +10,7 @@ export interface Branch {
     address?: string;
     phone?: string;
     is_main: boolean;
+    status?: string;
     created_at: string;
 }
 

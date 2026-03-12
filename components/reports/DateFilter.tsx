@@ -1,4 +1,4 @@
-import { Colors, Layout } from '@/constants/Colors';
+import { Layout } from '@/constants/Colors';
 import React, { useState } from 'react';
 import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -17,6 +17,8 @@ interface DateFilterProps {
 }
 
 export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeChange }: DateFilterProps) => {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [modalVisible, setModalVisible] = useState(false);
     const [tempStart, setTempStart] = useState('');
     const [tempEnd, setTempEnd] = useState('');
@@ -65,12 +67,26 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Start Date</Text>
-                            <TextInput style={styles.input} value={tempStart} onChangeText={setTempStart} placeholder="2024-01-01" keyboardType="numeric" />
+                            <TextInput
+                                style={styles.input}
+                                value={tempStart}
+                                onChangeText={setTempStart}
+                                placeholder="2024-01-01"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="numeric"
+                            />
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>End Date</Text>
-                            <TextInput style={styles.input} value={tempEnd} onChangeText={setTempEnd} placeholder="2024-01-31" keyboardType="numeric" />
+                            <TextInput
+                                style={styles.input}
+                                value={tempEnd}
+                                onChangeText={setTempEnd}
+                                placeholder="2024-01-31"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="numeric"
+                            />
                         </View>
 
                         <View style={styles.actions}>
@@ -92,44 +108,47 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
 export const getRangeForPeriod = (period: DatePeriod, currentCustom: { start: Date; end: Date }) => {
     const now = new Date();
     const start = new Date();
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
 
     if (period === 'today') {
         start.setHours(0, 0, 0, 0);
-        return { start, end: now };
+        return { start, end };
     }
     if (period === 'week') {
         start.setDate(now.getDate() - 7);
-        return { start, end: now };
+        start.setHours(0, 0, 0, 0);
+        return { start, end };
     }
     if (period === 'month') {
         start.setDate(1); // 1st of current month
         start.setHours(0, 0, 0, 0);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day of month
-        end.setHours(23, 59, 59, 999);
-        return { start, end };
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day of month
+        lastDay.setHours(23, 59, 59, 999);
+        return { start, end: lastDay };
     }
     return currentCustom;
 };
 
+import { useTheme } from '@/context/ThemeContext';
 import { ScrollView } from 'react-native';
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: { marginBottom: 16 },
     scroll: { gap: 8 },
     chip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#eee',
+        backgroundColor: (colors.card + 'E0'),
+
     },
     chipActive: {
-        backgroundColor: Colors.light.primary,
-        borderColor: Colors.light.primary,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
     chipText: {
-        color: Colors.light.text,
+        color: colors.textSecondary,
         fontSize: 13,
         fontWeight: '600',
     },
@@ -143,26 +162,28 @@ const styles = StyleSheet.create({
         padding: 24,
     },
     modalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: (colors.card + 'E0'),
         borderRadius: 16,
         padding: 24,
         ...Layout.shadows.medium,
+
     },
-    modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
-    modalSubtitle: { fontSize: 12, color: Colors.light.textSecondary, marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4, color: colors.text },
+    modalSubtitle: { fontSize: 12, color: colors.textSecondary, marginBottom: 20 },
     inputGroup: { marginBottom: 16 },
-    label: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: Colors.light.text },
+    label: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: colors.text },
     input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
+
+        backgroundColor: 'transparent',
+        color: colors.text,
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
     },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     button: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
-    cancel: { backgroundColor: '#f0f0f0' },
-    submit: { backgroundColor: Colors.light.primary },
-    buttonTextCancel: { fontWeight: '600', color: '#666' },
+    cancel: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
+    submit: { backgroundColor: colors.primary },
+    buttonTextCancel: { fontWeight: '600', color: colors.textSecondary },
     buttonTextSubmit: { fontWeight: '600', color: '#fff' },
 });

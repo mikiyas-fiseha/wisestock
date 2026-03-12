@@ -1,14 +1,15 @@
-
 import { SuperAdminGuard } from '@/components/auth/SuperAdminGuard';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors, Layout } from '@/constants/Colors';
+import { Gradients, Layout } from '@/constants/Colors';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Plan {
     id: string;
@@ -21,6 +22,8 @@ interface Plan {
 }
 
 export default function ManagePlansScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,7 +40,7 @@ export default function ManagePlansScreen() {
             const { data, error } = await supabase
                 .from('subscription_plans')
                 .select('*')
-                .order('price'); // Show all, including inactive
+                .order('price');
 
             if (error) throw error;
             setPlans(data || []);
@@ -60,21 +63,19 @@ export default function ManagePlansScreen() {
                 name: editingPlan.name,
                 price: parseFloat(editingPlan.price as any),
                 duration_months: parseInt(editingPlan.duration_months as any),
-                max_users: parseInt(editingPlan.max_users as any) || 0, // 0 as unlimited
+                max_users: parseInt(editingPlan.max_users as any) || 0,
                 description: editingPlan.description,
                 is_active: editingPlan.is_active !== undefined ? editingPlan.is_active : true
             };
 
             let error;
             if (editingPlan.id) {
-                // Update
                 const { error: updateError } = await supabase
                     .from('subscription_plans')
                     .update(payload)
                     .eq('id', editingPlan.id);
                 error = updateError;
             } else {
-                // Create
                 const { error: insertError } = await supabase
                     .from('subscription_plans')
                     .insert(payload);
@@ -94,7 +95,7 @@ export default function ManagePlansScreen() {
 
     const confirmToggleActive = (plan: Plan) => {
         confirmAction(
-            'error', // Use warning/error color for destructive/major actions
+            'error',
             plan.is_active ? "Deactivate Plan" : "Activate Plan",
             `Are you sure you want to ${plan.is_active ? 'deactivate' : 'activate'} this plan?`,
             async () => {
@@ -111,39 +112,58 @@ export default function ManagePlansScreen() {
 
     return (
         <SuperAdminGuard>
-            <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.header}>Subscription Plans</Text>
-                    <AppButton title="+ New Plan" onPress={() => { setEditingPlan({}); setModalVisible(true); }} style={{ paddingVertical: 8, paddingHorizontal: 12 }} textStyle={{ fontSize: 14 }} />
+            <View style={styles.container}>
+                <LinearGradient
+                    colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+                <View style={styles.topHeader}>
+                    <TouchableOpacity onPress={() => router.push('/(super-admin)/superadminDasboarde')} style={styles.backButton}>
+                        <FontAwesome name="arrow-left" size={20} color={colors.text} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.header}>Subscription Plans</Text>
+                        <Text style={styles.headerSub}>Manage tiers and pricing</Text>
+                    </View>
+                    <AppButton
+                        title="+ New"
+                        onPress={() => { setEditingPlan({}); setModalVisible(true); }}
+                        style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 }}
+                        textStyle={{ fontSize: 13 }}
+                    />
                 </View>
 
-                {plans.map(plan => (
-                    <View key={plan.id} style={[styles.card, !plan.is_active && styles.inactiveCard]}>
-                        <View style={styles.cardHeader}>
-                            <View>
-                                <Text style={styles.planName}>{plan.name} {plan.is_active ? '' : '(Inactive)'}</Text>
-                                <Text style={styles.planPrice}>${plan.price} / {plan.duration_months}mo</Text>
+                <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 10 }}>
+                    {plans.map(plan => (
+                        <View key={plan.id} style={[styles.card, !plan.is_active && styles.inactiveCard]}>
+                            <View style={styles.cardHeader}>
+                                <View>
+                                    <Text style={styles.planName}>{plan.name} {plan.is_active ? '' : '(Inactive)'}</Text>
+                                    <Text style={styles.planPrice}>${plan.price} / {plan.duration_months}mo</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => confirmToggleActive(plan)}>
+                                    <FontAwesome name={plan.is_active ? "toggle-on" : "toggle-off"} size={24} color={plan.is_active ? colors.success : colors.textSecondary} />
+                                </TouchableOpacity>
                             </View>
-                            <TouchableOpacity onPress={() => confirmToggleActive(plan)}>
-                                <FontAwesome name={plan.is_active ? "toggle-on" : "toggle-off"} size={24} color={plan.is_active ? Colors.light.success : Colors.light.textSecondary} />
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={styles.description}>{plan.description}</Text>
-                        <Text style={styles.details}>Users: {plan.max_users === 0 ? 'Unlimited' : plan.max_users}</Text>
+                            <Text style={styles.description}>{plan.description}</Text>
+                            <Text style={styles.details}>Users: {plan.max_users === 0 ? 'Unlimited' : plan.max_users}</Text>
 
-                        <View style={styles.actions}>
-                            <TouchableOpacity onPress={() => { setEditingPlan(plan); setModalVisible(true); }} style={styles.editButton}>
-                                <Text style={styles.editButtonText}>Edit</Text>
-                            </TouchableOpacity>
+                            <View style={styles.actions}>
+                                <TouchableOpacity onPress={() => { setEditingPlan(plan); setModalVisible(true); }} style={styles.editButton}>
+                                    <Text style={styles.editButtonText}>Edit</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
-                ))}
-            </ScrollView>
+                    ))}
+                </ScrollView>
+            </View>
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>{editingPlan.id ? 'Edit Plan' : 'New Plan'}</Text>
+                    <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>{editingPlan.id ? 'Edit Plan' : 'New Plan'}</Text>
                         <ScrollView>
                             <AppTextInput label="Name" value={editingPlan.name} onChangeText={t => setEditingPlan({ ...editingPlan, name: t })} />
                             <View style={styles.row}>
@@ -168,22 +188,46 @@ export default function ManagePlansScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.light.background },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    header: { fontSize: 24, fontWeight: 'bold' },
-    card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 16, ...Layout.shadows.small },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: 'transparent' },
+    topHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 15,
+        gap: 12,
+    },
+    backButton: {
+        padding: 10,
+        borderRadius: 20,
+        backgroundColor: colors.card + '30',
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    header: { fontSize: 24, fontWeight: 'bold', color: colors.text, letterSpacing: -0.5 },
+    headerSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+    card: {
+        backgroundColor: colors.card + 'E0',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 16,
+
+        ...Layout.shadows.small
+    },
     inactiveCard: { opacity: 0.6 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-    planName: { fontSize: 18, fontWeight: 'bold', color: Colors.light.text },
-    planPrice: { fontSize: 16, fontWeight: '600', color: Colors.light.primary },
-    description: { color: Colors.light.textSecondary, marginBottom: 8 },
-    details: { fontSize: 12, fontWeight: '600', color: Colors.light.text },
+    planName: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+    planPrice: { fontSize: 16, fontWeight: '600', color: colors.primary },
+    description: { color: colors.textSecondary, marginBottom: 8 },
+    details: { fontSize: 12, fontWeight: '600', color: colors.text },
     actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
-    editButton: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f0f0f0', borderRadius: 8 },
-    editButtonText: { fontWeight: '600' },
+    editButton: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.card + '40', borderRadius: 8 },
+    editButtonText: { fontWeight: '600', color: colors.text },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-    modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '80%' },
+    modalContent: { borderRadius: 16, padding: 20, maxHeight: '80%', ...Layout.shadows.large },
     modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     row: { flexDirection: 'row' },
     modalActions: { flexDirection: 'row', marginTop: 20 }

@@ -1,9 +1,10 @@
-import { Colors, Layout } from '@/constants/Colors';
+import { Gradients, Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
-
 interface FilterOption {
     label: string;
     value: string;
@@ -33,12 +34,12 @@ export function SearchFilterHeader({
     filterGroups = [],
     activeFilters = {}
 }: SearchFilterHeaderProps) {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [searchText, setSearchText] = useState('');
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [tempFilters, setTempFilters] = useState<Record<string, string>>(activeFilters);
 
-    // Debounce search could be handled here or by parent, 
-    // for now we'll just pass text up on change (or submit)
     const handleSearchChange = (text: string) => {
         setSearchText(text);
         onSearch(text);
@@ -56,13 +57,10 @@ export function SearchFilterHeader({
 
     const handleClearFilters = () => {
         const cleared: Record<string, string> = {};
-        // Optionally set defaults here if needed, but for now empty
         setTempFilters(cleared);
     };
 
     const toggleFilter = (groupKey: string, value: string) => {
-        // For now, assuming single select per group (radio behavior)
-        // If the same value is clicked, clear it (toggle off)
         setTempFilters(prev => {
             if (prev[groupKey] === value) {
                 const next = { ...prev };
@@ -77,8 +75,6 @@ export function SearchFilterHeader({
 
     const [scannerVisible, setScannerVisible] = useState(false);
 
-    // ... existing handlers ...
-
     const handleScan = (data: string) => {
         if (onScan) onScan(data);
         setScannerVisible(false);
@@ -88,30 +84,30 @@ export function SearchFilterHeader({
         <View style={styles.container}>
             <View style={styles.searchRow}>
                 <View style={styles.searchBar}>
-                    <FontAwesome name="search" size={16} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
+                    <FontAwesome name="search" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                         style={styles.input}
                         placeholder={placeholder}
                         value={searchText}
                         onChangeText={handleSearchChange}
-                        placeholderTextColor={Colors.light.textSecondary}
+                        placeholderTextColor={colors.textSecondary}
                     />
                     {searchText.length > 0 && (
                         <TouchableOpacity onPress={() => handleSearchChange('')}>
-                            <FontAwesome name="times-circle" size={16} color={Colors.light.textSecondary} />
+                            <FontAwesome name="times-circle" size={16} color={colors.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
 
                 {onScan && (
                     <TouchableOpacity style={styles.filterBtn} onPress={() => setScannerVisible(true)}>
-                        <FontAwesome name="barcode" size={18} color={Colors.light.text} />
+                        <FontAwesome name="barcode" size={18} color={colors.text} />
                     </TouchableOpacity>
                 )}
 
                 {filterGroups.length > 0 && (
                     <TouchableOpacity style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]} onPress={handleOpenFilters}>
-                        <FontAwesome name="filter" size={18} color={activeFilterCount > 0 ? '#fff' : Colors.light.text} />
+                        <FontAwesome name="filter" size={18} color={activeFilterCount > 0 ? '#fff' : colors.text} />
                         {activeFilterCount > 0 && (
                             <View style={styles.badge}>
                                 <Text style={styles.badgeText}>{activeFilterCount}</Text>
@@ -123,17 +119,22 @@ export function SearchFilterHeader({
 
             {/* Filter Modal */}
             <Modal transparent visible={filterModalVisible} animationType="fade" onRequestClose={() => setFilterModalVisible(false)}>
-                {/* ... existing modal content ... */}
                 <View style={styles.modalOverlay}>
                     <TouchableWithoutFeedback onPress={() => setFilterModalVisible(false)}>
                         <View style={styles.modalBackdrop} />
                     </TouchableWithoutFeedback>
 
                     <View style={styles.modalContent}>
+                        <LinearGradient
+                            colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                            style={StyleSheet.absoluteFill}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Filters</Text>
                             <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                                <FontAwesome name="times" size={20} color={Colors.light.textSecondary} />
+                                <FontAwesome name="times" size={20} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -183,11 +184,11 @@ export function SearchFilterHeader({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         paddingHorizontal: Layout.spacing.lg,
         paddingBottom: Layout.spacing.md,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     searchRow: {
         flexDirection: 'row',
@@ -197,41 +198,43 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: (colors.card + 'E0'),
         borderRadius: 8,
         paddingHorizontal: 12,
         height: 44,
+
     },
     input: {
         flex: 1,
         height: '100%',
         fontSize: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     filterBtn: {
         width: 44,
         height: 44,
         borderRadius: 8,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: (colors.card + 'E0'),
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
+
     },
     filterBtnActive: {
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
     },
     badge: {
         position: 'absolute',
         top: -4,
         right: -4,
-        backgroundColor: Colors.light.danger,
+        backgroundColor: colors.danger,
         borderRadius: 10,
         width: 18,
         height: 18,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: Colors.light.background,
+        borderColor: colors.background,
     },
     badgeText: {
         color: '#fff',
@@ -242,7 +245,7 @@ const styles = StyleSheet.create({
     // Modal Styles
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'flex-end',
     },
     modalBackdrop: {
@@ -253,11 +256,12 @@ const styles = StyleSheet.create({
         bottom: 0,
     },
     modalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: 'transparent',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingBottom: 40, // Safe area
         maxHeight: '80%',
+
     },
     modalHeader: {
         flexDirection: 'row',
@@ -265,11 +269,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         borderBottomWidth: 1,
-        borderColor: '#eee',
+        borderColor: colors.border,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
+        color: colors.text,
     },
     modalBody: {
         padding: 20,
@@ -280,7 +285,7 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         marginBottom: 12,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -294,41 +299,44 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#f5f5f5',
-        borderWidth: 1,
-        borderColor: 'transparent',
+        backgroundColor: 'transparent',
+
     },
     optionChipActive: {
-        backgroundColor: '#E6F0FF', // Light primary
-        borderColor: Colors.light.primary,
+        backgroundColor: colors.primary + '20',
+        borderColor: colors.primary,
     },
     optionText: {
         fontSize: 14,
-        color: Colors.light.text,
+        color: colors.text,
     },
     optionTextActive: {
-        color: Colors.light.primary,
+        color: colors.primary,
         fontWeight: '600',
     },
     modalFooter: {
         flexDirection: 'row',
         padding: 20,
         borderTopWidth: 1,
-        borderColor: '#eee',
+        borderColor: colors.border,
         gap: 16,
+        backgroundColor: 'transparent',
     },
     clearBtn: {
         paddingVertical: 12,
         paddingHorizontal: 16,
         justifyContent: 'center',
+        backgroundColor: 'transparent',
+        borderRadius: 8,
+
     },
     clearBtnText: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     applyBtn: {
         flex: 1,
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
         borderRadius: 8,
         paddingVertical: 12,
         justifyContent: 'center',

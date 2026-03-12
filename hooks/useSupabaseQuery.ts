@@ -5,7 +5,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 // --- Sales Hooks ---
 
-export const useSales = (search?: string, filters?: Record<string, string>) => {
+
+// ─── DateRange helper ────────────────────────────────────────────────────────
+function getDateRangeFilter(range?: string): { from?: string; to?: string } {
+    if (!range || range === 'all') return {};
+    const now = new Date();
+    const to = now.toISOString();
+    if (range === 'today') {
+        const from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        return { from, to };
+    }
+    if (range === 'week') {
+        const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        return { from, to };
+    }
+    if (range === 'month') {
+        const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        return { from, to };
+    }
+    return {};
+}
+
+export interface SaleFilters {
+    status?: string;
+    paymentMethod?: string;
+    dateRange?: 'today' | 'week' | 'month' | 'all';
+    dateFrom?: string;
+    dateTo?: string;
+}
+
+export const useSales = (search?: string, filters?: SaleFilters) => {
     const { company, branch } = useAuth();
     return useQuery({
         queryKey: ['sales', company?.id, branch?.id, search, filters],
@@ -13,7 +42,7 @@ export const useSales = (search?: string, filters?: Record<string, string>) => {
             if (!company?.id) return [];
             let query = supabase
                 .from('sales')
-                .select('*, customers(name)')
+                .select('*, customers(name, phone)')
                 .eq('company_id', company.id)
                 .order('created_at', { ascending: false });
 
@@ -21,37 +50,71 @@ export const useSales = (search?: string, filters?: Record<string, string>) => {
                 query = query.eq('branch_id', branch.id);
             }
 
-            // Search by Invoice ID (uuid) or Customer Name
-            if (search) {
-                // Determine if search looks like UUID or Name
-                // Supabase join search is tricky. "customers.name" filtering requires !inner join usually.
-                // For simplicity, we might only search ID or do client side filter if list is small, 
-                // OR try the text search if configured. 
-                // Let's try to search ID if it matches UUID format, else ignore or rely on client side?
-                // Actually, let's try a simple approach: Fetch all (default limit maybe?) and filter client side?
-                // Or better: filter by ID if possible. OR on `id` text cast? 
-                // `id::text` ilike ...
-
-                // Let's assume we search match on ID (invoice number usually)
-                query = query.ilike('id', `%${search}%`);
+            if (search && search.trim()) {
+                // Cast id (UUID) to text for ilike search
+                query = query.filter('id', 'ilike', `%${search}%`);
             }
 
             if (filters?.status) {
                 query = query.eq('status', filters.status);
             }
 
-            // Date filtering?
-            // if (filters?.dateRange) ...
+            if (filters?.paymentMethod && filters.paymentMethod !== 'all') {
+                query = query.eq('type', filters.paymentMethod);
+            }
+
+            // Date range
+            const { from, to } = filters?.dateRange
+                ? getDateRangeFilter(filters.dateRange)
+                : { from: filters?.dateFrom, to: filters?.dateTo };
+
+            if (from) query = query.gte('created_at', from);
+            if (to) query = query.lte('created_at', to);
 
             const { data, error } = await query;
             if (error) throw error;
 
-            // Client side filter for customer name if needed, as join filter is harder
-            // if (search && !isUUID(search)) { return data.filter(...) }
+            const mappedData = (data || []).map((s: any) => ({
+                ...s,
+                payment_method: s.type || 'cash', // Default fallback
+            }));
 
-            return data;
+            // Client-side filter for customer name / phone if search doesn't look like uuid fragment
+            if (search && search.trim() && !search.includes('-')) {
+                const lower = search.toLowerCase();
+                return mappedData.filter(
+                    (s: any) =>
+                        s.id?.toLowerCase().includes(lower) ||
+                        s.customers?.name?.toLowerCase().includes(lower) ||
+                        s.customers?.phone?.toLowerCase().includes(lower)
+                );
+            }
+
+            return mappedData;
         },
         enabled: !!company?.id,
+    });
+};
+
+// ─── Sale Detail (sale + items + payments) ────────────────────────────────────
+export const useSaleDetail = (saleId: string | null) => {
+    return useQuery({
+        queryKey: ['sale_detail', saleId],
+        queryFn: async () => {
+            if (!saleId) return null;
+            const [saleRes, itemsRes, paymentsRes] = await Promise.all([
+                supabase.from('sales').select('*, customers(name, phone)').eq('id', saleId).single(),
+                supabase.from('sale_items').select('*').eq('sale_id', saleId),
+                supabase.from('payments').select('*').eq('sale_id', saleId),
+            ]);
+            if (saleRes.error) throw saleRes.error;
+            return {
+                sale: { ...saleRes.data, payment_method: saleRes.data.type }, // Map 'type' to 'payment_method'
+                items: itemsRes.data || [],
+                payments: paymentsRes.data || [],
+            };
+        },
+        enabled: !!saleId,
     });
 };
 
@@ -119,7 +182,7 @@ export const useProcessReturn = () => {
 
 // --- Customers Hooks ---
 
-export const useCustomers = (search?: string, filters?: Record<string, string>) => {
+export const useCustomers = (search?: string, filters?: any) => {
     const { company } = useAuth();
     return useQuery({
         queryKey: ['customers', company?.id, search, filters],
@@ -127,7 +190,7 @@ export const useCustomers = (search?: string, filters?: Record<string, string>) 
             if (!company?.id) return [];
             let query = supabase
                 .from('customers')
-                .select('*')
+                .select('*, sales!sales_customer_id_fkey(count)')
                 .eq('company_id', company.id)
                 .order('name');
 
@@ -141,8 +204,24 @@ export const useCustomers = (search?: string, filters?: Record<string, string>) 
                 query = query.gt('current_balance', 0);
             }
 
-            // Check if schema has status, if not we skip for now or inferred
-            // Assuming no status column on customers yet based on earlier files, so skipping explicit status filter unless added
+            if (filters?.customer_type && filters.customer_type !== 'all') {
+                query = query.eq('customer_type', filters.customer_type);
+            }
+
+            if (filters?.status && filters.status !== 'all') {
+                query = query.eq('status', filters.status);
+            }
+
+            // Branch filter: customers who have made purchases in a specific branch
+            if (filters?.branch_id && filters.branch_id !== 'all') {
+                // This requires a subquery or join. Since Supabase doesn't support easy subqueries in .select() for filtering,
+                // we can use a join with sales if we want to be strict, or just filter on the client side if data is small.
+                // However, a better way is to use .rpc or a view if it gets complex.
+                // For now, let's assume branch filtering is for sales history in the profile, 
+                // but if we want it in the list, we might need a more complex query.
+                // Let's stick to the simplest join/filter if possible.
+                // query = query.filter('sales.branch_id', 'eq', filters.branch_id); // This won't work without inner join
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -193,6 +272,96 @@ export const useUpdateCustomer = () => {
     });
 };
 
+export const useCustomerDetail = (customerId: string) => {
+    const { company } = useAuth();
+    return useQuery({
+        queryKey: ['customer', customerId],
+        queryFn: async () => {
+            if (!company?.id || !customerId) return null;
+
+            // Fetch customer
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('id', customerId)
+                .single();
+            if (error) throw error;
+
+            // Fetch total sales count and sum
+            const { data: salesData, error: salesError } = await supabase
+                .from('sales')
+                .select('total_amount')
+                .eq('customer_id', customerId);
+
+            if (salesError) throw salesError;
+
+            const ordersCount = salesData?.length || 0;
+            const totalPurchases = salesData?.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0) || 0;
+
+            return {
+                ...data,
+                ordersCount,
+                totalPurchases
+            };
+        },
+        enabled: !!company?.id && !!customerId,
+    });
+};
+
+export const useCustomerHistory = (customerId: string, branchId?: string) => {
+    const { company } = useAuth();
+    return useQuery({
+        queryKey: ['customer_history', customerId, branchId],
+        queryFn: async () => {
+            if (!company?.id || !customerId) return { sales: [], payments: [] };
+
+            let salesQuery = supabase
+                .from('sales')
+                .select('*, branches(name)')
+                .eq('customer_id', customerId)
+                .order('created_at', { ascending: false });
+
+            if (branchId && branchId !== 'all') {
+                salesQuery = salesQuery.eq('branch_id', branchId);
+            }
+
+            const [salesRes, paymentsRes] = await Promise.all([
+                salesQuery,
+                supabase
+                    .from('payments')
+                    .select('*, profiles(full_name)')
+                    .eq('customer_id', customerId)
+                    .order('created_at', { ascending: false })
+            ]);
+
+            return {
+                sales: salesRes.data || [],
+                payments: paymentsRes.data || []
+            };
+        },
+        enabled: !!company?.id && !!customerId,
+    });
+};
+
+export const useUpdateCustomerNotes = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+            const { data, error } = await supabase
+                .from('customers')
+                .update({ notes })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['customer', variables.id] });
+        },
+    });
+};
+
 // --- Dashboard Hooks ---
 
 export const useDashboardData = () => {
@@ -203,54 +372,211 @@ export const useDashboardData = () => {
         queryFn: async () => {
             if (!company?.id) throw new Error('No company ID');
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
 
-            const [salesReq, finReq, expensesReq] = await Promise.all([
-                supabase.rpc('get_daily_sales', { start_date: today, end_date: today, p_branch_id: branch?.id }),
-                supabase.rpc('get_financial_summary', { p_branch_id: branch?.id }),
-                supabase
-                    .from('expenses')
-                    .select('amount')
-                    .eq('company_id', company.id)
-                    // Filter expenses by branch if selected
-                    .eq('branch_id', branch?.id) // Assuming branch_id column exists now
-                    .gte('date', `${today}T00:00:00.000Z`)
-                    .lte('date', `${today}T23:59:59.999Z`)
+            // Yesterday
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            // 7 days ago
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+            // 30 days ago
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+            const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+            // First of current month
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthStartStr = monthStart.toISOString().split('T')[0];
+
+            // ─── Parallel fetch all data ───
+            const [
+                todaySalesReq,
+                yesterdaySalesReq,
+                weekSalesReq,
+                monthSalesReq,
+                finReq,
+                valuationReq,
+                expensesTodayReq,
+                customerStatsReq,
+                expensesMonthReq
+            ] = await Promise.all([
+                supabase.rpc('get_daily_sales', { p_company_id: company.id, start_date: todayStr, end_date: todayStr, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_daily_sales', { p_company_id: company.id, start_date: yesterdayStr, end_date: yesterdayStr, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_daily_sales', { p_company_id: company.id, start_date: sevenDaysAgoStr, end_date: todayStr, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_daily_sales', { p_company_id: company.id, start_date: monthStartStr, end_date: todayStr, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_financial_summary', { p_company_id: company.id, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_stock_valuation', { p_company_id: company.id, p_branch_id: branch?.id || null }),
+                // Today Expenses
+                (() => {
+                    let q = supabase
+                        .from('expenses')
+                        .select('amount')
+                        .eq('company_id', company.id)
+                        .gte('date', `${todayStr}T00:00:00.000Z`)
+                        .lte('date', `${todayStr}T23:59:59.999Z`);
+                    if (branch?.id) q = q.eq('branch_id', branch.id);
+                    return q;
+                })(),
+                supabase.rpc('get_customer_metrics', { p_company_id: company.id }),
+                // Month Expenses & Categories
+                (() => {
+                    let q = supabase
+                        .from('expenses')
+                        .select('amount, category_id, expense_categories(name)')
+                        .eq('company_id', company.id)
+                        .gte('date', `${monthStartStr}T00:00:00.000Z`);
+                    if (branch?.id) q = q.eq('branch_id', branch.id);
+                    return q;
+                })()
             ]);
 
-            // Fetch Low Stock separately to handle join mapping
-            const { data: lowStockData, error: lowStockError } = await supabase
+            // ─── Low Stock (stock < 10) ───
+            let lowStockQuery = supabase
                 .from('products')
-                .select('id, name, primary_sku, branch_products!inner(stock)')
+                .select('id, name, primary_sku, min_stock, branch_products!inner(stock)')
                 .eq('company_id', company.id)
-                .eq('branch_products.branch_id', branch?.id)
                 .lt('branch_products.stock', 10)
-                .limit(5);
-
-            if (lowStockError) throw lowStockError;
+                .order('name')
+                .limit(10);
+            if (branch?.id) lowStockQuery = lowStockQuery.eq('branch_products.branch_id', branch.id);
+            const { data: lowStockData } = await lowStockQuery;
 
             const lowStockItems = lowStockData?.map((p: any) => ({
                 ...p,
-                stock: p.branch_products?.[0]?.stock ?? 0
+                stock: p.branch_products?.[0]?.stock ?? 0,
+                min_stock: p.min_stock ?? 5,
             })) || [];
 
-            if (salesReq.error) throw salesReq.error;
-            if (finReq.error) throw finReq.error;
+            // ─── Out of Stock count ───
+            let outOfStockQuery = supabase
+                .from('branch_products')
+                .select('*', { count: 'exact', head: true })
+                .lte('stock', 0);
+            if (branch?.id) outOfStockQuery = outOfStockQuery.eq('branch_id', branch.id);
+            const { count: outOfStockCount } = await outOfStockQuery;
 
-            const todayStats = salesReq.data && salesReq.data.length > 0 ? salesReq.data[0] : { total_sales: 0, total_profit: 0 };
-            const financials = finReq.data && finReq.data.length > 0 ? finReq.data[0] : { total_receivables: 0 };
+            // ─── Top Credit Customers ───
+            const { data: creditCustomers } = await supabase
+                .from('customers')
+                .select('id, name, phone, current_balance')
+                .eq('company_id', company.id)
+                .gt('current_balance', 0)
+                .order('current_balance', { ascending: false })
+                .limit(3);
 
-            // Calculate today's expenses
-            const todayExpenses = expensesReq.data?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0;
+            let recentSalesQuery = supabase
+                .from('sales')
+                .select('id, total_amount, type, status, created_at, customers(name)')
+                .eq('company_id', company.id)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (branch?.id) recentSalesQuery = recentSalesQuery.eq('branch_id', branch.id);
+            const { data: recentSales } = await recentSalesQuery;
+
+            // ─── Top Selling Products Today ───
+            let topProductsQuery = supabase
+                .from('sales')
+                .select('sale_items(product_id, product_name, quantity, total_price)')
+                .eq('company_id', company.id)
+                .gte('created_at', `${todayStr}T00:00:00.000Z`)
+                .lte('created_at', `${todayStr}T23:59:59.999Z`);
+            if (branch?.id) topProductsQuery = topProductsQuery.eq('branch_id', branch.id);
+            const { data: todaySalesWithItems } = await topProductsQuery;
+
+            const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+            todaySalesWithItems?.forEach((sale: any) => {
+                sale.sale_items?.forEach((item: any) => {
+                    const key = item.product_id;
+                    const existing = productMap.get(key) || { name: item.product_name || 'Unknown', quantity: 0, revenue: 0 };
+                    productMap.set(key, {
+                        name: existing.name,
+                        quantity: existing.quantity + (item.quantity || 0),
+                        revenue: existing.revenue + (item.total_price || 0),
+                    });
+                });
+            });
+            const topSellingProducts = Array.from(productMap.entries())
+                .map(([id, data]) => ({ id, ...data }))
+                .sort((a, b) => b.revenue - a.revenue)
+                .slice(0, 5);
+
+            // ─── Parse results ───
+            const todayStats = todaySalesReq.data?.[0] || { total_sales: 0, total_profit: 0 };
+            const yesterdayStats = yesterdaySalesReq.data?.[0] || { total_sales: 0, total_profit: 0 };
+            const financials = finReq.data?.[0] || { total_receivables: 0, total_payables: 0 };
+            const valuation = valuationReq.data?.[0] || { total_value: 0 };
+            const todayExpenses = expensesTodayReq.data?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const monthExpensesList = expensesMonthReq.data || [];
+            const monthExpenses = monthExpensesList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const custMetrics = customerStatsReq.data?.[0] || { total_customers: 0, with_balance: 0, new_this_month: 0 };
+
+            // Find top expense category
+            const categorySums: Record<string, number> = {};
+            monthExpensesList.forEach((e: any) => {
+                const name = e.expense_categories?.name || 'Uncategorized';
+                categorySums[name] = (categorySums[name] || 0) + Number(e.amount);
+            });
+            const topExpenseCategory = Object.entries(categorySums).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+
+            // Monthly totals
+            const monthSales = monthSalesReq.data?.reduce((sum: number, d: any) => sum + (d.total_sales || 0), 0) || 0;
+
+            // Sales trend data for charts
+            const salesTrend7d = (weekSalesReq.data || []).map((d: any) => ({
+                label: new Date(d.sale_date).toLocaleDateString('en', { weekday: 'short' }),
+                value: d.total_sales || 0,
+                profit: d.total_profit || 0,
+            }));
+
+            const salesTrend30d = (monthSalesReq.data || []).map((d: any) => ({
+                label: new Date(d.sale_date).toLocaleDateString('en', { day: 'numeric' }),
+                value: d.total_sales || 0,
+                profit: d.total_profit || 0,
+            }));
+
+            // Percentage changes
+            const salesChange = yesterdayStats.total_sales > 0
+                ? ((todayStats.total_sales - yesterdayStats.total_sales) / yesterdayStats.total_sales) * 100
+                : 0;
+            const profitChange = yesterdayStats.total_profit > 0
+                ? (((todayStats.total_profit - todayExpenses) - yesterdayStats.total_profit) / yesterdayStats.total_profit) * 100
+                : 0;
 
             return {
                 stats: {
                     todaySales: todayStats.total_sales,
-                    todayProfit: todayStats.total_profit - todayExpenses, // Net Profit = Gross Profit - Expenses
+                    todayProfit: todayStats.total_profit - todayExpenses,
+                    todayExpenses,
+                    monthSales,
+                    monthExpenses,
+                    topExpenseCategory,
                     lowStockCount: lowStockItems.length,
-                    creditDue: financials.total_receivables
+                    outOfStockCount: outOfStockCount || 0,
+                    creditDue: financials.total_receivables,
+                    totalPayables: financials.total_payables || 0,
+                    inventoryValue: valuation.total_value || 0,
+                    salesChange: Math.round(salesChange),
+                    profitChange: Math.round(profitChange),
+                    totalCustomers: custMetrics.total_customers,
+                    customersWithBalanceCount: custMetrics.with_balance,
+                    newCustomersMonth: custMetrics.new_this_month,
                 },
-                lowStockItems: lowStockItems
+                lowStockItems,
+                salesTrend7d,
+                salesTrend30d,
+                creditCustomers: creditCustomers || [],
+                recentSales: (recentSales || []).map((s: any) => ({
+                    ...s,
+                    payment_method: s.type,
+                    customerName: s.customers?.name || 'Walk-in',
+                })),
+                topSellingProducts,
             };
         },
         enabled: !!company?.id,
@@ -271,12 +597,13 @@ export const useReportsData = () => {
             start.setDate(end.getDate() - 7);
 
             const [finReq, valReq, salesReq] = await Promise.all([
-                supabase.rpc('get_financial_summary', { p_branch_id: branch?.id }),
-                supabase.rpc('get_stock_valuation', { p_branch_id: branch?.id }),
+                supabase.rpc('get_financial_summary', { p_company_id: company.id, p_branch_id: branch?.id || null }),
+                supabase.rpc('get_stock_valuation', { p_company_id: company.id, p_branch_id: branch?.id || null }),
                 supabase.rpc('get_daily_sales', {
+                    p_company_id: company.id,
                     start_date: start.toISOString().split('T')[0],
                     end_date: end.toISOString().split('T')[0],
-                    p_branch_id: branch?.id
+                    p_branch_id: branch?.id || null
                 })
             ]);
 
@@ -300,7 +627,7 @@ export const useAddProduct = () => {
     const queryClient = useQueryClient();
     const { company } = useAuth();
     return useMutation({
-        mutationFn: async ({ productData, variants, isVariable }: any) => {
+        mutationFn: async ({ productData, variants, isVariable, minStockLevel }: any) => {
             if (!company?.id) throw new Error('No company ID');
 
             // 1. Insert Product
@@ -327,11 +654,33 @@ export const useAddProduct = () => {
                 if (varError) throw varError;
             }
 
+            // 3. Auto-create branch_products with stock=0 for all active branches
+            const { data: branches } = await supabase
+                .from('branches')
+                .select('id')
+                .eq('company_id', company.id)
+                .eq('status', 'active');
+
+            if (branches && branches.length > 0) {
+                const branchProducts = branches.map((b: any) => ({
+                    product_id: product.id,
+                    branch_id: b.id,
+                    stock: 0,
+                    min_stock_level: minStockLevel || 0,
+                }));
+
+                const { error: bpError } = await supabase
+                    .from('branch_products')
+                    .insert(branchProducts);
+
+                if (bpError) console.warn('Failed to create branch_products:', bpError);
+            }
+
             return product;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // Critical for Low Stock
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             queryClient.invalidateQueries({ queryKey: ['reports'] });
             queryClient.refetchQueries({ queryKey: ['dashboard'] });
         },

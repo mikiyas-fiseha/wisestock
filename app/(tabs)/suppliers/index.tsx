@@ -1,15 +1,21 @@
 
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
-import { Colors } from '@/constants/Colors';
+
+import { useTheme } from '@/context/ThemeContext';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SuppliersScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { suppliers, isLoading, error, isDeleting } = useSuppliers();
+    const headerTopPadding = 16;
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredSuppliers = suppliers?.filter(s =>
@@ -23,17 +29,18 @@ export default function SuppliersScreen() {
 
     if (isLoading && !suppliers) {
         return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+            <View style={styles.center}><LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <ResponsiveContainer>
                 {/* Header Section */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: headerTopPadding }]}>
                     <Text style={styles.title}>Suppliers</Text>
                     <TouchableOpacity
                         style={styles.addButton}
@@ -46,39 +53,44 @@ export default function SuppliersScreen() {
 
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
-                    <FontAwesome name="search" size={20} color="#999" style={styles.searchIcon} />
+                    <FontAwesome name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search suppliers..."
+                        placeholder="Search by name or contact..."
+                        placeholderTextColor={colors.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                 </View>
 
-                {/* List */}
                 <FlatList
                     data={filteredSuppliers}
-                    keyExtractor={item => item.id}
+                    keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
-                    refreshControl={<RefreshControl refreshing={isLoading} />}
+                    refreshControl={
+                        <RefreshControl refreshing={isLoading} onRefresh={() => {}} />
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <FontAwesome name="truck" size={48} color="#ccc" />
-                            <Text style={styles.emptyText}>No suppliers found.</Text>
-                            <Text style={styles.emptySubText}>Add your first supplier to track purchases.</Text>
+                            <FontAwesome name="truck" size={60} color={colors.textSecondary} />
+                            <Text style={styles.emptyText}>No suppliers found</Text>
+                            <Text style={styles.emptySubText}>Add your first supplier to start tracking purchases.</Text>
                         </View>
                     }
                     renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.card} onPress={() => handlePress(item.id)}>
+                        <TouchableOpacity
+                            style={styles.card}
+                            onPress={() => router.push(`/(tabs)/suppliers/${item.id}`)}
+                        >
                             <View style={styles.cardHeader}>
                                 <Text style={styles.cardTitle}>{item.name}</Text>
                                 <View style={[
                                     styles.balanceBadge,
-                                    { backgroundColor: (item.current_balance || 0) > 0 ? '#FFE6E6' : '#E6FFFA' }
+                                    { backgroundColor: (item.current_balance || 0) > 0 ? colors.danger + '20' : colors.success + '20' }
                                 ]}>
                                     <Text style={[
                                         styles.balanceText,
-                                        { color: (item.current_balance || 0) > 0 ? '#C53030' : '#276749' }
+                                        { color: (item.current_balance || 0) > 0 ? colors.danger : colors.success }
                                     ]}>
                                         {(item.current_balance || 0) > 0 ? `Owe: $${item.current_balance?.toFixed(2)}` : 'Paid'}
                                     </Text>
@@ -107,10 +119,10 @@ export default function SuppliersScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     center: {
         flex: 1,
@@ -122,19 +134,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 60,
+        paddingTop: 24,
         paddingBottom: 20,
-        backgroundColor: '#fff',
+        backgroundColor: 'transparent',
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
     },
     addButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 25,
@@ -148,14 +160,13 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         marginHorizontal: 20,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 12,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#eee',
+
     },
     searchIcon: {
         marginRight: 10,
@@ -163,24 +174,23 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     listContent: {
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 16,
+
         padding: 16,
         marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 2,
-        borderWidth: 1,
-        borderColor: '#f0f0f0',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -191,7 +201,7 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: colors.text,
     },
     balanceBadge: {
         paddingHorizontal: 8,
@@ -215,7 +225,7 @@ const styles = StyleSheet.create({
         width: 16,
     },
     detailText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontSize: 14,
     },
     emptyState: {
@@ -225,7 +235,7 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         marginTop: 16,
     },
     emptySubText: {

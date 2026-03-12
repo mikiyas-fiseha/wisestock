@@ -1,12 +1,13 @@
 
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface SubscriptionGuardProps {
     children: React.ReactNode;
@@ -15,6 +16,8 @@ interface SubscriptionGuardProps {
 type SubStatus = 'active' | 'on_trial' | 'expired' | 'pending_approval' | 'pending_payment' | 'cancelled' | null;
 
 export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company, isLoading: authLoading, isSuperAdmin } = useAuth();
     const router = useRouter();
     const segments = useSegments();
@@ -63,7 +66,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     if (authLoading || loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -80,7 +83,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     if (status === 'pending_approval') {
         return (
             <View style={styles.center}>
-                <FontAwesome name="clock-o" size={60} color={Colors.light.warning} style={{ marginBottom: 20 }} />
+                <FontAwesome name="clock-o" size={60} color={colors.warning} style={{ marginBottom: 20 }} />
                 <Text style={styles.text}>Approval Pending</Text>
                 <Text style={styles.subText}>Your subscription is waiting for Super Admin approval. You will receive an email once your account is active.</Text>
                 <AppButton
@@ -96,7 +99,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     // Expired, null (no sub), or other blocking states
     return (
         <View style={styles.center}>
-            <FontAwesome name="ban" size={60} color={Colors.light.danger} style={{ marginBottom: 20 }} />
+            <FontAwesome name="ban" size={60} color={colors.danger} style={{ marginBottom: 20 }} />
             <Text style={styles.text}>
                 {status === 'expired' ? 'Subscription Expired' : 'No Active Subscription'}
             </Text>
@@ -122,24 +125,24 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
         padding: 30,
     },
     text: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 10,
         textAlign: 'center',
     },
     subText: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: 30,
         lineHeight: 24,

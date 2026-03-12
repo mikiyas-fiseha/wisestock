@@ -3,15 +3,20 @@ import { RecordPaymentModal } from '@/components/suppliers/RecordPaymentModal';
 import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
-import { Colors } from '@/constants/Colors';
+
+import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Gradients } from '@/constants/Colors';
+
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function SupplierDetailsScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const { getSupplier, recordPayment, isRecordingPayment, getPayments } = useSuppliers();
@@ -48,7 +53,7 @@ export default function SupplierDetailsScreen() {
     if (loadingSupplier) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -61,8 +66,10 @@ export default function SupplierDetailsScreen() {
         );
     }
 
+
     return (
         <View style={styles.container}>
+
             <ResponsiveContainer>
                 <ScrollView contentContainerStyle={styles.content}>
                     {/* Header */}
@@ -74,11 +81,11 @@ export default function SupplierDetailsScreen() {
                         <View style={{ alignItems: 'flex-end' }}>
                             <View style={[
                                 styles.balanceBadge,
-                                { backgroundColor: (supplier.current_balance || 0) > 0 ? '#FFE6E6' : '#E6FFFA' }
+                                { backgroundColor: (supplier.current_balance || 0) > 0 ? `${colors.danger}15` : `${colors.success}15` }
                             ]}>
                                 <Text style={[
                                     styles.balanceText,
-                                    { color: (supplier.current_balance || 0) > 0 ? '#C53030' : '#276749' }
+                                    { color: (supplier.current_balance || 0) > 0 ? colors.danger : colors.success }
                                 ]}>
                                     Balance: ${(supplier.current_balance || 0).toFixed(2)}
                                 </Text>
@@ -99,19 +106,19 @@ export default function SupplierDetailsScreen() {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Contact Information</Text>
                         <View style={styles.infoRow}>
-                            <FontAwesome name="envelope" size={16} color="#666" style={styles.icon} />
+                            <FontAwesome name="envelope" size={16} color={colors.textSecondary} style={styles.icon} />
                             <Text style={styles.infoText}>{supplier.email || 'N/A'}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <FontAwesome name="phone" size={16} color="#666" style={styles.icon} />
+                            <FontAwesome name="phone" size={16} color={colors.textSecondary} style={styles.icon} />
                             <Text style={styles.infoText}>{supplier.phone || 'N/A'}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <FontAwesome name="map-marker" size={16} color="#666" style={styles.icon} />
+                            <FontAwesome name="map-marker" size={16} color={colors.textSecondary} style={styles.icon} />
                             <Text style={styles.infoText}>{supplier.address || 'N/A'}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <FontAwesome name="building" size={16} color="#666" style={styles.icon} />
+                            <FontAwesome name="building" size={16} color={colors.textSecondary} style={styles.icon} />
                             <Text style={styles.infoText}>Tax ID: {supplier.tax_id || 'N/A'}</Text>
                         </View>
                     </View>
@@ -126,7 +133,7 @@ export default function SupplierDetailsScreen() {
                             <Text style={styles.emptyText}>No purchases recorded yet.</Text>
                             <AppButton
                                 title="Restock Items"
-                                onPress={() => router.push({ pathname: '/(tabs)/purchases/new', params: { supplierId: supplier.id } })}
+                                onPress={() => router.push({ pathname: '/(tabs)/purchases/add', params: { supplierId: supplier.id } })}
                                 style={{ marginTop: 16 }}
                             />
                         </View>
@@ -138,7 +145,7 @@ export default function SupplierDetailsScreen() {
                                         <Text style={styles.historyDate}>{new Date(purchase.purchase_date!).toLocaleDateString()}</Text>
                                         <Text style={[
                                             styles.statusBadge,
-                                            { color: purchase.payment_status === 'paid' ? 'green' : (purchase.payment_status === 'partial' ? 'orange' : 'red') }
+                                            { color: purchase.payment_status === 'paid' ? colors.success : (purchase.payment_status === 'partial' ? colors.warning : colors.danger) }
                                         ]}>
                                             {purchase.payment_status?.toUpperCase()}
                                         </Text>
@@ -150,7 +157,7 @@ export default function SupplierDetailsScreen() {
                                 </View>
                             ))}
                             {supplierPurchases.length > 5 && (
-                                <AppButton title="View All Purchases" onPress={() => { }} variant="ghost" />
+                                <AppButton title="View All Purchases" onPress={() => { }} variant="outline" />
                             )}
                         </View>
                     )}
@@ -197,10 +204,10 @@ export default function SupplierDetailsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     center: {
         flex: 1,
@@ -220,12 +227,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
         maxWidth: '60%',
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     balanceBadge: {
         paddingHorizontal: 12,
@@ -237,21 +244,22 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 2,
+
     },
     cardTitle: {
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     infoRow: {
         flexDirection: 'row',
@@ -264,54 +272,55 @@ const styles = StyleSheet.create({
     },
     infoText: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     sectionTitle: {
         fontSize: 20,
         fontWeight: '700',
         marginBottom: 16,
-        color: Colors.light.text,
+        color: colors.text,
     },
     subSectionTitle: {
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
-        color: Colors.light.text,
+        color: colors.text,
     },
     emptyState: {
         padding: 40,
         alignItems: 'center',
-        backgroundColor: '#f9f9f9', // Light gray background for empty state
+        backgroundColor: colors.card + 'E0',
         borderRadius: 16,
+
     },
     emptyText: {
-        color: '#999',
+        color: colors.textSecondary,
         fontStyle: 'italic',
         marginBottom: 12,
     },
     historyCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        borderLeftColor: Colors.light.primary,
+        borderLeftColor: colors.primary,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 1,
     },
     paymentCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        borderLeftColor: Colors.light.secondary, // Different color for payments
+        borderLeftColor: colors.secondary, // Different color for payments
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 1,
     },
@@ -322,7 +331,7 @@ const styles = StyleSheet.create({
     },
     historyDate: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     statusBadge: {
         fontWeight: '700',
@@ -336,33 +345,33 @@ const styles = StyleSheet.create({
     historyInv: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: colors.text,
     },
     historyAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: colors.text,
     },
     historyFooter: {
         alignItems: 'flex-end',
     },
     historyPaid: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     paymentMethod: {
         fontSize: 12,
         fontWeight: '600',
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     paymentNote: {
         fontSize: 14,
-        color: Colors.light.text,
+        color: colors.text,
         fontStyle: 'italic',
     },
     paymentAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: Colors.light.success, // Green for payments made (good thing)
+        color: colors.success, // Green for payments made (good thing)
     }
 });

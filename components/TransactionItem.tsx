@@ -1,6 +1,7 @@
-import { Colors } from '@/constants/Colors';
+
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface TransactionItemProps {
     date: string;
@@ -10,6 +11,8 @@ interface TransactionItemProps {
 }
 
 export const TransactionItem = ({ date, type, amount, description }: TransactionItemProps) => {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const isCredit = type === 'sale' || type === 'adjustment-plus'; // Increases debt
     // Wait, if I sell on credit, balance increases (Positive outcome for us? No, positive balance means they OWE us).
     // Ledger: Debit (They pay us) vs Credit (We sell to them).
@@ -39,7 +42,7 @@ export const TransactionItem = ({ date, type, amount, description }: Transaction
             <View style={styles.right}>
                 <Text style={[
                     styles.amount,
-                    isNegative ? { color: Colors.light.success } : { color: Colors.light.text }
+                    isNegative ? { color: colors.success } : { color: colors.text }
                 ]}>
                     {amount > 0 ? '+' : ''}{amount.toFixed(2)}
                 </Text>
@@ -49,7 +52,7 @@ export const TransactionItem = ({ date, type, amount, description }: Transaction
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flexDirection: 'row',
         justifyContent: 'space-between',

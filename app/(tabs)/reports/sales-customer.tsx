@@ -13,7 +13,7 @@ export default function SalesCustomerReport() {
     });
 
     const { data, isLoading } = useAdvancedReports(range);
-    const topCustomers = data?.sales?.topCustomers || [];
+    const topCustomers: any[] = data?.customers?.top || [];
 
     // Columns
     const columns: ReportColumn[] = [

@@ -1,23 +1,30 @@
 
-import { Colors } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
 interface AppTextInputProps extends TextInputProps {
     label?: string;
     error?: string;
     prefix?: string;
+    icon?: keyof typeof FontAwesome.glyphMap;
 }
 
-export function AppTextInput({ label, error, style, prefix, ...props }: AppTextInputProps) {
+export function AppTextInput({ label, error, style, prefix, icon, ...props }: AppTextInputProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
         <View style={styles.container}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={[styles.inputContainer, error ? styles.inputError : null]}>
+                {icon && (
+                    <FontAwesome name={icon} size={16} color={colors.primary} style={styles.icon} />
+                )}
                 {prefix && <Text style={styles.prefix}>{prefix}</Text>}
                 <TextInput
                     style={[styles.input, style]}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={colors.textSecondary}
                     {...props}
                 />
             </View>
@@ -26,7 +33,7 @@ export function AppTextInput({ label, error, style, prefix, ...props }: AppTextI
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         marginBottom: 16,
         width: '100%',
@@ -35,35 +42,39 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         marginBottom: 6,
-        color: Colors.light.text,
+        color: colors.text,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: 'rgba(255,255,255,0.05)',
         borderWidth: 1,
-        borderColor: Colors.light.border,
+        borderColor: colors.background === '#09090B' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
         borderRadius: 8,
-        paddingHorizontal: 12,
         height: 48,
         overflow: 'hidden',
     },
     input: {
         flex: 1,
         fontSize: 16,
-        color: Colors.light.text,
+        color: colors.text,
         height: '100%',
+        ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    icon: {
+        marginRight: 10,
+        marginLeft: 12,
     },
     prefix: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         marginRight: 4,
     },
     inputError: {
-        borderColor: Colors.light.danger,
+        borderColor: colors.danger,
     },
     errorText: {
-        color: Colors.light.danger,
+        color: colors.danger,
         fontSize: 12,
         marginTop: 4,
     },

@@ -1,37 +1,41 @@
-
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors, Gradients, Layout } from '@/constants/Colors';
+import { Gradients, Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
+    const { theme, systemTheme, colors, setTheme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { user, company, logout, isSuperAdmin } = useAuth();
+    const headerTopPadding = 16;
 
     const renderSettingItem = (title: string, subtitle: string, icon: string, onPress: () => void, rightElement?: React.ReactNode) => (
         <TouchableOpacity style={styles.settingItem} onPress={onPress} activeOpacity={0.7}>
             <View style={[styles.iconContainer]}>
-                <FontAwesome name={icon as any} size={20} color={Colors.light.primary} />
+                <FontAwesome name={icon as any} size={20} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>{title}</Text>
                 {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
             </View>
-            {rightElement || <FontAwesome name="chevron-right" size={14} color="#C7C7CC" />}
+            {rightElement || <FontAwesome name="chevron-right" size={14} color={colors.textSecondary} />}
         </TouchableOpacity>
     );
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <LinearGradient
-                colors={['#1e3c72', '#2a5298']}
+                colors={theme === 'dark' ? ['#0f172a', '#1e293b'] : ['#1e3c72', '#2a5298']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.header}
+                style={[styles.header, { paddingTop: headerTopPadding }]}
             >
                 <View style={styles.profileSection}>
                     <View style={styles.avatar}>
@@ -49,12 +53,29 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>DISPLAY</Text>
+                    <View style={styles.themeOptions}>
+                        {(['light', 'dark', 'system'] as const).map((mode) => (
+                            <TouchableOpacity
+                                key={mode}
+                                style={[styles.themeOption, systemTheme === mode && styles.themeOptionActive]}
+                                onPress={() => setTheme(mode)}
+                            >
+                                <Text style={[styles.themeOptionText, systemTheme === mode && styles.themeOptionTextActive]}>
+                                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
                 {isSuperAdmin && (
                     <View style={styles.section}>
                         <Text style={styles.sectionHeader}>ADMINISTRATION</Text>
                         <TouchableOpacity
                             style={styles.adminCard}
-                            onPress={() => router.push('/(super-admin)/dashboard')}
+                            onPress={() => router.push('/(super-admin)/superadminDasboarde')}
                         >
                             <LinearGradient
                                 colors={Gradients.primary}
@@ -84,13 +105,13 @@ export default function SettingsScreen() {
                             activeOpacity={0.7}
                         >
                             <View style={styles.companyIcon}>
-                                <FontAwesome name="building" size={24} color="#555" />
+                                <FontAwesome name="building" size={24} color={colors.primary} />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.companyName}>{company?.name || 'My Company'}</Text>
                                 <Text style={styles.companyMeta}>{company?.city ? `${company.city} • ` : ''}{company?.type || 'Business'}</Text>
                             </View>
-                            <FontAwesome name="chevron-right" size={14} color="#C7C7CC" />
+                            <FontAwesome name="chevron-right" size={14} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <View style={styles.separator} />
                         {renderSettingItem('Branches', 'Manage store locations', 'code-fork', () => router.push('/(tabs)/settings/branches'))}
@@ -103,6 +124,13 @@ export default function SettingsScreen() {
                         {renderSettingItem('Categories', 'Manage product categories', 'tags', () => router.push('/(tabs)/settings/categories'))}
                         <View style={styles.separator} />
                         {renderSettingItem('Attributes', 'Custom fields (Size, Color, etc.)', 'list-alt', () => router.push('/(tabs)/settings/attributes'))}
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>FINANCIALS</Text>
+                    <View style={styles.card}>
+                        {renderSettingItem('Expense Categories', 'Manage types of spending', 'money', () => router.push('/(tabs)/settings/expense-categories'))}
                     </View>
                 </View>
 
@@ -130,17 +158,18 @@ export default function SettingsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F7', // iOS grouped background color
+        backgroundColor: 'transparent',
     },
     header: {
-        paddingTop: 60,
+        paddingTop: 24,
         paddingBottom: 30,
         paddingHorizontal: 20,
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
+        ...Layout.shadows.small,
     },
     profileSection: {
         flexDirection: 'row',
@@ -194,28 +223,29 @@ const styles = StyleSheet.create({
     sectionHeader: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#8E8E93',
+        color: colors.textSecondary,
         marginBottom: 8,
         marginLeft: 12,
         letterSpacing: 0.5,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 12,
         overflow: 'hidden',
         ...Layout.shadows.small,
+
     },
     settingItem: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        backgroundColor: '#fff',
+        backgroundColor: colors.card + 'E0',
     },
     iconContainer: {
         width: 32,
         height: 32,
         borderRadius: 8,
-        backgroundColor: '#F0F0F5',
+        backgroundColor: colors.primary + '15',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -226,17 +256,17 @@ const styles = StyleSheet.create({
     settingTitle: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#000',
+        color: colors.text,
     },
     settingSubtitle: {
         fontSize: 12,
-        color: '#8E8E93',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     separator: {
         height: 1,
-        backgroundColor: '#E5E5EA',
-        marginLeft: 64, // Align with text start
+        backgroundColor: colors.border,
+        marginLeft: 64,
     },
     adminCard: {
         borderRadius: 12,
@@ -258,7 +288,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#F0F0F5',
+        backgroundColor: colors.primary + '15',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -266,11 +296,11 @@ const styles = StyleSheet.create({
     companyName: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#000',
+        color: colors.text,
     },
     companyMeta: {
         fontSize: 14,
-        color: '#8E8E93',
+        color: colors.textSecondary,
     },
     logoutButton: {
         marginTop: 8,
@@ -278,7 +308,32 @@ const styles = StyleSheet.create({
     version: {
         textAlign: 'center',
         marginTop: 16,
-        color: '#8E8E93',
+        color: colors.textSecondary,
         fontSize: 12,
+    },
+    themeOptions: {
+        flexDirection: 'row',
+        backgroundColor: colors.card + 'E0',
+        borderRadius: 12,
+        padding: 4,
+
+        ...Layout.shadows.small,
+    },
+    themeOption: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    themeOptionActive: {
+        backgroundColor: colors.primary,
+    },
+    themeOptionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    themeOptionTextActive: {
+        color: '#fff',
     },
 });

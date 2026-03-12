@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import React, { useState } from 'react';
 import { Dimensions, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
@@ -22,8 +22,14 @@ export function ReportChart({
     showYAxisIndices = true,
     yAxisLabelPrefix = '',
     yAxisLabelSuffix = '',
-    color = Colors.light.primary
+    color
 }: ReportChartProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+
+    // Default color if none provided
+    const primaryColor = color || colors.primary;
+
     const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 48);
     const [isLayoutReady, setIsLayoutReady] = useState(false);
 
@@ -36,10 +42,9 @@ export function ReportChart({
     };
 
     // Transform data if needed or ensure it matches Gifted Charts format
-    // Gifted Charts expects: { value: number, label?: string, ... }
     const chartData = data.map(item => ({
         ...item,
-        frontColor: item.frontColor || color,
+        frontColor: item.frontColor || primaryColor,
         // Ensure value is a number
         value: Number(item.value) || 0
     }));
@@ -58,15 +63,15 @@ export function ReportChart({
         initialSpacing: 20,
         spacing: spacing,
         thickness: 4,
-        color: color,
+        color: primaryColor,
         hideDataPoints: false,
-        dataPointsColor: color,
-        textColor: Colors.light.textSecondary,
-        yAxisTextStyle: { color: Colors.light.textSecondary, fontSize: 10 },
-        xAxisLabelTextStyle: { color: Colors.light.textSecondary, fontSize: 10, width: spacing + 10 }, // Prevent overlap
-        rulesColor: '#f0f0f0',
-        yAxisColor: '#f0f0f0',
-        xAxisColor: '#f0f0f0',
+        dataPointsColor: primaryColor,
+        textColor: colors.textSecondary,
+        yAxisTextStyle: { color: colors.textSecondary, fontSize: 10 },
+        xAxisLabelTextStyle: { color: colors.textSecondary, fontSize: 10, width: spacing + 10 },
+        rulesColor: colors.border,
+        yAxisColor: colors.border,
+        xAxisColor: colors.border,
         showYAxisIndices,
         yAxisLabelPrefix,
         yAxisLabelSuffix,
@@ -74,10 +79,10 @@ export function ReportChart({
         animationDuration: 1000,
         pointerConfig: {
             pointerStripUptoDataPoint: true,
-            pointerStripColor: 'lightgray',
+            pointerStripColor: colors.border,
             pointerStripWidth: 2,
             strokeDashArray: [2, 5],
-            pointerColor: 'lightgray',
+            pointerColor: colors.border,
             radius: 4,
             pointerLabelWidth: 100,
             pointerLabelHeight: 120,
@@ -87,13 +92,13 @@ export function ReportChart({
                         style={{
                             height: 100,
                             width: 100,
-                            backgroundColor: '#282C3E',
+                            backgroundColor: (colors.card + 'E0'),
                             borderRadius: 4,
                             justifyContent: 'center',
                             paddingLeft: 16,
                         }}>
-                        <Text style={{ color: 'white', fontSize: 12 }}>{items[0].label}</Text>
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>{yAxisLabelPrefix}{items[0].value}{yAxisLabelSuffix}</Text>
+                        <Text style={{ color: colors.text, fontSize: 12 }}>{items[0].label}</Text>
+                        <Text style={{ color: colors.text, fontWeight: 'bold' }}>{yAxisLabelPrefix}{items[0].value}{yAxisLabelSuffix}</Text>
                     </View>
                 );
             },
@@ -108,9 +113,6 @@ export function ReportChart({
         );
     }
 
-    // While layout is calculating on web, we render a placeholder to effectively 'measure' the container
-    // Or we render with default width but update immediately
-
     return (
         <View style={styles.container} onLayout={onLayout}>
             {isLayoutReady || width ? (
@@ -118,8 +120,8 @@ export function ReportChart({
                     <LineChart
                         {...commonProps}
                         curved
-                        startFillColor={color}
-                        endFillColor={color}
+                        startFillColor={primaryColor}
+                        endFillColor={primaryColor}
                         startOpacity={0.2}
                         endOpacity={0.05}
                         areaChart
@@ -130,7 +132,7 @@ export function ReportChart({
                         barWidth={barWidth}
                         noOfSections={4}
                         barBorderRadius={4}
-                        frontColor={color}
+                        frontColor={primaryColor}
                     />
                 )
             ) : (
@@ -140,26 +142,27 @@ export function ReportChart({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
-        backgroundColor: '#fff',
+        backgroundColor: (colors.card + 'E0'),
         borderRadius: 16,
         padding: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden', // Clip content if needed
+        overflow: 'hidden',
         width: '100%',
         minHeight: 300,
     },
     emptyContainer: {
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f9f9f9',
+        backgroundColor: 'transparent',
         borderRadius: 12,
         width: '100%'
     },
     emptyText: {
-        color: '#999',
+        color: colors.textSecondary,
         fontStyle: 'italic'
     }
 });
+

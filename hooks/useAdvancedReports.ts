@@ -7,426 +7,392 @@ export interface DateRange {
     end: Date;
 }
 
-export const useAdvancedReports = (range: DateRange) => {
-    const { company } = useAuth();
+export const useAdvancedReports = (range: DateRange, branchIdOverride?: string | null) => {
+    const { company, branch: contextBranch, isAdmin, isSuperAdmin } = useAuth();
+
+    // Determine which branch to filter by (Override > Context)
+    // If Admin/SuperAdmin and branch is null, it's consolidated
+    const effectiveBranchId = (branchIdOverride !== undefined) ? branchIdOverride : contextBranch?.id;
+
     const startDate = range.start.toISOString();
     const endDate = range.end.toISOString();
 
     return useQuery({
-        queryKey: ['advanced-reports', company?.id, startDate, endDate],
+        queryKey: ['advanced-reports', company?.id, effectiveBranchId, startDate, endDate],
         queryFn: async () => {
             if (!company?.id) throw new Error('No company ID');
 
-            const startStr = range.start.toISOString().split('T')[0];
-            const endStr = range.end.toISOString().split('T')[0];
-
-            // 1. Fetch Sales & Sale Items for the Range
-            // We need sale items to calculate profit (since cost is often on items)
-            const { data: sales, error: salesError } = await supabase
-                .from('sales')
-                .select(`
-                    *,
-                    sale_items (
-                        *,
-                        product:products(name)
-                    ),
-                    customer:customers(name)
-                `)
-                .eq('company_id', company.id)
-                .gte('created_at', formatStartOfDay(range.start))
-                .lte('created_at', formatEndOfDay(range.end))
-                .order('created_at', { ascending: false });
-
+            // 1. Fetch Current Period Data
+            const { data: sales, error: salesError } = await fetchSales(company.id, effectiveBranchId, range.start, range.end);
             if (salesError) throw salesError;
 
-            // 2. Fetch All Products (For Inventory & Valuation)
-            const { data: products, error: productsError } = await supabase
-                .from('products')
-                .select('*')
-                .eq('company_id', company.id);
+            // 2. Fetch Previous Period Data (for comparison)
+            const prevRange = getPreviousPeriod(range.start, range.end);
+            const { data: prevSales, error: prevSalesError } = await fetchSales(company.id, effectiveBranchId, prevRange.start, prevRange.end);
 
-            if (productsError) throw productsError;
+            // 3. Fetch Expenses
+            const { data: expenses, error: expError } = await fetchExpenses(company.id, effectiveBranchId, range.start, range.end);
+            const { data: prevExpenses } = await fetchExpenses(company.id, effectiveBranchId, prevRange.start, prevRange.end);
 
-            // 3. Fetch Customers (For Financials / Receivables)
-            const { data: customers, error: customersError } = await supabase
-                .from('customers')
+            // 4. Fetch Products with Branch Stock (for Inventory Valuation)
+            let bpQuery = supabase
+                .from('branch_products')
+                .select(`
+                    stock,
+                    branch_id,
+                    product_id,
+                    products!inner(id, name, cost_price, sale_price, category_id, company_id)
+                `)
+                .eq('products.company_id', company.id);
+
+            if (effectiveBranchId) {
+                bpQuery = bpQuery.eq('branch_id', effectiveBranchId);
+            }
+
+            const { data: branchProducts, error: bpError } = await bpQuery;
+            if (bpError) throw bpError;
+
+            // Group by Product ID for the metrics calculation
+            const productStockMap = new Map<string, any>();
+            (branchProducts || []).forEach((bp: any) => {
+                const p = bp.products;
+                if (!p) return;
+
+                if (!productStockMap.has(p.id)) {
+                    productStockMap.set(p.id, {
+                        id: p.id,
+                        name: p.name,
+                        cost_price: Number(p.cost_price || 0),
+                        sale_price: Number(p.sale_price || 0),
+                        stock: 0
+                    });
+                }
+                productStockMap.get(p.id).stock += Number(bp.stock || 0);
+            });
+
+            const products = Array.from(productStockMap.values());
+
+            const { data: inventoryLogs, error: logError } = await supabase.from('stock_movements')
                 .select('*')
                 .eq('company_id', company.id)
-                .gt('current_balance', 0) // Only those who owe money
-                .order('current_balance', { ascending: false });
+                .gte('created_at', formatStartOfDay(range.start))
+                .lte('created_at', formatEndOfDay(range.end));
+            if (logError) throw logError;
 
-            if (customersError) throw customersError;
+            // 5. Fetch Unpaid Invoices (for Receivables Aging)
+            const { data: unpaidInvoices, error: unpaidError } = await supabase.from('sales')
+                .select('*, customers(name), branches(name)')
+                .eq('company_id', company.id)
+                .gt('balance_due', 0)
+                .order('created_at', { ascending: true });
+            if (unpaidError) throw unpaidError;
+
+            // 6. Fetch Customers
+            const { data: customers, error: custError } = await supabase.from('customers').select('*').eq('company_id', company.id);
+            if (custError) throw custError;
+
+            // 7. Fetch Total Payables (from financial summary)
+            const { data: finSummaryData } = await supabase.rpc('get_financial_summary', {
+                p_company_id: company.id,
+                p_branch_id: effectiveBranchId || null,
+            });
+            const totalPayables = Number(finSummaryData?.[0]?.total_payables || 0);
 
             // --- Aggregations ---
 
-            // A. SALES REPORTS
-            // 1. Sales Trend (Dynamic Aggregation)
-            const daysDiff = (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24);
-            let granularity: 'day' | 'week' | 'month' = 'day';
+            // A. SALES SUMMARY & P&L
+            const currentMetrics = calculateMetrics(sales, expenses);
+            const prevMetrics = calculateMetrics(prevSales, prevExpenses);
 
-            if (daysDiff > 60) granularity = 'month'; // Custom Range > 2 Months
-            else if (daysDiff > 25) granularity = 'week'; // Monthly View (approx 30 days)
+            // Sales Trend
+            const trend = calculateTrend(sales, range.start, range.end);
 
-            const salesTrendMap = new Map<string, { date: string; label: string; revenue: number; profit: number; count: number }>();
+            // Sales by Product & Category
+            const { byProduct, byCategory } = calculateSalesBreakdown(sales);
 
-            const getBucketKey = (date: Date): { key: string; label: string } => {
-                const d = new Date(date);
-                if (granularity === 'month') {
-                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    const label = d.toLocaleDateString('default', { month: 'short', year: '2-digit' });
-                    return { key, label };
-                } else if (granularity === 'week') {
-                    const day = d.getDay();
-                    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-                    d.setDate(diff);
-                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    const label = `${d.getDate()}/${d.getMonth() + 1}`;
-                    return { key, label };
-                } else {
-                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    let label = `${d.getDate()}`;
-                    if (d.getDate() === 1) label = `${d.getDate()}/${d.getMonth() + 1}`; // Show month on 1st
-                    return { key, label };
-                }
+            // Sales by Payment Method
+            const paymentMethods = calculatePaymentMethods(sales);
+
+            // C. EXPENSE REPORTS
+            const expenseBreakdown = calculateExpensesBreakdown(expenses);
+
+            // D. INVENTORY REPORTS
+            const inventory = calculateInventoryMetrics(products, inventoryLogs);
+
+            // E. CUSTOMER REPORTS
+            const topCustomers = calculateTopCustomers(sales, customers);
+            const receivables = calculateReceivables(unpaidInvoices);
+
+            // F. FINANCIAL SUMMARY (Executive Dashboard)
+            const financials = {
+                revenue: currentMetrics.revenue,
+                expenses: currentMetrics.expenses,
+                cogs: currentMetrics.cogs,
+                netProfit: currentMetrics.netProfit,
+                grossProfit: currentMetrics.grossProfit,
+                profitMargin: currentMetrics.profitMargin,
+                expenseRatio: currentMetrics.revenue > 0 ? (currentMetrics.expenses / currentMetrics.revenue) * 100 : 0,
+                revenueChange: calculateGrowth(currentMetrics.revenue, prevMetrics.revenue),
+                profitChange: calculateGrowth(currentMetrics.netProfit, prevMetrics.netProfit),
+                stockValue: inventory.valuation.cost,
+                totalReceivables: receivables.reduce((sum: number, r: any) => sum + r.balance, 0),
+                totalPayables,
             };
 
-            // Pre-fill buckets
-            let currentDate = new Date(range.start);
-            // Ensure strictly start of day for iteration
-            currentDate.setHours(0, 0, 0, 0);
-
-            if (granularity === 'week') {
-                const day = currentDate.getDay();
-                const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-                currentDate.setDate(diff);
-            }
-
-            const endDateLoop = new Date(range.end);
-            endDateLoop.setHours(23, 59, 59, 999);
-
-            while (currentDate <= endDateLoop) {
-                const { key, label } = getBucketKey(currentDate);
-                if (!salesTrendMap.has(key)) {
-                    salesTrendMap.set(key, { date: key, label, revenue: 0, profit: 0, count: 0 });
-                }
-
-                // Increment
-                if (granularity === 'month') {
-                    currentDate.setMonth(currentDate.getMonth() + 1);
-                    currentDate.setDate(1); // align to 1st
-                } else if (granularity === 'week') {
-                    if (currentDate.getDay() !== 1) { // Align to Next loop's Monday if checking
-                        // Actually better to just add 7 days from current "Monday" aligned date
-                        currentDate.setDate(currentDate.getDate() + 7);
-                    } else {
-                        currentDate.setDate(currentDate.getDate() + 7);
-                    }
-                } else {
-                    currentDate.setDate(currentDate.getDate() + 1);
-                }
-            }
-
-            sales?.forEach(sale => {
-                const saleDate = new Date(sale.created_at);
-                const { key } = getBucketKey(saleDate);
-
-                const current = salesTrendMap.get(key);
-                if (current) {
-                    const revenue = sale.total_amount || 0;
-                    let cost = 0;
-                    sale.sale_items?.forEach((item: any) => {
-                        cost += (item.cost_price || 0) * (item.quantity || 1);
-                    });
-                    const profit = revenue - cost;
-
-                    current.revenue += revenue;
-                    current.profit += profit;
-                    current.count += 1;
-                }
-            });
-
-            const salesTrend = Array.from(salesTrendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-
-            // 1.1 Daily Sales (Strictly Daily for Table)
-            const dailySalesMap = new Map<string, { date: string; revenue: number; profit: number; count: number }>();
-            sales?.forEach(sale => {
-                const dateKey = new Date(sale.created_at).toISOString().split('T')[0];
-                const current = dailySalesMap.get(dateKey) || { date: dateKey, revenue: 0, profit: 0, count: 0 };
-
-                const revenue = sale.total_amount || 0;
-                let cost = 0;
-                sale.sale_items?.forEach((item: any) => {
-                    cost += (item.cost_price || 0) * (item.quantity || 1);
-                });
-                const profit = revenue - cost;
-
-                dailySalesMap.set(dateKey, {
-                    date: dateKey,
-                    revenue: current.revenue + revenue,
-                    profit: current.profit + profit,
-                    count: current.count + 1
-                });
-            });
-            const dailySales = Array.from(dailySalesMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-
-            // 2. Sales by Product
-            const productSalesMap = new Map<string, { id: string; name: string; quantity: number; revenue: number; profit: number }>();
-            sales?.forEach(sale => {
-                sale.sale_items?.forEach((item: any) => {
-                    const pid = item.product_id;
-                    const name = item.product_name || 'Unknown';
-                    const cost_price = item.cost_price || 0;
-                    const revenue = item.total_price || 0;
-                    const profit = revenue - (cost_price * (item.quantity || 1));
-
-                    const current = productSalesMap.get(pid) || { id: pid, name, quantity: 0, revenue: 0, profit: 0 };
-
-                    productSalesMap.set(pid, {
-                        ...current,
-                        quantity: current.quantity + (item.quantity || 0),
-                        revenue: current.revenue + revenue,
-                        profit: current.profit + profit
-                    });
-                });
-            });
-            const topProducts = Array.from(productSalesMap.values())
-                .sort((a, b) => b.revenue - a.revenue)
-                .slice(0, 10);
-
-            // 3. Sales by Staff (User)
-            // Assuming 'created_by' is the user ID. We might need a users table fetch if names needed, 
-            // but for now we'll group by ID.
-            const staffSalesMap = new Map<string, { id: string; count: number; revenue: number }>();
-            sales?.forEach(sale => {
-                const uid = sale.created_by || 'Unknown';
-                const current = staffSalesMap.get(uid) || { id: uid, count: 0, revenue: 0 };
-                staffSalesMap.set(uid, {
-                    id: uid,
-                    count: current.count + 1,
-                    revenue: current.revenue + (sale.total_amount || 0)
-                });
-            });
-            const topStaff = Array.from(staffSalesMap.values()).sort((a, b) => b.revenue - a.revenue);
-
-            // 4. Sales by Customer (NEW)
-            const customerSalesMap = new Map<string, { id: string; name: string; count: number; revenue: number; profit: number }>();
-            sales?.forEach(sale => {
-                const cid = sale.customer_id || 'guest';
-                const cname = sale.customers?.name || 'Guest';
-
-                // Calculate sale profit
-                let saleCost = 0;
-                sale.sale_items?.forEach((item: any) => {
-                    saleCost += (item.cost_price || 0) * (item.quantity || 1);
-                });
-                const saleRevenue = sale.total_amount || 0;
-                const saleProfit = saleRevenue - saleCost;
-
-                const current = customerSalesMap.get(cid) || { id: cid, name: cname, count: 0, revenue: 0, profit: 0 };
-                customerSalesMap.set(cid, {
-                    id: cid,
-                    name: cname,
-                    count: current.count + 1,
-                    revenue: current.revenue + saleRevenue,
-                    profit: current.profit + saleProfit
-                });
-            });
-            const topCustomers = Array.from(customerSalesMap.values()).sort((a, b) => b.revenue - a.revenue);
-
-            // B. INVENTORY REPORTS
-            // 1. Helpers for Inventory
-            const lastSaleDateMap = new Map<string, Date>();
-            const soldQtyMap = new Map<string, number>();
-
-            // Calculate Sold Qty & Last Sale Date from ALL sales
-            sales?.forEach(sale => {
-                const saleDate = new Date(sale.created_at);
-                sale.sale_items?.forEach((item: any) => {
-                    const pid = item.product_id;
-
-                    const currentQty = soldQtyMap.get(pid) || 0;
-                    soldQtyMap.set(pid, currentQty + (item.quantity || 0));
-
-                    const lastDate = lastSaleDateMap.get(pid);
-                    if (!lastDate || saleDate > lastDate) {
-                        lastSaleDateMap.set(pid, saleDate);
-                    }
-                });
-            });
-
-            // 2. Iterate Products
-            let totalCostValue = 0;
-            let totalRetailValue = 0;
-            const allStock: any[] = [];
-            const lowStockItems: any[] = [];
-            const slowMovingItems: any[] = [];
-            const stockMovements: any[] = [];
-
-            const NOW = new Date();
-            const THRESHOLD_DAYS = 30;
-
-            products?.forEach(p => {
-                const stock = p.stock || 0;
-                const cost = p.cost_price || 0;
-                const price = p.sale_price || 0;
-                const sold = soldQtyMap.get(p.id) || 0;
-
-                // Valuation
-                totalCostValue += stock * cost;
-                totalRetailValue += stock * price;
-
-                // Status
-                const reorderLevel = 10;
-                let status = 'OK';
-                if (stock === 0) status = 'Out';
-                else if (stock <= reorderLevel) status = 'Low';
-
-                allStock.push({
-                    ...p,
-                    status,
-                    valuation: stock * cost
-                });
-
-                if (status !== 'OK') {
-                    lowStockItems.push({ ...p, status });
-                }
-
-                stockMovements.push({
-                    id: p.id,
-                    name: p.name,
-                    sku: p.primary_sku,
-                    opening: stock + sold,
-                    sold: sold,
-                    closing: stock,
-                    added: 0 // Unknown
-                });
-
-                // Slow Moving
-                const lastSale = lastSaleDateMap.get(p.id);
-                let daysSinceLastSale = -1;
-
-                if (lastSale) {
-                    const diffTime = Math.abs(NOW.getTime() - lastSale.getTime());
-                    daysSinceLastSale = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                } else {
-                    daysSinceLastSale = 999;
-                }
-
-                if (daysSinceLastSale > THRESHOLD_DAYS && stock > 0) {
-                    slowMovingItems.push({
-                        ...p,
-                        daysSinceLastSale: daysSinceLastSale === 999 ? 'Never' : daysSinceLastSale,
-                        deadStockValue: stock * cost
-                    });
-                }
-            });
-
-            // Sort inventory lists
-            lowStockItems.sort((a, b) => a.stock - b.stock);
-            slowMovingItems.sort((a, b) => (typeof b.daysSinceLastSale === 'number' ? b.daysSinceLastSale : 999) - (typeof a.daysSinceLastSale === 'number' ? a.daysSinceLastSale : 999));
-
-            // C. FINANCIAL REPORTS
-            // 1. Receivables
-            const receivables = customers || [];
-            const totalReceivables = receivables.reduce((sum, c) => sum + (c.current_balance || 0), 0);
-
-            // 2. Sales Aggregations
-            const paymentMethodsMap = new Map<string, { method: string; count: number; total: number }>();
-            let totalItemsSold = 0;
-            let cashSalesTotal = 0;
-            let creditSalesTotal = 0;
-
-            sales?.forEach(sale => {
-                const amount = sale.total_amount || 0;
-                const methodRaw = sale.payment_method || sale.type || 'cash';
-                const methodKey = methodRaw.toLowerCase();
-                const currentPM = paymentMethodsMap.get(methodKey) || { method: methodRaw, count: 0, total: 0 };
-                paymentMethodsMap.set(methodKey, {
-                    method: methodRaw,
-                    count: currentPM.count + 1,
-                    total: currentPM.total + amount
-                });
-
-                if (methodKey === 'cash') cashSalesTotal += amount;
-                else if (methodKey === 'credit') creditSalesTotal += amount;
-
-                sale.sale_items?.forEach((item: any) => {
-                    totalItemsSold += (item.quantity || 0);
-                });
-            });
-
-            const paymentMethods = Array.from(paymentMethodsMap.values());
-            const totalRevenue = dailySales.reduce((sum, d) => sum + d.revenue, 0);
-            const totalCount = sales?.length || 0;
-            const averageSaleValue = totalCount > 0 ? totalRevenue / totalCount : 0;
-
-
-            // D. EXPENSES & NET PROFIT
-            let expenses = [];
-            try {
-                // Fetch Expenses
-                const { data: expData, error: expError } = await supabase
-                    .from('expenses')
-                    .select('*')
-                    .eq('company_id', company.id)
-                    .gte('date', formatStartOfDay(range.start))
-                    .lte('date', formatEndOfDay(range.end));
-
-                if (!expError && expData) {
-                    expenses = expData;
-                }
-            } catch (e) {
-                console.error("Failed to fetch expenses", e);
-            }
-
-            const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-
-            // Calculate Profit Logic
-            // Gross Profit = Sales Revenue - Cost of Goods Sold (already calculated in daily/trend loops presumably, but let's sum it up)
-            // We calculated `profit` in aggregation loops (Revenue - Item Cost).
-            // Let's sum up total Gross Profit from Daily Sales
-            const totalGrossProfit = dailySales.reduce((sum, d) => sum + d.profit, 0);
-
-            // Net Profit = Gross Profit - Expenses
-            const netProfit = totalGrossProfit - totalExpenses;
-
             return {
+                summary: financials,
                 sales: {
-                    daily: dailySales,
-                    trend: salesTrend,
-                    topProducts,
-                    topCustomers,
-                    topStaff,
-                    totalRevenue,
-                    totalCount,
-                    totalItemsSold,
-                    averageSaleValue,
-                    cashSalesTotal,
-                    creditSalesTotal,
-                    raw: sales,
-                    grossProfit: totalGrossProfit // Explicitly returning Gross Profit
-                },
-                inventory: {
-                    valuation: { cost: totalCostValue, retail: totalRetailValue },
-                    lowStock: lowStockItems,
-                    allStock,
-                    stockMovements,
-                    slowMoving: slowMovingItems,
-                    totalProducts: products?.length || 0
-                },
-                financials: {
-                    receivables,
-                    totalReceivables,
+                    metrics: currentMetrics,
+                    trend,
+                    byProduct,
+                    byCategory,
                     paymentMethods,
-                    expenses,
-                    totalExpenses,
-                    netProfit
+                    detailed: (sales || []).flatMap(s =>
+                        (s.sale_items || []).map((si: any) => ({
+                            id: si.id,
+                            date: s.created_at,
+                            invoice: s.invoice_number || s.id.substring(0, 8),
+                            customer: s.customers?.name || 'Walk-in',
+                            product: si.product?.name || si.product_name,
+                            quantity: si.quantity,
+                            unitPrice: si.unit_price,
+                            total: si.total_price,
+                            status: s.payment_status || s.status || 'Paid'
+                        }))
+                    ),
+                    count: sales?.length || 0
+                },
+                inventory,
+                expenses: expenseBreakdown,
+                financials: {
+                    ...currentMetrics,
+                    receivables,
+                    stockValue: inventory.valuation.cost
+                },
+                customers: {
+                    top: topCustomers,
+                    receivables
                 }
             };
         },
         enabled: !!company?.id,
     });
 };
+
+// --- Helper Logic ---
+
+async function fetchSales(companyId: string, branchId: string | null | undefined, start: Date, end: Date) {
+    let q = supabase.from('sales').select(`*, sale_items(*, product:products(name, category_id, categories(name))), customers(name)`)
+        .eq('company_id', companyId)
+        .gte('created_at', formatStartOfDay(start))
+        .lte('created_at', formatEndOfDay(end));
+
+    if (branchId) q = q.eq('branch_id', branchId);
+    return await q;
+}
+
+async function fetchExpenses(companyId: string, branchId: string | null | undefined, start: Date, end: Date) {
+    let q = supabase.from('expenses').select('*, expense_categories(name)')
+        .eq('company_id', companyId)
+        .gte('date', formatStartOfDay(start))
+        .lte('date', formatEndOfDay(end));
+
+    if (branchId) q = q.eq('branch_id', branchId);
+    return await q;
+}
+
+function calculateMetrics(sales: any[] | null, expenses: any[] | null) {
+    const revenue = (sales || []).reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+    const paid = (sales || []).reduce((sum, s) => sum + Number(s.paid_amount || 0), 0);
+    const unpaid = (sales || []).reduce((sum, s) => sum + Number(s.balance_due || 0), 0);
+
+    let cogs = 0;
+    sales?.forEach(s => {
+        s.sale_items?.forEach((si: any) => {
+            cogs += Number(si.cost_price || 0) * Number(si.quantity || 1);
+        });
+    });
+
+    const expTotal = (expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const grossProfit = revenue - cogs;
+    const netProfit = grossProfit - expTotal;
+    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+    return { revenue, paid, unpaid, cogs, expenses: expTotal, grossProfit, netProfit, profitMargin };
+}
+
+function calculateTrend(sales: any[] | null, start: Date, end: Date) {
+    const trendMap = new Map<string, { date: string; revenue: number; profit: number }>();
+
+    // Fill buckets based on range size
+    const days = (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
+    const step = days > 60 ? 'month' : (days > 14 ? 'week' : 'day');
+
+    (sales || []).forEach(s => {
+        const d = new Date(s.created_at);
+        let key = d.toISOString().split('T')[0];
+        if (step === 'month') key = key.substring(0, 7);
+
+        let cogs = 0;
+        s.sale_items?.forEach((si: any) => cogs += Number(si.cost_price || 0) * Number(si.quantity || 1));
+
+        const cur = trendMap.get(key) || { date: key, revenue: 0, profit: 0 };
+        cur.revenue += Number(s.total_amount || 0);
+        cur.profit += (Number(s.total_amount || 0) - cogs);
+        trendMap.set(key, cur);
+    });
+
+    return Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function calculateSalesBreakdown(sales: any[] | null) {
+    const productMap = new Map<string, any>();
+    const categoryMap = new Map<string, any>();
+
+    sales?.forEach(s => {
+        s.sale_items?.forEach((item: any) => {
+            const pid = item.product_id;
+            const catName = item.product?.categories?.name || 'Uncategorized';
+
+            const p = productMap.get(pid) || { name: item.product_name, qty: 0, revenue: 0, profit: 0 };
+            p.qty += item.quantity;
+            p.revenue += Number(item.total_price);
+            p.profit += Number(item.total_price) - (Number(item.cost_price) * item.quantity);
+            productMap.set(pid, p);
+
+            const c = categoryMap.get(catName) || { name: catName, revenue: 0, profit: 0 };
+            c.revenue += Number(item.total_price);
+            c.profit += Number(item.total_price) - (Number(item.cost_price) * item.quantity);
+            categoryMap.set(catName, c);
+        });
+    });
+
+    return {
+        byProduct: Array.from(productMap.values()).sort((a, b) => b.revenue - a.revenue),
+        byCategory: Array.from(categoryMap.values()).sort((a, b) => b.revenue - a.revenue)
+    };
+}
+
+function calculatePaymentMethods(sales: any[] | null) {
+    const map = new Map<string, { label: string; value: number }>();
+    sales?.forEach(s => {
+        const method = s.type || 'Cash';
+        const cur = map.get(method) || { label: method, value: 0 };
+        cur.value += Number(s.total_amount);
+        map.set(method, cur);
+    });
+    return Array.from(map.values());
+}
+
+function calculateExpensesBreakdown(expenses: any[] | null) {
+    const map = new Map<string, { category: string; amount: number; count: number }>();
+    expenses?.forEach(e => {
+        const cat = e.expense_categories?.name || 'Uncategorized';
+        const cur = map.get(cat) || { category: cat, amount: 0, count: 0 };
+        cur.amount += Number(e.amount);
+        cur.count++;
+        map.set(cat, cur);
+    });
+    return {
+        byCategory: Array.from(map.values()).sort((a, b) => b.amount - a.amount),
+        total: (expenses || []).length
+    };
+}
+
+function calculateInventoryMetrics(products: any[] | null, logs: any[] | null) {
+    let cost = 0, retail = 0;
+    const movements: any[] = [];
+
+    (products || []).forEach(p => {
+        const s = Number(p.stock || 0);
+        const c = Number(p.cost_price || 0);
+        const r = Number(p.sale_price || 0);
+
+        cost += (s * c);
+        retail += (s * r);
+
+        const pLogs = logs?.filter(l => l.product_id === p.id) || [];
+        movements.push({
+            name: p.name,
+            opening: s - pLogs.reduce((acc, l) => acc + Number(l.qty_change || 0), 0),
+            sold: Math.abs(pLogs.filter(l => l.type === 'sale').reduce((acc, l) => acc + Number(l.qty_change || 0), 0)),
+            purchased: pLogs.filter(l => l.type === 'purchase').reduce((acc, l) => acc + Number(l.qty_change || 0), 0),
+            adjusted: pLogs.filter(l => l.type === 'adjustment').reduce((acc, l) => acc + Number(l.qty_change || 0), 0),
+            closing: s
+        });
+    });
+
+    return { valuation: { cost, retail }, movements, lowStock: (products || []).filter(p => Number(p.stock || 0) <= 10) };
+}
+
+function calculateTopCustomers(sales: any[] | null, customers: any[] | null) {
+    const map = new Map<string, any>();
+    sales?.forEach(s => {
+        if (!s.customer_id) return;
+        const cur = map.get(s.customer_id) || { name: s.customers?.name, revenue: 0, profit: 0, count: 0, balance: 0 };
+
+        let profit = 0;
+        s.sale_items?.forEach((si: any) => {
+            profit += (Number(si.total_price || 0) - (Number(si.cost_price || 0) * Number(si.quantity || 1)));
+        });
+
+        cur.revenue += Number(s.total_amount || 0);
+        cur.profit += profit;
+        cur.count++;
+        map.set(s.customer_id, cur);
+    });
+
+    // Add current balance from customers table
+    customers?.forEach(c => {
+        if (map.has(c.id)) {
+            map.get(c.id).balance = Number(c.current_balance || 0);
+        }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+}
+
+function calculateReceivables(unpaidInvoices: any[] | null) {
+    const map = new Map<string, { name: string; balance: number; oldest_date: string; branch: string; overdue_days: number }>();
+
+    unpaidInvoices?.forEach(s => {
+        const cid = s.customer_id;
+        if (!cid) return;
+
+        const cur = map.get(cid) || {
+            name: s.customers?.name || 'Unknown',
+            balance: 0,
+            oldest_date: s.created_at,
+            branch: s.branches?.name || 'Main',
+            overdue_days: 0
+        };
+
+        cur.balance += Number(s.balance_due || 0);
+        // oldest_date is already set by the first (oldest) invoice because of the ASC sort in query
+        map.set(cid, cur);
+    });
+
+    const now = new Date();
+    return Array.from(map.values()).map(r => {
+        const oldest = new Date(r.oldest_date);
+        const diffTime = Math.abs(now.getTime() - oldest.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return { ...r, overdue_days: diffDays };
+    }).sort((a, b) => b.balance - a.balance);
+}
+
+function getPreviousPeriod(start: Date, end: Date) {
+    const diff = end.getTime() - start.getTime();
+    return {
+        start: new Date(start.getTime() - diff),
+        end: new Date(end.getTime() - diff)
+    };
+}
+
+function calculateGrowth(cur: number, prev: number) {
+    if (prev === 0) return cur > 0 ? 100 : 0;
+    return ((cur - prev) / prev) * 100;
+}
 
 // Helpers
 function formatStartOfDay(date: Date) {

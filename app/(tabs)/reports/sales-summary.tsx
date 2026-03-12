@@ -1,19 +1,21 @@
 import { ReportChart } from '@/components/reports/ReportChart';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportColumn, ReportTable } from '@/components/reports/ReportTable';
-import { Colors } from '@/constants/Colors';
+
+import { useTheme } from '@/context/ThemeContext';
 import { DateRange, useAdvancedReports } from '@/hooks/useAdvancedReports';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 export default function SalesSummaryReport() {
+    const { colors } = useTheme();
     const [range, setRange] = useState<DateRange>({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         end: new Date()
     });
 
     const { data, isLoading } = useAdvancedReports(range);
-    const dailySales = data?.sales?.daily || [];
+    const dailySales: any[] = data?.sales?.trend || [];
     const trendData = data?.sales?.trend || [];
 
     // Columns Definition
@@ -26,8 +28,8 @@ export default function SalesSummaryReport() {
 
     // Totals Calculation
     const totals = useMemo(() => {
-        return dailySales.reduce((acc, curr) => ({
-            count: (acc.count || 0) + curr.count,
+        return dailySales.reduce((acc: any, curr: any) => ({
+            count: (acc.count || 0) + (curr.count || 0),
             revenue: (acc.revenue || 0) + curr.revenue,
             profit: (acc.profit || 0) + curr.profit
         }), { count: 0, revenue: 0, profit: 0 });
@@ -58,7 +60,7 @@ export default function SalesSummaryReport() {
             exportFilename="sales_summary"
             chartContent={
                 <View>
-                    <ReportChart type="line" data={chartData} yAxisLabelPrefix="$" color={Colors.light.primary} />
+                    <ReportChart type="line" data={chartData} yAxisLabelPrefix="$" color={colors.primary} />
                 </View>
             }
         >

@@ -1,17 +1,21 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors, Gradients } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 export default function RegisterScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { register, isLoading } = useAuth();
     const insets = useSafeAreaInsets();
@@ -40,7 +44,7 @@ export default function RegisterScreen() {
         <View style={styles.container}>
             <StatusBar style="light" />
             <LinearGradient
-                colors={Gradients.primary}
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
                 style={[styles.background, { paddingTop: insets.top }]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -52,12 +56,16 @@ export default function RegisterScreen() {
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                         <View style={styles.headerContainer}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                                <Text style={styles.backButtonText}>← Back</Text>
+                                <Text style={[styles.backButtonText, { color: theme === 'dark' ? '#cbd5e1' : '#64748b' }]}>← Back</Text>
                             </TouchableOpacity>
-                            <Text style={styles.appName}>Create Account</Text>
+                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>Create Account</Text>
                         </View>
 
-                        <View style={styles.card}>
+                        <BlurView
+                            tint={theme === 'dark' ? 'dark' : 'light'}
+                            intensity={theme === 'dark' ? 60 : 80}
+                            style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
+                        >
                             <View style={styles.header}>
                                 <Text style={styles.title}>Get Started</Text>
                                 <Text style={styles.subtitle}>Start managing your stock today</Text>
@@ -69,6 +77,7 @@ export default function RegisterScreen() {
                                 value={companyName}
                                 onChangeText={setCompanyName}
                                 style={styles.input}
+                                icon="building-o"
                             />
 
                             <AppTextInput
@@ -77,6 +86,7 @@ export default function RegisterScreen() {
                                 value={userName}
                                 onChangeText={setUserName}
                                 style={styles.input}
+                                icon="user-o"
                             />
 
                             <AppTextInput
@@ -87,6 +97,7 @@ export default function RegisterScreen() {
                                 autoCapitalize="none"
                                 keyboardType="email-address"
                                 style={styles.input}
+                                icon="envelope-o"
                             />
 
                             <AppTextInput
@@ -96,6 +107,7 @@ export default function RegisterScreen() {
                                 onChangeText={setPassword}
                                 secureTextEntry
                                 style={styles.input}
+                                icon="lock"
                             />
 
                             <View style={styles.footerButtons}>
@@ -113,10 +125,10 @@ export default function RegisterScreen() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                        </View>
+                        </BlurView>
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>By registering, you agree to our Terms & Privacy</Text>
+                            <Text style={[styles.footerText, { color: theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>By registering, you agree to our Terms & Privacy</Text>
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -125,7 +137,7 @@ export default function RegisterScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
     },
@@ -134,6 +146,9 @@ const styles = StyleSheet.create({
     },
     keyboardView: {
         flex: 1,
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 500,
     },
     scrollContent: {
         padding: 24,
@@ -146,28 +161,28 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     backButtonText: {
-        color: '#fff',
         fontSize: 16,
         fontWeight: '600',
     },
     appName: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#fff',
         letterSpacing: 1,
     },
     card: {
-        backgroundColor: '#fff',
         borderRadius: 24,
         padding: 32,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 10,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 10,
+        overflow: 'hidden',
+    },
+    cardLight: {
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        borderColor: 'rgba(255,255,255,0.8)',
+        borderWidth: 1,
+    },
+    cardDark: {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
     },
     header: {
         marginBottom: 24,
@@ -175,15 +190,15 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     input: {
-        backgroundColor: '#F7F8FA',
+        backgroundColor: 'transparent',
     },
     footerButtons: {
         marginTop: 12,
@@ -191,7 +206,7 @@ const styles = StyleSheet.create({
     button: {
         borderRadius: 12,
         height: 56,
-        shadowColor: Colors.light.primary,
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -203,11 +218,11 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
     loginText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         fontSize: 15,
     },
     loginLink: {
-        color: Colors.light.primary,
+        color: colors.primary,
         fontWeight: '600',
         fontSize: 15,
     },

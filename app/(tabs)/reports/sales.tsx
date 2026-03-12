@@ -1,153 +1,172 @@
-import { ListItem } from '@/components/ListItem';
-import { DateFilter, DatePeriod, getRangeForPeriod } from '@/components/reports/DateFilter';
-import { SummaryCard } from '@/components/SummaryCard';
-import { Colors, Layout } from '@/constants/Colors';
+import { ReportChart } from '@/components/reports/ReportChart';
+import { DateRange, ReportLayout } from '@/components/reports/ReportLayout';
+import { ReportTable } from '@/components/reports/ReportTable';
+import { Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function SalesReportScreen() {
-    const router = useRouter();
-    // State for Filter
-    const [period, setPeriod] = useState<DatePeriod>('week');
-    const [customRange, setCustomRange] = useState({ start: new Date(), end: new Date() });
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const [range, setRange] = useState<DateRange>({
+        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        end: new Date()
+    });
 
-    // Effective Range (Memoized)
-    const range = useMemo(() => getRangeForPeriod(period, customRange), [period, customRange]);
+    const { data, isLoading } = useAdvancedReports(range);
 
-    const { data, isLoading, refetch } = useAdvancedReports(range);
-    const sales = data?.sales;
+    const fmt = (val: number | null | undefined) => `$${(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-    if (isLoading && !sales) return <View style={styles.center}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
+    // Prepare table data for Top Products
+    const productColumns = [
+        { key: 'name', title: 'Product', width: 180 },
+        { key: 'category', title: 'Category', width: 120 },
+        { key: 'quantity', title: 'Sold', align: 'right' as const, width: 80 },
+        { key: 'revenue', title: 'Revenue', align: 'right' as const, width: 100, isCurrency: true },
+    ];
 
-    // Simple Bar Chart Visualization (using Views)
-    const maxRevenue = Math.max(...(sales?.daily.map(d => d.revenue) || [0]), 1);
-    const chartHeight = 150;
+    const categoryData = data?.sales?.byCategory?.map((c: any) => ({
+        label: c.category,
+        value: c.revenue,
+    })) || [];
+
+    const paymentData = data?.sales?.paymentMethods?.map((p: any) => ({
+        label: p.method,
+        value: p.count,
+    })) || [];
+
+    const detailedColumns = [
+        {
+            key: 'date',
+            title: 'Date',
+            width: 90,
+            render: (v: string) => <Text style={{ color: colors.text }}>{new Date(v).toLocaleDateString()}</Text>
+        },
+        { key: 'invoice', title: 'Invoice', width: 100 },
+        { key: 'customer', title: 'Customer', width: 140 },
+        { key: 'product', title: 'Product', width: 180 },
+        { key: 'quantity', title: 'Qty', align: 'right' as const, width: 60 },
+        { key: 'unitPrice', title: 'Unit Price', align: 'right' as const, width: 90, isCurrency: true },
+        { key: 'total', title: 'Total', align: 'right' as const, width: 110, isCurrency: true },
+        {
+            key: 'status', title: 'Status', width: 90, render: (v: string) => (
+                <Text style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: v?.toLowerCase().includes('paid') ? colors.success : colors.warning,
+                    textTransform: 'uppercase'
+                }}>{v}</Text>
+            )
+        },
+    ];
+
+    const detailedTotals = React.useMemo(() => {
+        const items = data?.sales?.detailed || [];
+        return {
+            quantity: items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
+            total: items.reduce((sum: number, item: any) => sum + (item.total || 0), 0),
+        };
+    }, [data?.sales?.detailed]);
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}>
-
-
-            {/* Filter */}
-            <DateFilter
-                period={period}
-                onPeriodChange={setPeriod}
-                customRange={customRange}
-                onCustomRangeChange={setCustomRange}
-            />
-
-            {/* Header Summary */}
-            <View style={styles.gridContainer}>
-                <View style={styles.gridRow}>
-                    <SummaryCard title="Total Sales" value={`$${(sales?.totalRevenue || 0).toFixed(0)}`} type="success" />
-                    <SummaryCard title="Avg Sale" value={`$${(sales?.averageSaleValue || 0).toFixed(0)}`} type="neutral" />
+        <ReportLayout
+            title="Sales Analysis"
+            subtitle="Deep dive into sales performance"
+            onDateRangeChange={setRange}
+            isLoading={isLoading}
+            exportData={data?.sales?.detailed}
+            exportFilename="sales_detailed_report"
+        >
+            <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+                {/* Detailed Sales Log */}
+                <View style={[styles.section, { padding: 0 }]}>
+                    <View style={{ padding: 16 }}>
+                        <Text style={styles.sectionTitle}>Detailed Sales Log</Text>
+                        <Text style={styles.sectionSubtitle}>Transaction items for selected period</Text>
+                    </View>
+                    <ReportTable
+                        columns={detailedColumns}
+                        data={data?.sales?.detailed || []}
+                        totals={detailedTotals}
+                    />
                 </View>
-                <View style={styles.gridRow}>
-                    <SummaryCard title="No. Sales" value={`${sales?.totalCount || 0}`} type="neutral" />
-                    <SummaryCard title="Items Sold" value={`${sales?.totalItemsSold || 0}`} type="neutral" />
-                </View>
-                <View style={styles.gridRow}>
-                    <SummaryCard title="Cash Total" value={`$${(sales?.cashSalesTotal || 0).toFixed(0)}`} type="success" />
-                    <SummaryCard title="Credit Total" value={`$${(sales?.creditSalesTotal || 0).toFixed(0)}`} type="danger" />
-                </View>
-            </View>
 
-            {/* Daily Trend Chart */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Daily Revenue (Last 30 Days)</Text>
-                <View style={styles.chartContainer}>
-                    {sales?.daily.length === 0 ? (
-                        <Text style={styles.emptyText}>No sales data found for this period.</Text>
-                    ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View style={styles.chart}>
-                                {sales?.daily.map((day, i) => {
-                                    const height = (day.revenue / maxRevenue) * chartHeight;
-                                    return (
-                                        <View key={i} style={styles.barContainer}>
-                                            <View style={[styles.bar, { height: Math.max(height, 4) }]} />
-                                            <Text style={styles.barLabel}>{new Date(day.date).getDate()}</Text>
-                                        </View>
-                                    );
-                                })}
+                {/* Sales Breakdown Charts */}
+                <View style={styles.chartRow}>
+                    <View style={styles.chartCard}>
+                        <Text style={styles.chartTitle}>Revenue by Category</Text>
+                        <ReportChart type="bar" data={categoryData} height={180} />
+                    </View>
+                </View>
+
+                {/* Top Products Table */}
+                <View style={[styles.section, { padding: 0 }]}>
+                    <View style={{ padding: 16 }}>
+                        <Text style={styles.sectionTitle}>Top Selling Products</Text>
+                        <Text style={styles.sectionSubtitle}>Ranked by total revenue</Text>
+                    </View>
+                    <ReportTable
+                        columns={productColumns}
+                        data={data?.sales?.byProduct || []}
+                    />
+                </View>
+
+                {/* Payment Methods */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Payment Methods</Text>
+                    <View style={styles.paymentGrid}>
+                        {data?.sales?.paymentMethods?.map((p: any, i: number) => (
+                            <View key={i} style={styles.paymentItem}>
+                                <Text style={styles.paymentMethod}>{p.method}</Text>
+                                <Text style={styles.paymentCount}>{p.count} sales</Text>
+                                <Text style={styles.paymentValue}>{fmt(p.revenue)}</Text>
                             </View>
-                        </ScrollView>
-                    )}
+                        ))}
+                    </View>
                 </View>
-            </View>
-
-            {/* Top Products */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Top Selling Products</Text>
-                {sales?.topProducts.length === 0 ? <Text style={styles.emptyText}>No products sold.</Text> : (
-                    sales?.topProducts.map((p, i) => (
-                        <ListItem
-                            key={p.id}
-                            title={`${i + 1}. ${p.name}`}
-                            subtitle={`${p.quantity} units sold`}
-                            rightText={`$${p.revenue.toFixed(2)}`}
-                            rightSubtitle={`Profit: $${p.profit.toFixed(2)}`}
-                            rightTextStyle={{ color: Colors.light.text }}
-                        />
-                    ))
-                )}
-            </View>
-
-            {/* Top Staff */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Staff Performance</Text>
-                {sales?.topStaff.length === 0 ? <Text style={styles.emptyText}>No staff data.</Text> : (
-                    sales?.topStaff.map((s, i) => (
-                        <ListItem
-                            key={s.id}
-                            title={`Staff #${s.id.slice(0, 8)}`} // Ideally fetch name
-                            subtitle={`${s.count} orders processed`}
-                            rightText={`$${s.revenue.toFixed(2)}`}
-                        />
-                    ))
-                )}
-
-            </View>
-
-            {/* Recent Transactions List */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Recent Transactions</Text>
-                {sales?.raw && sales.raw.length > 0 ? (
-                    sales.raw.slice(0, 20).map((sale: any) => (
-                        <ListItem
-                            key={sale.id}
-                            title={`Order #${sale.id.split('-')[0]}`}
-                            subtitle={new Date(sale.created_at).toLocaleString()}
-                            rightText={`$${sale.total_amount.toFixed(2)}`}
-                            rightSubtitle={sale.company?.name || sale.status} // Or customer name if available
-                            rightTextStyle={{ fontWeight: 'bold' }}
-                            onPress={() => router.push(`/(tabs)/sales/${sale.id}`)}
-                        />
-                    ))
-                ) : (
-                    <Text style={styles.emptyText}>No transactions found.</Text>
-                )}
-            </View>
-
-        </ScrollView>
+            </ScrollView>
+        </ReportLayout>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.light.background },
-    content: { padding: Layout.spacing.lg, paddingBottom: 50 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    gridContainer: { gap: Layout.spacing.md, marginBottom: Layout.spacing.xl },
-    gridRow: { flexDirection: 'row', gap: Layout.spacing.md },
-    section: { marginBottom: Layout.spacing.xl },
-    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: Layout.spacing.md, color: Colors.light.text },
-    emptyText: { color: Colors.light.textSecondary, fontStyle: 'italic' },
+const createStyles = (colors: any) => StyleSheet.create({
+    scroll: { flex: 1 },
+    content: { padding: Layout.spacing.lg, paddingBottom: 40 },
+    chartRow: { marginBottom: 20 },
+    chartCard: {
+        backgroundColor: colors.card + 'E0',
+        borderRadius: 16,
+        padding: 16,
+        ...Layout.shadows.small,
+    },
+    chartTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    section: {
+        backgroundColor: colors.card + 'E0',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        ...Layout.shadows.small,
+        overflow: 'hidden',
+    },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+    sectionSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+    paymentGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 16,
+    },
+    paymentItem: {
+        flex: 1,
+        minWidth: '45%',
+        backgroundColor: 'transparent',
+        borderRadius: 12,
+        padding: 12,
 
-    // Chart
-    chartContainer: { backgroundColor: '#fff', borderRadius: 12, padding: 16, height: 220, ...Layout.shadows.small },
-    chart: { flexDirection: 'row', alignItems: 'flex-end', height: 180, gap: 8 },
-    barContainer: { alignItems: 'center', width: 24 },
-    bar: { width: 12, backgroundColor: Colors.light.primary, borderRadius: 4, minHeight: 4 },
-    barLabel: { fontSize: 10, color: Colors.light.textSecondary, marginTop: 4 },
+    },
+    paymentMethod: { fontSize: 12, fontWeight: '800', color: colors.textSecondary, textTransform: 'uppercase' },
+    paymentValue: { fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 4 },
+    paymentCount: { fontSize: 11, color: colors.textSecondary },
 });

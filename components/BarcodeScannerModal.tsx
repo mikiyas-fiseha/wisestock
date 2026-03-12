@@ -1,8 +1,9 @@
-import { Colors } from '@/constants/Colors';
+
 import { FontAwesome } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface BarcodeScannerModalProps {
     visible: boolean;
@@ -11,6 +12,8 @@ interface BarcodeScannerModalProps {
 }
 
 export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScannerModalProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [permission, requestPermission] = useCameraPermissions();
 
     if (!permission) {
@@ -70,7 +73,7 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScanner
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#000',
@@ -91,7 +94,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     permissionButton: {
-        backgroundColor: Colors.light.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 5,
@@ -105,7 +108,7 @@ const styles = StyleSheet.create({
         marginTop: 15,
     },
     closeButtonText: {
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     overlay: {
         flex: 1,

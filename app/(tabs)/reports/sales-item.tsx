@@ -13,7 +13,7 @@ export default function SalesItemReport() {
     });
 
     const { data, isLoading } = useAdvancedReports(range);
-    const topProducts = data?.sales?.topProducts || [];
+    const topProducts: any[] = data?.sales?.byProduct || [];
 
     // Columns
     const columns: ReportColumn[] = [
@@ -25,8 +25,8 @@ export default function SalesItemReport() {
 
     // Totals
     const totals = useMemo(() => {
-        return topProducts.reduce((acc, curr) => ({
-            quantity: (acc.quantity || 0) + curr.quantity,
+        return topProducts.reduce((acc: any, curr: any) => ({
+            quantity: (acc.quantity || 0) + (curr.qty || curr.quantity || 0),
             revenue: (acc.revenue || 0) + curr.revenue,
             profit: (acc.profit || 0) + curr.profit
         }), { quantity: 0, revenue: 0, profit: 0 });

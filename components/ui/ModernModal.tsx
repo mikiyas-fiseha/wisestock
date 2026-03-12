@@ -4,6 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
 import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ModernModalProps {
     visible: boolean;
@@ -16,6 +17,8 @@ interface ModernModalProps {
 const { height } = Dimensions.get('window');
 
 export function ModernModal({ visible, title, onClose, children, hideHeader }: ModernModalProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [animation] = useState(new Animated.Value(0));
     const [showModal, setShowModal] = useState(visible);
 
@@ -89,7 +92,7 @@ export function ModernModal({ visible, title, onClose, children, hideHeader }: M
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
         justifyContent: 'center',
@@ -121,7 +124,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
     },
     closeBtn: {
         padding: 8,

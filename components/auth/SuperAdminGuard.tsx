@@ -1,23 +1,26 @@
 
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface SuperAdminGuardProps {
     children: React.ReactNode;
 }
 
 export function SuperAdminGuard({ children }: SuperAdminGuardProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { isSuperAdmin, isLoading } = useAuth();
     const router = useRouter();
 
     if (isLoading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -39,23 +42,23 @@ export function SuperAdminGuard({ children }: SuperAdminGuardProps) {
     return <>{children}</>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
         padding: 20,
     },
     text: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.light.danger,
+        color: colors.danger,
         marginBottom: 8,
     },
     subText: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
     }
 });

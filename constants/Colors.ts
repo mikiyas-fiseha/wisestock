@@ -45,45 +45,47 @@ export const Layout = {
 };
 
 export const Gradients = {
-  primary: ['#0052CC', '#2684FF'] as const, // Branding Blue
-  success: ['#36B37E', '#57D9A3'] as const, // Growth Green
-  danger: ['#FF5630', '#FF8F73'] as const, // Alert Red
-  warning: ['#FFAB00', '#FFC400'] as const, // Attention Amber
-  dark: ['#172B4D', '#253858'] as const, // Deep Navy
-  card: ['#FFFFFF', '#F4F5F7'] as const, // Subtle depth
+  primary: ['#0A84FF', '#0040DD'] as const, // Apple-esque vibrant blue
+  success: ['#30D158', '#148030'] as const, // Neon green
+  danger: ['#FF453A', '#99110B'] as const,  // Vibrant intense red
+  warning: ['#FF9F0A', '#995B00'] as const, // Pure alert orange
+  dark: ['#1C1C1E', '#09090B'] as const,    // True deep dark structure
+  card: ['#18181B', '#27272A'] as const,    // Elevated dark gray cards
+  authLight: ['#D6FFF6', '#E2ECFF', '#F2E8FF'] as const, // Cyan to light blue to pastel purple
+  authDark: ['#0A1128', '#121C3C', '#1D1A39'] as const, // Deep navy to indigo to violet black
 };
 
 export const Colors = {
   light: {
-    text: '#172B4D',
-    textSecondary: '#6B778C',
-    background: '#F4F5F7',
-    tint: '#0052CC',
-    tabIconDefault: '#C1C7D0',
-    tabIconSelected: '#0052CC',
-    primary: '#0052CC',
-    secondary: '#FFAB00',
-    success: '#36B37E',
-    danger: '#FF5630',
-    warning: '#FFAB00',
+    text: '#09090B', // Zinc 950
+    textSecondary: '#71717A', // Zinc 500
+    background: '#FAFAFA', // Zinc 50
+    tint: '#0A84FF',
+    tabIconDefault: '#A1A1AA', // Zinc 400
+    tabIconSelected: '#0A84FF',
+    primary: '#0A84FF',
+    secondary: '#5E5CE6', // Indigo
+    success: '#34C759',
+    danger: '#FF3B30',
+    warning: '#FF9500',
     card: '#FFFFFF',
-    border: '#EBECF0',
-    primaryLight: '#DEEBFF',
+    border: '#E4E4E7', // Zinc 200
+    primaryLight: '#E5F1FF',
   },
   dark: {
-    text: '#FFFFFF',
-    textSecondary: '#A5ADBA',
-    background: '#091E42',
-    tint: '#4C9AFF',
-    tabIconDefault: '#505F79',
-    tabIconSelected: '#4C9AFF',
-    primary: '#4C9AFF',
-    secondary: '#FFC400',
-    success: '#57D9A3',
-    danger: '#FF8F73',
-    warning: '#FFC400',
-    card: '#172B4D',
-    border: '#253858',
-    primaryLight: '#263B59',
+    text: '#FAFAFA', // Zinc 50
+    textSecondary: '#A1A1AA', // Zinc 400
+    background: '#09090B', // Zinc 950 (True Deep Dark)
+    tint: '#0A84FF', // Vibrant Blue
+    tabIconDefault: '#52525B', // Zinc 600
+    tabIconSelected: '#0A84FF',
+    primary: '#0A84FF',
+    secondary: '#5E5CE6', // Premium Indigo accent
+    success: '#30D158',
+    danger: '#FF453A',
+    warning: '#FF9F0A',
+    card: '#18181B', // Zinc 900 (Subtle elevation)
+    border: '#27272A', // Zinc 800 (Clean separation)
+    primaryLight: '#002E7A', // Deep tinted blue for selected states
   },
 };

@@ -1,5 +1,6 @@
 
-import { Colors } from '@/constants/Colors';
+
+import { useTheme } from '@/context/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -17,13 +18,15 @@ interface FeedbackModalProps {
 }
 
 export function FeedbackModal({ visible, type, title, message, onClose, onConfirm, confirmText }: FeedbackModalProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     let iconName = 'check-circle';
-    let color = Colors.light.success;
+    let color = colors.success;
 
     switch (type) {
-        case 'error': iconName = 'exclamation-circle'; color = Colors.light.danger; break;
+        case 'error': iconName = 'exclamation-circle'; color = colors.danger; break;
         case 'warning': iconName = 'exclamation-triangle'; color = '#FFA500'; break;
-        case 'info': iconName = 'info-circle'; color = Colors.light.primary; break;
+        case 'info': iconName = 'info-circle'; color = colors.primary; break;
     }
 
     const isSuccess = type === 'success';
@@ -32,7 +35,7 @@ export function FeedbackModal({ visible, type, title, message, onClose, onConfir
         <ModernModal visible={visible} title="" onClose={onClose} hideHeader>
             <View style={styles.container}>
                 <View style={styles.iconContainer}>
-                    <FontAwesome name={iconName} size={32} color={color} />
+                    <FontAwesome name={iconName as any} size={32} color={color} />
                 </View>
 
                 <Text style={styles.title}>{title}</Text>
@@ -69,7 +72,7 @@ export function FeedbackModal({ visible, type, title, message, onClose, onConfir
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         alignItems: 'center',
         padding: 20,
@@ -83,11 +86,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 6,
         textAlign: 'center',
-        color: Colors.light.text,
+        color: colors.text,
     },
     message: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: 16,
         lineHeight: 20,

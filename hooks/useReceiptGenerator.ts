@@ -1,5 +1,6 @@
+import { useFeedback } from '@/context/FeedbackContext';
 import * as FileSystem from 'expo-file-system/legacy';
-import { printToFileAsync } from 'expo-print';
+import { printAsync, printToFileAsync } from 'expo-print';
 import { shareAsync } from 'expo-sharing';
 import { Platform } from 'react-native';
 
@@ -20,6 +21,8 @@ interface ReceiptData {
 }
 
 export const useReceiptGenerator = () => {
+    const { showFeedback } = useFeedback();
+
 
     const generateReceiptHtml = (data: ReceiptData) => {
         return `
@@ -27,7 +30,13 @@ export const useReceiptGenerator = () => {
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
                 <style>
-                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
+                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; margin: 0; }
+                    .receipt-content { max-width: 400px; margin: 0 auto; }
+                    @media print {
+                        body { padding: 0; }
+                        .receipt-content { width: 100%; max-width: none; }
+                        @page { margin: 0.5cm; }
+                    }
                     .header { text-align: center; margin-bottom: 20px; }
                     .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
                     .subtitle { font-size: 14px; color: #666; }
@@ -40,7 +49,8 @@ export const useReceiptGenerator = () => {
                 </style>
             </head>
             <body>
-                <div class="header">
+                <div class="receipt-content">
+                    <div class="header">
                     <div class="title">${data.companyName}</div>
                     <div class="subtitle">Sale Receipt</div>
                 </div>
@@ -110,7 +120,8 @@ export const useReceiptGenerator = () => {
                 <div class="footer">
                     Thank you for your business!
                 </div>
-            </body>
+            </div>
+        </body>
             </html>
         `;
     };
@@ -118,7 +129,19 @@ export const useReceiptGenerator = () => {
     const generateAndShareReceipt = async (data: ReceiptData) => {
         try {
             const html = generateReceiptHtml(data);
-            const { uri } = await printToFileAsync({ html, base64: false });
+
+            if (Platform.OS === 'web') {
+                await printAsync({ html });
+                return;
+            }
+
+            const result = await printToFileAsync({ html, base64: false });
+            if (!result || !result.uri) {
+                showFeedback('error', 'Print Error', 'Failed to generate PDF file');
+                return;
+            }
+
+            const { uri } = result;
 
             if (Platform.OS === 'android') {
                 const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -136,6 +159,7 @@ export const useReceiptGenerator = () => {
             }
         } catch (error) {
             console.error('Failed to generate receipt:', error);
+            showFeedback('error', 'Print Error', 'An unexpected error occurred while printing');
             throw error;
         }
     };

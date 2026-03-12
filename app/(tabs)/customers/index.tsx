@@ -1,16 +1,20 @@
 import { CustomerListItem } from '@/components/CustomerListItem';
 import { SearchFilterHeader } from '@/components/SearchFilterHeader';
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors, Layout } from '@/constants/Colors';
+import { Gradients, Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { useDataExport } from '@/hooks/useDataExport';
 import { useCustomers } from '@/hooks/useSupabaseQuery';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 
 export default function CustomersScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<Record<string, string>>({});
@@ -18,6 +22,7 @@ export default function CustomersScreen() {
     // Pass search and filters to the hook
     const { data: customers, isLoading: loading } = useCustomers(searchQuery, filters);
     const { exportToCSV } = useDataExport();
+    const statusBarPadding = 0;
 
     const handleSearch = (text: string) => setSearchQuery(text);
     const handleFilter = (newFilters: Record<string, string>) => setFilters(newFilters);
@@ -28,6 +33,23 @@ export default function CustomersScreen() {
             title: 'Account Status',
             options: [
                 { label: 'Outstanding Balance', value: 'outstanding' }
+            ]
+        },
+        {
+            key: 'customer_type',
+            title: 'Customer Type',
+            options: [
+                { label: 'Retail', value: 'retail' },
+                { label: 'Wholesale', value: 'wholesale' }
+            ]
+        },
+        {
+            key: 'status',
+            title: 'Status',
+            options: [
+                { label: 'Active', value: 'active' },
+                { label: 'Blocked', value: 'blocked' },
+                { label: 'Inactive', value: 'inactive' }
             ]
         }
     ];
@@ -50,7 +72,13 @@ export default function CustomersScreen() {
     };
 
     return (
-        <View style={[styles.container, { paddingTop: 50 }]}>
+        <View style={[styles.container, { paddingTop: statusBarPadding }]}>
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
             <View style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>Customers</Text>
@@ -62,8 +90,8 @@ export default function CustomersScreen() {
                     style={styles.newButton}
                     textStyle={styles.newButtonText}
                 />
-                <TouchableOpacity onPress={handleExportCustomers} style={[styles.newButton, { width: 40, paddingHorizontal: 0, marginLeft: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee' }]}>
-                    <FontAwesome name="download" size={16} color={Colors.light.text} />
+                <TouchableOpacity onPress={handleExportCustomers} style={[styles.newButton, { width: 40, paddingHorizontal: 0, marginLeft: 8, backgroundColor: 'transparent', }]}>
+                    <FontAwesome name="download" size={16} color={colors.text} />
                 </TouchableOpacity>
             </View>
 
@@ -76,7 +104,7 @@ export default function CustomersScreen() {
             />
 
             {loading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={Colors.light.primary} /></View>
+                <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
             ) : (
                 <FlatList
                     data={customers}
@@ -87,7 +115,9 @@ export default function CustomersScreen() {
                             name={item.name}
                             phone={item.phone}
                             balance={item.current_balance}
-                            onPress={() => router.push({ pathname: '/(tabs)/customers/add', params: { id: item.id } })}
+                            customerType={item.customer_type}
+                            status={item.status}
+                            onPress={() => router.push({ pathname: '/(tabs)/customers/[id]', params: { id: item.id } })}
                         />
                     )}
                     ListEmptyComponent={
@@ -110,10 +140,10 @@ export default function CustomersScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     header: {
         flexDirection: 'row',
@@ -121,17 +151,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: Layout.spacing.lg,
         paddingVertical: Layout.spacing.md,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     headerTitle: {
         fontSize: 28,
         fontWeight: '800',
-        color: Colors.light.text,
+        color: colors.text,
         letterSpacing: -0.5,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         marginTop: 2,
     },
     newButton: {
@@ -158,13 +188,13 @@ const styles = StyleSheet.create({
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: 60,
+        paddingTop: 16,
     },
     emptyIconCircle: {
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#e3e8f0',
+        backgroundColor: colors.card + 'E0',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: Layout.spacing.md,
@@ -172,12 +202,12 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 20,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 8,
     },
     emptySubtext: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         maxWidth: '70%',
         lineHeight: 20,

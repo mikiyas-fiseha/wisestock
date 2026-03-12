@@ -1,6 +1,6 @@
 
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +8,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Plan {
     id: string;
@@ -20,6 +21,8 @@ interface Plan {
 }
 
 export default function SubscriptionPlansScreen() {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company } = useAuth();
     const router = useRouter();
     const { showFeedback } = useFeedback();
@@ -107,7 +110,7 @@ export default function SubscriptionPlansScreen() {
     };
 
     if (loading) {
-        return <View style={styles.center}><ActivityIndicator color={Colors.light.primary} /></View>;
+        return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
     }
 
     return (
@@ -148,10 +151,10 @@ export default function SubscriptionPlansScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: colors.background,
     },
     center: {
         flex: 1,
@@ -161,13 +164,13 @@ const styles = StyleSheet.create({
     header: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: Colors.light.text,
+        color: colors.text,
         textAlign: 'center',
         marginTop: 40,
     },
     subHeader: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: 30,
     },
@@ -194,17 +197,17 @@ const styles = StyleSheet.create({
     planName: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.light.primary,
+        color: colors.primary,
         marginBottom: 8,
     },
     planPrice: {
         fontSize: 36,
         fontWeight: '800',
-        color: Colors.light.text,
+        color: colors.text,
     },
     planDuration: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     divider: {
         height: 1,
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
     },
     description: {
         fontSize: 15,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: 20,
         lineHeight: 22,
@@ -228,7 +231,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     featureText: {
-        color: Colors.light.text,
+        color: colors.text,
         fontSize: 14,
     }
 });

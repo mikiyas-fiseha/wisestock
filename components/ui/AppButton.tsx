@@ -1,7 +1,8 @@
 
-import { Colors } from '@/constants/Colors';
+
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface AppButtonProps {
     title: string;
@@ -24,25 +25,27 @@ export function AppButton({
     textStyle,
     icon
 }: AppButtonProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     const getBackgroundColor = () => {
         if (disabled) return '#ccc';
         switch (variant) {
-            case 'primary': return Colors.light.primary;
-            case 'secondary': return Colors.light.secondary;
-            case 'danger': return Colors.light.danger;
+            case 'primary': return colors.primary;
+            case 'secondary': return colors.secondary;
+            case 'danger': return colors.danger;
             case 'outline': return 'transparent';
-            default: return Colors.light.primary;
+            default: return colors.primary;
         }
     };
 
     const getTextColor = () => {
-        if (variant === 'outline') return Colors.light.primary;
+        if (variant === 'outline') return colors.primary;
         return '#fff';
     };
 
     const getBorder = () => {
-        if (variant === 'outline') return { borderWidth: 1, borderColor: Colors.light.primary };
+        if (variant === 'outline') return { borderWidth: 1, borderColor: colors.primary };
         return {};
     };
 
@@ -70,7 +73,7 @@ export function AppButton({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     button: {
         height: 50,
         borderRadius: 8,

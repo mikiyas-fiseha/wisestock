@@ -1,13 +1,17 @@
 import { DateFilter, DatePeriod, DateRange, getRangeForPeriod } from '@/components/reports/DateFilter';
 import { AppButton } from '@/components/ui/AppButton';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
-import { Colors, Layout } from '@/constants/Colors';
+import { Gradients, Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useDataExport } from '@/hooks/useDataExport';
 import { FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+export { DatePeriod, DateRange } from '@/components/reports/DateFilter';
 
 interface ReportLayoutProps {
     title: string;
@@ -32,13 +36,16 @@ export function ReportLayout({
     onDateRangeChange,
     exportData,
     exportFilename = 'report',
-    chartContent
+    chartContent,
 }: ReportLayoutProps) {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { company } = useAuth();
     const { exportToCSV, exportToPDF } = useDataExport();
 
     const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
+    const [isExportOpen, setIsExportOpen] = useState(false);
     const [period, setPeriod] = useState<DatePeriod>('month');
     const [customRange, setCustomRange] = useState<DateRange>({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -65,21 +72,34 @@ export function ReportLayout({
         if (format === 'csv') {
             await exportToCSV(exportData, `${exportFilename}_${new Date().getTime()}.csv`);
         } else {
-            await exportToPDF(exportData, title, `${exportFilename}_${new Date().getTime()}`);
+            await exportToPDF(exportData, title, `${exportFilename}_${new Date().getTime()} `);
         }
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+
             <ResponsiveContainer>
                 {/* Common Header */}
                 <View style={styles.header}>
-                    <View style={styles.headerTop}>
-                        <View style={styles.textContainer}>
-                            <Text style={styles.storeName} numberOfLines={1}>{company?.name || 'My Store'}</Text>
-                            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>{title}</Text>
-                            {subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
-                        </View>
+                    <View style={styles.compactHeader}>
+                        {showDateFilter && (
+                            <View style={styles.filterWrapper}>
+                                <DateFilter
+                                    period={period}
+                                    onPeriodChange={handlePeriodChange}
+                                    customRange={customRange}
+                                    onCustomRangeChange={handleCustomRangeChange}
+                                />
+                            </View>
+                        )}
+
                         <View style={styles.actions}>
                             {/* View Mode Toggle */}
                             {chartContent && (
@@ -88,52 +108,59 @@ export function ReportLayout({
                                         style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]}
                                         onPress={() => setViewMode('table')}
                                     >
-                                        <FontAwesome name="table" size={14} color={viewMode === 'table' ? Colors.light.primary : '#999'} />
+                                        <FontAwesome name="table" size={14} color={viewMode === 'table' ? colors.primary : colors.textSecondary} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.toggleBtn, viewMode === 'chart' && styles.toggleBtnActive]}
                                         onPress={() => setViewMode('chart')}
                                     >
-                                        <FontAwesome name="bar-chart" size={14} color={viewMode === 'chart' ? Colors.light.primary : '#999'} />
+                                        <FontAwesome name="bar-chart" size={14} color={viewMode === 'chart' ? colors.primary : colors.textSecondary} />
                                     </TouchableOpacity>
                                 </View>
                             )}
 
-                            <View style={styles.exportGroup}>
-                                <AppButton
-                                    title=""
-                                    icon={<FontAwesome name="file-excel-o" size={14} color="#fff" />}
-                                    onPress={() => handleExport('csv')}
-                                    style={styles.exportBtn}
-                                    disabled={!exportData?.length}
-                                />
-                                <AppButton
-                                    title=""
-                                    icon={<FontAwesome name="file-pdf-o" size={14} color="#fff" />}
-                                    onPress={() => handleExport('pdf')}
-                                    style={{ ...styles.exportBtn, backgroundColor: Colors.light.danger }}
-                                    disabled={!exportData?.length}
-                                />
+                            <View style={styles.exportContainer}>
+                                {Platform.OS === 'web' || isExportOpen ? (
+                                    <View style={styles.exportGroup}>
+                                        <AppButton
+                                            title=""
+                                            icon={<FontAwesome name="file-excel-o" size={14} color="#fff" />}
+                                            onPress={() => { handleExport('csv'); setIsExportOpen(false); }}
+                                            style={styles.exportBtn}
+                                            disabled={!exportData?.length}
+                                        />
+                                        <AppButton
+                                            title=""
+                                            icon={<FontAwesome name="file-pdf-o" size={14} color="#fff" />}
+                                            onPress={() => { handleExport('pdf'); setIsExportOpen(false); }}
+                                            style={{ ...styles.exportBtn, backgroundColor: colors.danger }}
+                                            disabled={!exportData?.length}
+                                        />
+                                        {Platform.OS !== 'web' && (
+                                            <TouchableOpacity onPress={() => setIsExportOpen(false)} style={styles.closeExport}>
+                                                <FontAwesome name="times" size={14} color={colors.textSecondary} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={() => setIsExportOpen(true)}
+                                        style={styles.downloadIconBtn}
+                                    >
+                                        <View style={styles.downloadCircle}>
+                                            <FontAwesome name="download" size={16} color={colors.primary} />
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
                     </View>
-
-                    {showDateFilter && (
-                        <View style={styles.filterContainer}>
-                            <DateFilter
-                                period={period}
-                                onPeriodChange={handlePeriodChange}
-                                customRange={customRange}
-                                onCustomRangeChange={handleCustomRangeChange}
-                            />
-                        </View>
-                    )}
                 </View>
 
                 {/* Content */}
                 {isLoading ? (
                     <View style={styles.center}>
-                        <ActivityIndicator size="large" color={Colors.light.primary} />
+                        <ActivityIndicator size="large" color={colors.primary} />
                     </View>
                 ) : (
                     <View style={styles.content}>
@@ -151,56 +178,59 @@ export function ReportLayout({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     header: {
-        paddingTop: Platform.OS === 'web' ? 20 : 50, // Safe area
+        paddingTop: Platform.OS !== 'web' ? 12 : 16,
         paddingHorizontal: Layout.spacing.lg,
-        paddingBottom: Layout.spacing.md,
-        backgroundColor: '#fff',
+        paddingBottom: 4,
+        backgroundColor: (colors.card + 'E0'),
         borderBottomWidth: 1,
-        borderColor: '#eee',
-        // On web, header stays inside container
+        borderColor: colors.border,
     },
-    headerTop: {
+    compactHeader: {
         flexDirection: 'row',
-        alignItems: 'center', // Center vertically
-        marginBottom: 16,
-        justifyContent: 'space-between'
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minHeight: 44,
     },
-    textContainer: {
-        flex: 1, // Allow text to take available space
-        marginRight: 12, // Space between text and actions
-    },
-    storeName: {
-        fontSize: 10,
-        color: Colors.light.textSecondary,
-        textTransform: 'uppercase',
-        marginBottom: 2,
-        fontWeight: '600',
-    },
-    title: {
-        fontSize: 20, // Slightly smaller
-        fontWeight: '800',
-        color: Colors.light.text,
-        marginBottom: 2,
-    },
-    subtitle: {
-        fontSize: 12,
-        color: Colors.light.textSecondary,
+    filterWrapper: {
+        flex: 1,
+        marginRight: 12,
     },
     actions: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 8,
         flexShrink: 0, // Prevent actions from shrinking
+    },
+    exportContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    downloadIconBtn: {
+        padding: 4,
+    },
+    downloadCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.primary + '15',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: colors.primary + '30',
+    },
+    closeExport: {
+        padding: 8,
+        marginLeft: 4,
     },
     toggleContainer: {
         flexDirection: 'row',
-        backgroundColor: '#f1f5f9',
+        backgroundColor: 'transparent',
         borderRadius: 8,
         padding: 3,
         marginRight: 12,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
+
     },
     toggleBtn: {
         paddingVertical: 6,
@@ -208,7 +238,7 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     toggleBtnActive: {
-        backgroundColor: '#fff',
+        backgroundColor: (colors.card + 'E0'),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
@@ -227,9 +257,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    filterContainer: {
-        marginTop: 8,
-    },
+
     center: {
         flex: 1,
         justifyContent: 'center',
@@ -242,5 +270,5 @@ const styles = StyleSheet.create({
     chartWrapper: {
         padding: Layout.spacing.lg,
         flex: 1 // Allow chart to expand
-    }
+    },
 });

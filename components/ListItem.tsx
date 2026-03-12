@@ -1,7 +1,8 @@
 
-import { Colors } from '@/constants/Colors';
+
 import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ListItemProps {
     title: string;
@@ -17,17 +18,19 @@ interface ListItemProps {
 }
 
 export function ListItem({ title, subtitle, rightText, rightSubtitle, onPress, isDanger, leftIcon, rightIcon, titleStyle, rightTextStyle }: ListItemProps) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const Container = onPress ? TouchableOpacity : View;
 
     return (
         <Container style={styles.container} onPress={onPress} activeOpacity={0.7}>
             <View style={styles.content}>
                 <View style={styles.left}>
-                    <Text style={[styles.title, isDanger && { color: Colors.light.danger }, titleStyle]}>{title}</Text>
+                    <Text style={[styles.title, isDanger && { color: colors.danger }, titleStyle]}>{title}</Text>
                     {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
                 </View>
                 <View style={styles.right}>
-                    {rightText && <Text style={[styles.rightText, isDanger && { color: Colors.light.danger }, rightTextStyle]}>{rightText}</Text>}
+                    {rightText && <Text style={[styles.rightText, isDanger && { color: colors.danger }, rightTextStyle]}>{rightText}</Text>}
                     {rightSubtitle && <Text style={styles.rightSubtitle}>{rightSubtitle}</Text>}
                     {rightIcon && <View style={{ marginLeft: 8 }}>{rightIcon}</View>}
                 </View>
@@ -36,11 +39,11 @@ export function ListItem({ title, subtitle, rightText, rightSubtitle, onPress, i
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: Colors.light.border,
+        borderBottomColor: colors.border,
         paddingVertical: 16,
         paddingHorizontal: 16,
     },
@@ -59,21 +62,21 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
     rightText: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: colors.text,
         marginBottom: 4,
     },
     rightSubtitle: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: colors.textSecondary,
     },
 });

@@ -2,12 +2,15 @@
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { supabase } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Attribute {
     id: string;
@@ -17,6 +20,8 @@ interface Attribute {
 }
 
 export default function AttributesScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company } = useAuth();
     const { showFeedback } = useFeedback();
     const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -74,6 +79,7 @@ export default function AttributesScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <FlatList
                 data={attributes}
                 keyExtractor={(item) => item.id}
@@ -125,10 +131,10 @@ export default function AttributesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     fab: {
         padding: 16,

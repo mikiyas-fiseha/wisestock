@@ -2,12 +2,15 @@
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/Colors';
+
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { supabase } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Gradients } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Category {
     id: string;
@@ -21,6 +24,8 @@ interface Attribute {
 }
 
 export default function CategoriesScreen() {
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company } = useAuth();
     const { showFeedback } = useFeedback();
     const [categories, setCategories] = useState<Category[]>([]);
@@ -127,6 +132,7 @@ export default function CategoriesScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
             <FlatList
                 data={categories}
                 keyExtractor={(item) => item.id}
@@ -190,7 +196,7 @@ export default function CategoriesScreen() {
                                 <Switch
                                     value={linkedAttributeIds.includes(attr.id)}
                                     onValueChange={() => toggleAttributeLink(attr.id)}
-                                    trackColor={{ false: '#eee', true: Colors.light.primary }}
+                                    trackColor={{ false: '#eee', true: colors.primary }}
                                 />
                             </View>
                         ))}
@@ -216,10 +222,10 @@ export default function CategoriesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'transparent',
     },
     content: {
         padding: 16,
@@ -252,7 +258,7 @@ const styles = StyleSheet.create({
     },
     header: {
         padding: 16,
-        paddingTop: 60,
+        paddingTop: 16,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderColor: '#eee',
