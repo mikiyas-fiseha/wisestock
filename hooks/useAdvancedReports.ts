@@ -135,7 +135,7 @@ export const useAdvancedReports = (range: DateRange, branchIdOverride?: string |
                 revenueChange: calculateGrowth(currentMetrics.revenue, prevMetrics.revenue),
                 profitChange: calculateGrowth(currentMetrics.netProfit, prevMetrics.netProfit),
                 stockValue: inventory.valuation.cost,
-                totalReceivables: receivables.reduce((sum: number, r: any) => sum + r.balance, 0),
+                totalReceivables: (customers || []).reduce((sum, c) => sum + Number(c.current_balance || 0), 0),
                 totalPayables,
             };
 
@@ -254,7 +254,7 @@ function calculateSalesBreakdown(sales: any[] | null) {
             const pid = item.product_id;
             const catName = item.product?.categories?.name || 'Uncategorized';
 
-            const p = productMap.get(pid) || { name: item.product_name, qty: 0, revenue: 0, profit: 0 };
+            const p = productMap.get(pid) || { name: item.product_name, category: item.product?.categories?.name || 'Uncategorized', qty: 0, revenue: 0, profit: 0 };
             p.qty += item.quantity;
             p.revenue += Number(item.total_price);
             p.profit += Number(item.total_price) - (Number(item.cost_price) * item.quantity);
@@ -318,7 +318,9 @@ function calculateInventoryMetrics(products: any[] | null, logs: any[] | null) {
             sold: Math.abs(pLogs.filter(l => l.type === 'sale').reduce((acc, l) => acc + Number(l.qty_change || 0), 0)),
             purchased: pLogs.filter(l => l.type === 'purchase').reduce((acc, l) => acc + Number(l.qty_change || 0), 0),
             adjusted: pLogs.filter(l => l.type === 'adjustment').reduce((acc, l) => acc + Number(l.qty_change || 0), 0),
-            closing: s
+            closing: s,
+            unitPrice: c,
+            value: s * c
         });
     });
 

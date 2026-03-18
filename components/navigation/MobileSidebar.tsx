@@ -3,10 +3,11 @@ import { Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 const SIDEBAR_WIDTH = width * 0.75;
@@ -72,10 +73,24 @@ export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
                 <TouchableWithoutFeedback onPress={onClose}>
                     <View style={StyleSheet.absoluteFillObject} />
                 </TouchableWithoutFeedback>
-                <Animated.View style={[styles.sidebar, { borderRightColor: 'rgba(255,255,255,0.2)', transform: [{ translateX: slideAnim }] }]}>
-                    <BlurView intensity={theme === 'dark' ? 80 : 90} tint={theme === 'dark' ? 'dark' : 'light'} style={[StyleSheet.absoluteFill, theme === 'dark' && { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
-                    
-                    <View style={[styles.header, { borderBottomColor: 'rgba(255,255,255,0.2)' }]}>
+                <Animated.View style={[styles.sidebar, { borderRightColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', transform: [{ translateX: slideAnim }] }]}>
+                    {theme === 'dark' ? (
+                        <LinearGradient
+                            colors={['#111B3A', '#1A295A', '#0D1426']}
+                            style={StyleSheet.absoluteFill}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
+                    ) : (
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#E9FAFB' }]} />
+                    )}
+                    <BlurView
+                        intensity={theme === 'dark' ? 40 : 20}
+                        tint={theme === 'dark' ? 'dark' : 'light'}
+                        style={StyleSheet.absoluteFill}
+                    />
+
+                    <View style={styles.header}>
                         <View style={styles.userInfo}>
                             <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
                                 <Text style={styles.avatarText}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
@@ -130,8 +145,20 @@ export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
 
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row' },
-    sidebar: { width: SIDEBAR_WIDTH, height: '100%', borderRightWidth: 1, ...Layout.shadows.medium, overflow: 'hidden' },
-    header: { padding: 20, paddingTop: 20, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    sidebar: {
+        width: SIDEBAR_WIDTH,
+        height: '100%',
+        borderRightWidth: 1,
+        ...Layout.shadows.medium,
+        overflow: 'hidden',
+    },
+    header: {
+        padding: 24,
+        paddingTop: 32,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
     userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
     avatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     avatarText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },

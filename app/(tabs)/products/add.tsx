@@ -11,7 +11,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UNIT_TYPES = ['pcs', 'kg', 'liter', 'carton', 'bag'];
 
@@ -39,7 +40,8 @@ import { useTheme } from '@/context/ThemeContext';
 
 export default function AddProductScreen() {
     const { colors } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company } = useAuth();
@@ -396,7 +398,7 @@ export default function AddProductScreen() {
     return (
         <RoleGuard allowedRoles={['Admin']}>
             <View style={styles.container}>
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
                     {/* Inline Header */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
@@ -624,10 +626,10 @@ export default function AddProductScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    content: { padding: 12, paddingBottom: 100 },
-    card: { backgroundColor: colors.card + 'E0', borderRadius: 10, padding: 12, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: colors.border },
+    content: { padding: 12, paddingBottom: Platform.OS === 'web' ? 100 : 180 },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 16, marginBottom: 16 },
 
     // Rows
     paramountRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
@@ -642,39 +644,45 @@ const createStyles = (colors: any) => StyleSheet.create({
     miniScanBtn: { padding: 8, justifyContent: 'center' },
 
     // Switch / Status
-    switchContainer: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.card + 'E0', borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border },
+    switchContainer: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.card + 'E0', borderRadius: 12, paddingHorizontal: 12 },
     switchText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 4 },
     activeSwitchText: { color: colors.primary, fontWeight: '600' },
 
     // Section Headers (Collapsible)
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
     sectionTitleText: { fontSize: 14, fontWeight: '600', color: colors.text },
-    sectionContent: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderColor: colors.border },
+    sectionContent: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderColor: colors.border + '40' },
 
     // Pickers
     topBorder: { borderTopWidth: 1, borderColor: colors.border, marginTop: 12, paddingTop: 12 },
-    pickerWrapper: { borderRadius: 8, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center', marginBottom: 12 },
-    pickerWrapperSmall: { borderRadius: 8, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center' },
+    pickerWrapper: { borderRadius: 12, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center', marginBottom: 16 },
+    pickerWrapperSmall: { borderRadius: 12, backgroundColor: colors.card + 'E0', height: 48, justifyContent: 'center' },
     picker: { height: 48, width: '100%' },
     miniPicker: { height: 48, width: '100%' },
 
     label: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginBottom: 4 },
 
     // Variant Row
-    variantRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, borderBottomWidth: 1, borderColor: colors.border },
+    variantRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, borderBottomWidth: 1, borderColor: colors.border + '40' },
 
     // Footer
-    footer: { padding: 16, backgroundColor: colors.card + 'E0', borderTopWidth: 1, borderColor: colors.border },
+    footer: { 
+        padding: 16, 
+        paddingBottom: Platform.OS === 'web' ? 16 : Math.max(insets.bottom, 16) + 110,
+        backgroundColor: colors.card + 'F0', 
+        borderTopWidth: 1, 
+        borderColor: colors.border + '40' 
+    },
 
     // Modals
     modalContainer: { flex: 1, backgroundColor: 'transparent' },
-    modalHeader: { padding: 16, paddingTop: 16, borderBottomWidth: 1, borderColor: colors.border },
+    modalHeader: { padding: 16, paddingTop: 16, borderBottomWidth: 1, borderColor: colors.border + '40' },
     modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
     scannerContainer: { flex: 1, backgroundColor: 'black' },
     scannerOverlay: { flex: 1, justifyContent: 'flex-end', paddingBottom: 50, alignItems: 'center' },
     scannerText: { color: 'white', fontSize: 24, marginBottom: 20 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 16 },
-    modalContent: { backgroundColor: colors.card + 'E0', borderRadius: 12, padding: 24, borderWidth: 1, borderColor: colors.border },
+    modalContent: { backgroundColor: colors.card + 'F0', borderRadius: 20, padding: 24, overflow: 'hidden' },
     sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 8, color: colors.text },
     skuContainer: { flexDirection: 'row', gap: 8 },
     scanButton: { backgroundColor: colors.primary, height: 48, width: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 26 },

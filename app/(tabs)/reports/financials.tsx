@@ -41,12 +41,82 @@ export default function FinancialsReportScreen() {
 
     const s = data?.summary;
 
+    const reportSections = React.useMemo(() => {
+        if (!s) return [];
+
+        const expenseItems = data?.expenses?.byCategory?.map((c: any) => ({
+            label: c.category,
+            value: -c.amount
+        })) || [];
+
+        return [
+            {
+                title: 'Revenue & Gross Profit',
+                type: 'summary' as const,
+                data: [
+                    { label: 'Operating Revenue', value: s.revenue },
+                    { label: 'Cost of Goods Sold (COGS)', value: -s.cogs },
+                    { label: 'Gross Profit', value: s.grossProfit }
+                ],
+                accentColor: colors.primary
+            },
+            {
+                title: 'Operating Expenses',
+                type: 'summary' as const,
+                data: [
+                    ...expenseItems,
+                    { label: 'Total Operating Expenses', value: -s.expenses }
+                ],
+                accentColor: colors.danger
+            },
+            {
+                title: 'Net Performance',
+                type: 'summary' as const,
+                data: [
+                    { label: 'Net Income / Profit', value: s.netProfit },
+                    { label: 'Profit Margin', value: Number(s.profitMargin.toFixed(2)), isPercentage: true }
+                ],
+                accentColor: colors.success || '#10b981'
+            },
+            {
+                title: 'Balance Sheet Highlights',
+                type: 'summary' as const,
+                data: [
+                    { label: 'Inventory Value', value: s.stockValue },
+                    { label: 'Accounts Receivable', value: s.totalReceivables }
+                ],
+                accentColor: colors.secondary || '#6366f1'
+            }
+        ];
+    }, [s, data?.expenses?.byCategory, colors]);
+
+    const exportData = React.useMemo(() => {
+        if (!s) return [];
+        return [
+            { Category: 'Operating Revenue', Amount: s.revenue },
+            { Category: 'Cost of Goods Sold (COGS)', Amount: -s.cogs },
+            { Category: 'Gross Profit', Amount: s.grossProfit },
+            ...(data?.expenses?.byCategory?.map((c: any) => ({
+                Category: `Expense: ${c.category}`,
+                Amount: -c.amount
+            })) || []),
+            { Category: 'Total Expenses', Amount: -s.expenses },
+            { Category: 'Net Profit', Amount: s.netProfit },
+            { Category: 'Profit Margin (%)', Amount: s.profitMargin.toFixed(2) },
+            { Category: 'Inventory Value', Amount: s.stockValue },
+            { Category: 'Accounts Receivable', Amount: s.totalReceivables }
+        ];
+    }, [s, data?.expenses?.byCategory]);
+
     return (
         <ReportLayout
             title="Profit & Loss"
             subtitle="Income statement for selected period"
             onDateRangeChange={setRange}
             isLoading={isLoading}
+            exportData={exportData}
+            exportFilename={`profit_loss_${range.start.toISOString().split('T')[0]}`}
+            reportSections={reportSections}
         >
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
                 <View style={styles.plContainer}>
@@ -100,12 +170,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     scroll: { flex: 1 },
     content: { padding: Layout.spacing.lg, paddingBottom: 40 },
     plContainer: {
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
+        backgroundColor: colors.card + 'F0',
+        borderRadius: 24,
         padding: 24,
         marginBottom: 24,
-        ...Layout.shadows.medium,
-
     },
     plTitle: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center' },
     plSubtitle: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 30 },
@@ -113,12 +181,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     plRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: colors.border + '30',
     },
-    headerRow: { borderBottomWidth: 2, borderBottomColor: colors.border, marginTop: 12 },
-    subtotalRow: { backgroundColor: 'transparent', paddingHorizontal: 12, borderRadius: 8, marginTop: 4 },
+    headerRow: { borderBottomWidth: 2, borderBottomColor: colors.border + '60', marginTop: 12 },
+    subtotalRow: { backgroundColor: colors.primary + '10', paddingHorizontal: 12, borderRadius: 8, marginTop: 4 },
     finalRow: { borderBottomWidth: 0, paddingVertical: 16 },
     plLabel: { fontSize: 14, color: colors.text },
     plValue: { fontSize: 14, fontWeight: '600', color: colors.text },
@@ -128,19 +196,17 @@ const createStyles = (colors: any) => StyleSheet.create({
     finalSection: {
         marginTop: 10,
         paddingTop: 20,
-        borderTopWidth: 3,
-        borderTopColor: colors.border,
+        borderTopWidth: 2,
+        borderTopColor: colors.border + '60',
     },
     marginInfo: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 12, gap: 8 },
     marginLabel: { fontSize: 13, color: colors.textSecondary },
     marginValue: { fontSize: 16, fontWeight: '800', color: colors.primary },
     section: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 20,
-        ...Layout.shadows.small,
-
     },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 16 },
     miniGrid: { flexDirection: 'row', gap: 16 },

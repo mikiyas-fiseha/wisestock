@@ -1,4 +1,4 @@
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -67,7 +67,7 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string; s
 }
 
 const kpiStyles = StyleSheet.create({
-    card: { flex: 1, borderRadius: 14, padding: 14, marginHorizontal: 4, ...Layout.shadows.small },
+    card: { flex: 1, borderRadius: 14, padding: 14, marginHorizontal: 4 },
     value: { fontSize: 20, fontWeight: '800' },
     label: { fontSize: 11, marginTop: 2, fontWeight: '500' },
     sub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
@@ -145,7 +145,7 @@ function SaleCard({ sale, onView, onPrint, onRefund }: any) {
 }
 
 const cardS = StyleSheet.create({
-    container: { borderRadius: 16, marginBottom: 10, padding: 16, ...Layout.shadows.small },
+    container: { borderRadius: 16, marginBottom: 10, padding: 16 },
     top: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
     invoice: { fontSize: 14, fontWeight: '800' },
     customer: { fontSize: 13, marginTop: 2 },
@@ -183,7 +183,7 @@ function WebTableRow({ sale, isAdmin, onView, onPrint, onRefund }: any) {
     return (
         <Pressable
             style={[
-                { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomColor: colors.border, borderBottomWidth: 1 } as any,
+                { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomColor: colors.border + '40', borderBottomWidth: 1 } as any,
                 hovered && { backgroundColor: colors.primary + '10' }
             ]}
             onHoverIn={() => setHovered(true)}
@@ -298,15 +298,23 @@ export default function SalesScreen() {
     const handlePrint = async (sale: any) => {
         const { data: items } = await import('@/lib/supabase').then(m => m.supabase.from('sale_items').select('*').eq('sale_id', sale.id));
         if (!items?.length) { showFeedback('error', 'No Items', 'No items found for this sale'); return; }
+        const subtotal = sale.subtotal || (sale.total_amount - (sale.tax || 0) + (sale.discount || 0));
+        const totalTax = sale.tax || 0;
+        const totalDiscount = sale.discount || 0;
+
         await generateAndShareReceipt({
             companyName: company?.name || 'My Shop',
             saleId: shortId(sale.id),
             date: new Date(sale.created_at).toLocaleString(),
             customerName: sale.customers?.name,
             items: items.map((i: any) => ({ name: i.product_name, quantity: i.quantity, price: i.unit_price || 0, total: i.total_price })),
-            subtotal: sale.total_amount, total: sale.total_amount,
-            amountPaid: sale.paid_amount || sale.total_amount,
+            subtotal: subtotal,
+            taxAmount: totalTax,
+            discountAmount: totalDiscount,
+            total: sale.total_amount || sale.total,
+            amountPaid: sale.paid_amount || sale.total_amount || sale.total,
             paymentMethod: sale.payment_method || 'cash',
+            status: sale.status
         });
     };
 
@@ -456,24 +464,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
     headerTitle: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
     headerSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-    newBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 24, ...Layout.shadows.small },
+    newBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 24 },
     newBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
     kpiRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12 },
     searchRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 10 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 44, borderWidth: 1, borderColor: colors.border },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 44 },
     searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineStyle: 'none' } as any,
-    filterBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card + 'E0', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+    filterBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card + 'E0', justifyContent: 'center', alignItems: 'center' },
     filterBtnActive: { backgroundColor: colors.primary },
     filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center' },
     dateChips: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, flexDirection: 'row', alignItems: 'center' },
-    dateChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card + 'E0', borderWidth: 1, borderColor: colors.border },
+    dateChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card + 'E0' },
     dateChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     dateChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
     dateChipTextActive: { color: '#fff' },
-    list: { padding: 16, paddingTop: 4 },
-    table: { marginHorizontal: 16, backgroundColor: colors.card + 'E0', borderRadius: 16, overflow: 'hidden', ...Layout.shadows.small, marginBottom: 24 },
+    list: { padding: 16, paddingTop: 4, paddingBottom: 110 },
+    table: { marginHorizontal: 16, backgroundColor: colors.card + 'E0', borderRadius: 16, overflow: 'hidden', marginBottom: 24 },
     tableRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-    tableHead: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border },
+    tableHead: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', paddingHorizontal: 4 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     empty: { alignItems: 'center', paddingTop: 16, paddingHorizontal: 32 },

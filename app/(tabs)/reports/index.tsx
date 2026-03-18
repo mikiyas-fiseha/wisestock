@@ -7,12 +7,15 @@ import { useAdvancedReports } from '@/hooks/useAdvancedReports';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 export default function ReportsHubScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
+
     const [range, setRange] = useState<DateRange>({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         end: new Date()
@@ -57,6 +60,7 @@ export default function ReportsHubScreen() {
                         type="primary"
                         icon="money"
                         change={data?.summary?.revenueChange}
+                        compact={isMobile}
                     />
                     <SummaryCard
                         title="Net Profit"
@@ -64,18 +68,21 @@ export default function ReportsHubScreen() {
                         type="success"
                         icon="line-chart"
                         change={data?.summary?.profitChange}
+                        compact={isMobile}
                     />
                     <SummaryCard
                         title="Gross Margin"
                         value={`${(data?.summary?.profitMargin || 0).toFixed(1)}%`}
                         type="neutral"
                         icon="percent"
+                        compact={isMobile}
                     />
                     <SummaryCard
                         title="Expense Ratio"
                         value={`${(data?.summary?.expenseRatio || 0).toFixed(1)}%`}
                         type="warning"
                         icon="pie-chart"
+                        compact={isMobile}
                     />
                 </View>
 
@@ -157,11 +164,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: 20,
     },
     section: {
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: colors.card,
         borderRadius: 16,
         padding: 16,
         marginBottom: 20,
-        ...Layout.shadows.small,
 
     },
     sectionHeader: { marginBottom: 16 },
@@ -174,7 +180,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     halfCard: {
         flex: 1,
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: colors.card,
         borderRadius: 12,
         padding: 16,
 
@@ -185,10 +191,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     navSection: { marginTop: 8 },
     navSectionTitle: { fontSize: 13, fontWeight: '800', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginLeft: 4 },
     navGroup: {
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: colors.card,
         borderRadius: 16,
         overflow: 'hidden',
-        ...Layout.shadows.small,
 
     },
     navCard: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 14 },

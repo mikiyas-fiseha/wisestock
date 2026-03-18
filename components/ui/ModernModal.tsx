@@ -1,10 +1,10 @@
 
-import { Colors, Layout } from '@/constants/Colors';
+import { Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
 import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 interface ModernModalProps {
     visible: boolean;
@@ -79,7 +79,7 @@ export function ModernModal({ visible, title, onClose, children, hideHeader }: M
                         <View style={styles.header}>
                             <Text style={styles.title}>{title}</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <FontAwesome name="times" size={16} color="#666" />
+                                <FontAwesome name="times" size={16} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
                     )}
@@ -106,11 +106,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: {
         width: '85%',
         maxWidth: 400,
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 20,
-        ...Layout.shadows.medium,
+        ...Layout.shadows.large,
         overflow: 'hidden',
         maxHeight: height * 0.8,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     header: {
         flexDirection: 'row',
@@ -118,8 +120,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderColor: '#f0f0f0',
-        backgroundColor: '#fff',
+        borderColor: colors.border,
+        backgroundColor: colors.card,
     },
     title: {
         fontSize: 18,
@@ -129,7 +131,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     closeBtn: {
         padding: 8,
         borderRadius: 20,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: colors.border + '50',
     },
     content: {
         // padding: 20, // Let children handle padding if they are scrollviews

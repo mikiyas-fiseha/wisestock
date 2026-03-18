@@ -3,13 +3,13 @@ import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
 
-import { useSuppliers } from '@/hooks/useSuppliers';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Gradients } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
+import { useSuppliers } from '@/hooks/useSuppliers';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 export default function AddSupplierScreen() {
     const { colors, theme } = useTheme();
@@ -73,9 +73,9 @@ export default function AddSupplierScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <ResponsiveContainer>
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
                     <Text style={styles.headerTitle}>New Supplier</Text>
                     <Text style={styles.headerSubtitle}>Enter supplier details</Text>
 
@@ -86,6 +86,7 @@ export default function AddSupplierScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="e.g. Acme Corp"
+                                placeholderTextColor={colors.textSecondary + '80'}
                                 value={form.name}
                                 onChangeText={t => setForm(prev => ({ ...prev, name: t }))}
                             />
@@ -97,6 +98,7 @@ export default function AddSupplierScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="e.g. John Doe"
+                                placeholderTextColor={colors.textSecondary + '80'}
                                 value={form.contact_person}
                                 onChangeText={t => setForm(prev => ({ ...prev, contact_person: t }))}
                             />
@@ -109,6 +111,7 @@ export default function AddSupplierScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="john@example.com"
+                                    placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     value={form.email}
@@ -120,6 +123,7 @@ export default function AddSupplierScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="+1 234 567 890"
+                                    placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="phone-pad"
                                     value={form.phone}
                                     onChangeText={t => setForm(prev => ({ ...prev, phone: t }))}
@@ -133,6 +137,7 @@ export default function AddSupplierScreen() {
                             <TextInput
                                 style={[styles.input, { minHeight: 80 }]}
                                 placeholder="Street address, City, etc."
+                                placeholderTextColor={colors.textSecondary + '80'}
                                 multiline
                                 textAlignVertical="top"
                                 value={form.address}
@@ -147,6 +152,7 @@ export default function AddSupplierScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Optional"
+                                    placeholderTextColor={colors.textSecondary + '80'}
                                     value={form.tax_id}
                                     onChangeText={t => setForm(prev => ({ ...prev, tax_id: t }))}
                                 />
@@ -156,6 +162,7 @@ export default function AddSupplierScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Optional"
+                                    placeholderTextColor={colors.textSecondary + '80'}
                                     value={form.registration_number}
                                     onChangeText={t => setForm(prev => ({ ...prev, registration_number: t }))}
                                 />
@@ -199,6 +206,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     content: {
         padding: 20,
         paddingTop: 16,
+        paddingBottom: Platform.OS === 'web' ? 20 : 180,
     },
     headerTitle: {
         fontSize: 28,
@@ -217,11 +225,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.card + 'E0',
         borderRadius: 20,
         padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 3,
     },
     inputGroup: {
         marginBottom: 16,
@@ -236,11 +239,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.danger,
     },
     input: {
-        backgroundColor: 'transparent',
-
+        backgroundColor: 'rgba(255,255,255,0.05)',
         borderRadius: 12,
         paddingHorizontal: 16,
-        paddingVertical: 12, // Increased for touch target
+        paddingVertical: 12,
         fontSize: 16,
         color: colors.text,
     },

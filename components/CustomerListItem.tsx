@@ -64,7 +64,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: (colors.card + 'E0'),
         borderRadius: Layout.borderRadius.lg,
         marginBottom: Layout.spacing.sm,
-        ...Layout.shadows.small,
     },
     avatar: {
         width: 48,

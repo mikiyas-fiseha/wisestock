@@ -1,10 +1,10 @@
 
+import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
     ActivityIndicator,
@@ -37,7 +37,7 @@ export default function PurchaseDetailScreen() {
     if (isLoading) {
         return (
             <View style={styles.centered}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+                <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -46,7 +46,7 @@ export default function PurchaseDetailScreen() {
     if (!purchase) {
         return (
             <View style={styles.centered}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+                <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Purchase not found</Text>
             </View>
         );
@@ -57,7 +57,7 @@ export default function PurchaseDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             {/* Header */}
             <View style={[styles.header, isWeb && styles.headerWeb]}>
                 <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -159,7 +159,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
 
     // Header
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 60, backgroundColor: colors.card + 'E0', borderBottomWidth: 1, borderColor: colors.border },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 60, backgroundColor: colors.card + 'E0' },
     headerWeb: { paddingTop: 20 },
     backBtn: { padding: 8 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
@@ -169,7 +169,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     contentWeb: { maxWidth: 700, alignSelf: 'center', width: '100%' },
 
     // Card
-    card: { backgroundColor: colors.card + 'E0', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 16, marginBottom: 12 },
     sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 12 },
 
     // Summary
@@ -183,12 +183,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     textPaid: { color: colors.success },
     textUnpaid: { color: colors.warning },
 
-    infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderColor: colors.border },
+    infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
     infoLabel: { fontSize: 13, color: colors.textSecondary },
     infoValue: { fontSize: 13, fontWeight: '500', color: colors.text, flex: 1, textAlign: 'right' },
 
     // Items
-    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border },
+    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
     itemName: { fontSize: 14, fontWeight: '600', color: colors.text },
     itemSku: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
     itemQty: { paddingHorizontal: 12 },
@@ -201,12 +201,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     paymentRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
     paymentLabel: { fontSize: 14, color: colors.textSecondary },
     paymentValue: { fontSize: 14, fontWeight: '600', color: colors.text },
-    balanceRow: { borderTopWidth: 1, borderColor: colors.border, marginTop: 4, paddingTop: 10 },
+    balanceRow: { borderTopWidth: 1, borderColor: colors.border + '40', marginTop: 4, paddingTop: 10 },
     balanceLabel: { fontSize: 15, fontWeight: '600', color: colors.danger },
     balanceValue: { fontSize: 16, fontWeight: '700', color: colors.danger },
 
     // Payment History
-    paymentHistoryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border },
+    paymentHistoryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border + '40' },
     paymentHistoryDate: { fontSize: 13, color: colors.textSecondary },
     paymentHistoryAmount: { fontSize: 14, fontWeight: '600', color: colors.success },
 });

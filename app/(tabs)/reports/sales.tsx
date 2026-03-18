@@ -4,7 +4,8 @@ import { ReportTable } from '@/components/reports/ReportTable';
 import { Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
-import React, { useState } from 'react';
+import { ExportSection } from '@/hooks/useDataExport';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function SalesReportScreen() {
@@ -23,19 +24,14 @@ export default function SalesReportScreen() {
     const productColumns = [
         { key: 'name', title: 'Product', width: 180 },
         { key: 'category', title: 'Category', width: 120 },
-        { key: 'quantity', title: 'Sold', align: 'right' as const, width: 80 },
+        { key: 'qty', title: 'Sold', align: 'right' as const, width: 80 },
         { key: 'revenue', title: 'Revenue', align: 'right' as const, width: 100, isCurrency: true },
     ];
 
-    const categoryData = data?.sales?.byCategory?.map((c: any) => ({
-        label: c.category,
+    const categoryData = useMemo(() => data?.sales?.byCategory?.map((c: any) => ({
+        label: c.name,
         value: c.revenue,
-    })) || [];
-
-    const paymentData = data?.sales?.paymentMethods?.map((p: any) => ({
-        label: p.method,
-        value: p.count,
-    })) || [];
+    })) || [], [data?.sales?.byCategory]);
 
     const detailedColumns = [
         {
@@ -62,13 +58,51 @@ export default function SalesReportScreen() {
         },
     ];
 
-    const detailedTotals = React.useMemo(() => {
+    const detailedTotals = useMemo(() => {
         const items = data?.sales?.detailed || [];
         return {
             quantity: items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
             total: items.reduce((sum: number, item: any) => sum + (item.total || 0), 0),
         };
     }, [data?.sales?.detailed]);
+
+    const reportSections: ExportSection[] = useMemo(() => [
+        {
+            title: 'Detailed Sales Log',
+            type: 'table',
+            data: data?.sales?.detailed,
+            columns: [
+                { key: 'date', title: 'Date' },
+                { key: 'invoice', title: 'Invoice' },
+                { key: 'customer', title: 'Customer' },
+                { key: 'product', title: 'Product' },
+                { key: 'quantity', title: 'Qty' },
+                { key: 'unitPrice', title: 'Unit Price', isCurrency: true },
+                { key: 'total', title: 'Total', isCurrency: true },
+                { key: 'status', title: 'Status' },
+            ],
+            totals: detailedTotals,
+            accentColor: colors.primary
+        },
+        {
+            title: 'Revenue by Category',
+            type: 'chart',
+            chartData: categoryData,
+            accentColor: colors.primary
+        },
+        {
+            title: 'Top Selling Products',
+            type: 'table',
+            data: data?.sales?.byProduct,
+            columns: [
+                { key: 'name', title: 'Product' },
+                { key: 'category', title: 'Category' },
+                { key: 'qty', title: 'Sold' },
+                { key: 'revenue', title: 'Revenue', isCurrency: true },
+            ],
+            accentColor: '#10B981'
+        }
+    ], [data, detailedTotals, categoryData, colors]);
 
     return (
         <ReportLayout
@@ -77,7 +111,8 @@ export default function SalesReportScreen() {
             onDateRangeChange={setRange}
             isLoading={isLoading}
             exportData={data?.sales?.detailed}
-            exportFilename="sales_detailed_report"
+            reportSections={reportSections}
+            exportFilename="sales_analysis_report"
         >
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
                 {/* Detailed Sales Log */}
@@ -119,9 +154,8 @@ export default function SalesReportScreen() {
                     <View style={styles.paymentGrid}>
                         {data?.sales?.paymentMethods?.map((p: any, i: number) => (
                             <View key={i} style={styles.paymentItem}>
-                                <Text style={styles.paymentMethod}>{p.method}</Text>
-                                <Text style={styles.paymentCount}>{p.count} sales</Text>
-                                <Text style={styles.paymentValue}>{fmt(p.revenue)}</Text>
+                                <Text style={styles.paymentMethod}>{p.label}</Text>
+                                <Text style={styles.paymentValue}>{fmt(p.value)}</Text>
                             </View>
                         ))}
                     </View>
@@ -139,7 +173,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.card + 'E0',
         borderRadius: 16,
         padding: 16,
-        ...Layout.shadows.small,
     },
     chartTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
     section: {
@@ -147,7 +180,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         marginBottom: 20,
-        ...Layout.shadows.small,
         overflow: 'hidden',
     },
     sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text },

@@ -1,6 +1,6 @@
 import { CollectPaymentModal } from '@/components/customers/CollectPaymentModal';
 import { AppButton } from '@/components/ui/AppButton';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -259,32 +259,32 @@ export default function CustomerDetailsScreen() {
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', borderBottomWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    header: { padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     name: { fontSize: 20, fontWeight: 'bold', color: colors.text },
     info: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
-    card: { margin: 16, padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, ...Layout.shadows.small },
+    card: { margin: 16, padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16 },
     balanceBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
     balanceText: { fontWeight: '700', fontSize: 16 },
     collectBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
     collectBtnTextSmall: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-    divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+    divider: { height: 1, backgroundColor: colors.border + '40', marginVertical: 12 },
     statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
     statItem: { flex: 1 },
     statLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
     statValue: { fontSize: 17, fontWeight: '700', color: colors.text },
     tabsContainer: { backgroundColor: 'rgba(255,255,255,0.10)', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 8, marginTop: 8 },
-    tabsHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 },
+    tabsHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border + '40', marginBottom: 12 },
     tab: { paddingVertical: 10, marginRight: 24, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     activeTab: { borderBottomColor: colors.primary },
     tabText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
     activeTabText: { color: colors.primary },
     filterBar: { marginBottom: 12 },
-    filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'transparent', marginRight: 8, borderWidth: 1, borderColor: colors.border },
+    filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'transparent', marginRight: 8, borderWidth: 1, borderColor: colors.border + '40' },
     activeFilterChip: { backgroundColor: colors.primary, borderColor: colors.primary },
     filterText: { fontSize: 12, color: colors.textSecondary },
     activeFilterText: { color: '#fff', fontWeight: 'bold' },
-    historyCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 14, padding: 16, marginBottom: 12, marginHorizontal: 16, borderWidth: 1, borderTopColor: colors.border, borderRightColor: colors.border, borderBottomColor: colors.border, borderLeftWidth: 4, borderLeftColor: colors.primary, ...Layout.shadows.small },
-    paymentCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 14, padding: 16, marginBottom: 12, marginHorizontal: 16, borderWidth: 1, borderTopColor: colors.border, borderRightColor: colors.border, borderBottomColor: colors.border, borderLeftWidth: 4, borderLeftColor: colors.success, ...Layout.shadows.small },
+    historyCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, padding: 16, marginBottom: 12, marginHorizontal: 16, borderLeftWidth: 4, borderLeftColor: colors.primary },
+    paymentCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, padding: 16, marginBottom: 12, marginHorizontal: 16, borderLeftWidth: 4, borderLeftColor: colors.success },
     historyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     historyDate: { fontSize: 12, color: colors.textSecondary },
     historyInv: { fontSize: 16, fontWeight: '700', color: colors.text },

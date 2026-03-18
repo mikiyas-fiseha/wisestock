@@ -1,12 +1,12 @@
 import { AppButton } from '@/components/ui/AppButton';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import {
     ActivityIndicator,
@@ -87,7 +87,7 @@ export default function PurchasesListScreen() {
     if (isLoading) {
         return (
             <View style={styles.centered}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+                <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -95,7 +95,7 @@ export default function PurchasesListScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             {/* Header */}
             <View style={[styles.header, isWeb && styles.headerWeb]}>
                 <View>
@@ -142,7 +142,7 @@ export default function PurchasesListScreen() {
                     data={purchases}
                     keyExtractor={(item: any) => item.id}
                     renderItem={renderPurchaseCard}
-                    contentContainerStyle={[styles.list, isWeb && styles.listWeb]}
+                    contentContainerStyle={[styles.list, isWeb && styles.listWeb, { paddingBottom: 110 }]}
                     showsVerticalScrollIndicator={false}
                 />
             )}
@@ -155,7 +155,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
 
     // Header
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 16, backgroundColor: colors.card + 'E0', borderBottomWidth: 1, borderColor: colors.border },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 16, backgroundColor: colors.card + 'E0' },
     headerWeb: { paddingTop: 20 },
     title: { fontSize: 22, fontWeight: '700', color: colors.text },
     branchLabel: { fontSize: 13, color: colors.primary, fontWeight: '500', marginTop: 2 },
@@ -163,7 +163,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     // Stats
     statsRow: { flexDirection: 'row', gap: 10, padding: 16, paddingBottom: 8 },
     statsRowWeb: { paddingHorizontal: 24 },
-    statCard: { flex: 1, backgroundColor: colors.card + 'E0', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 1 },
+    statCard: { flex: 1, backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 14 },
     statLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
     statValue: { fontSize: 18, fontWeight: '700', color: colors.text, marginTop: 4 },
 
@@ -172,7 +172,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     listWeb: { paddingHorizontal: 24 },
 
     // Card
-    card: { backgroundColor: colors.card + 'E0', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 1 },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 14, marginBottom: 10 },
     cardWeb: { maxWidth: 800 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
@@ -182,7 +182,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     cardRight: { alignItems: 'flex-end' },
     cardAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
     invoiceNum: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: colors.border },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: colors.border + '40' },
     statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     badgePaid: { backgroundColor: colors.success + '20' },
     badgeUnpaid: { backgroundColor: colors.warning + '20' },

@@ -24,6 +24,7 @@ import {
     useWindowDimensions,
     View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PurchaseLineItem {
     product_id: string;
@@ -34,7 +35,8 @@ interface PurchaseLineItem {
 
 export default function AddPurchaseScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const router = useRouter();
     const { company, allBranches } = useAuth();
     const { showFeedback } = useFeedback();
@@ -185,7 +187,7 @@ export default function AddPurchaseScreen() {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={[styles.content, isWeb && styles.contentWeb]} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, isWeb && styles.contentWeb]} showsVerticalScrollIndicator={false}>
                 {/* Branch & Supplier */}
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Purchase Details</Text>
@@ -410,7 +412,7 @@ export default function AddPurchaseScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
 
     // Header
@@ -435,12 +437,10 @@ const createStyles = (colors: any) => StyleSheet.create({
 
     // Card
     card: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
     },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -465,8 +465,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)'
     },
     lineItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     lineItemName: { fontSize: 14, fontWeight: '700', color: colors.text, flex: 1, marginRight: 8 },
@@ -484,7 +482,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         borderTopWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.08)',
         paddingTop: 16,
         marginTop: 6
     },
@@ -499,8 +497,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: 16,
         backgroundColor: 'rgba(255,255,255,0.1)',
         borderTopWidth: 1,
-        borderColor: colors.border,
-        paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+        borderColor: 'rgba(255,255,255,0.08)',
+        paddingBottom: Platform.OS === 'web' ? 16 : Math.max(insets.bottom, 16) + 110,
     },
     footerTotal: { alignItems: 'center' },
     footerTotalLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase' },
@@ -515,8 +513,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: 24,
         maxHeight: '80%',
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     modalContentWeb: {
         maxWidth: 500,

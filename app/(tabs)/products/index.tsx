@@ -297,21 +297,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     tableContainer: {
         marginHorizontal: 12,
         backgroundColor: colors.card + 'E0',
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         overflow: 'hidden',
-
-        borderBottomWidth: 0,
-        ...Layout.shadows.small,
     },
     tableHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: 12,
         paddingHorizontal: 16,
         backgroundColor: 'transparent',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
     thText: {
         fontSize: 11,
@@ -323,17 +318,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     thRight: { textAlign: 'right', paddingRight: 12 },
 
     listContent: {
-        paddingBottom: 0,
+        paddingBottom: 110,
     },
     listContentWeb: {
         marginHorizontal: 12,
         backgroundColor: colors.card + 'E0',
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        borderWidth: 1,
-        borderTopWidth: 0,
-        borderColor: colors.border,
-        ...Layout.shadows.small,
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
     },
     emptyContainer: {
         alignItems: 'center',
@@ -365,12 +356,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     fabContainer: {
         position: 'absolute',
-        bottom: 24,
+        bottom: 110,
         right: 24,
     },
     fab: {
         borderRadius: 30,
         paddingHorizontal: 24,
-        ...Layout.shadows.medium,
     },
 });

@@ -78,26 +78,22 @@ const createStyles = (colors: any) => StyleSheet.create({
     content: { padding: Layout.spacing.lg, paddingBottom: 40 },
     summaryBox: {
         flexDirection: 'row',
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
-        padding: 20,
+        backgroundColor: colors.card + 'F0',
+        borderRadius: 20,
+        padding: 24,
         marginBottom: 20,
-        ...Layout.shadows.small,
         alignItems: 'center',
-
     },
     stat: { flex: 1, alignItems: 'center' },
     statLabel: { fontSize: 10, fontWeight: '800', color: colors.textSecondary, letterSpacing: 1 },
     statValue: { fontSize: 24, fontWeight: '900', color: colors.text, marginTop: 4 },
-    divider: { width: 1, height: 40, backgroundColor: colors.border },
+    divider: { width: 1, height: 40, backgroundColor: colors.border + '40' },
     section: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 20,
-        ...Layout.shadows.small,
         overflow: 'hidden',
-
     },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
 });

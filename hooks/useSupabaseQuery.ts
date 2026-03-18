@@ -124,7 +124,7 @@ export const useProcessSale = () => {
     const { company, user, branch } = useAuth(); // kept user for consistency, though RPC uses auth.uid()
 
     return useMutation({
-        mutationFn: async ({ cart, customer, paymentMethod, amountPaid, total }: any) => {
+        mutationFn: async ({ cart, customer, paymentMethod, amountPaid, total, subtotal, tax, discount, note }: any) => {
             if (!company?.id) throw new Error('No company ID');
 
             const paid = parseFloat(amountPaid) || 0;
@@ -135,7 +135,11 @@ export const useProcessSale = () => {
                 payment_method: paymentMethod,
                 amount_paid: paid,
                 total_amount: total,
-                p_branch_id: branch?.id // Use branch from context
+                p_branch_id: branch?.id, // Use branch from context
+                p_subtotal: subtotal || 0,
+                p_tax: tax || 0,
+                p_discount: discount || 0,
+                p_notes: note || null
             });
 
             if (error) throw error;
@@ -752,46 +756,27 @@ export const useCollectPayment = () => {
             const paid = parseFloat(amount);
             if (isNaN(paid) || paid <= 0) throw new Error('Invalid amount');
 
-            // 1. Record Payment
-            const { data: payment, error: payError } = await supabase.from('payments').insert([{
-                company_id: company.id,
-                customer_id: customerId,
-                amount: paid,
-                method: 'cash', // Default to cash for debt collection for now
-                created_by: user?.id
-            }]).select().single();
+            const { data, error } = await supabase.rpc('process_customer_payment', {
+                p_company_id: company.id,
+                p_customer_id: customerId,
+                p_amount: paid,
+                p_method: 'cash',
+                p_notes: notes || 'Debt Payment',
+                p_created_by: user?.id
+            });
 
-            if (payError) throw payError;
-
-            // 2. Fetch Customer to confirm current balance
-            const { data: customer } = await supabase.from('customers').select('current_balance').eq('id', customerId).single();
-            const currentBalance = customer?.current_balance || 0;
-            // Balance logic: If positive balance = DEBT. So paying reduces it.
-            const newBalance = currentBalance - paid;
-
-            // 3. Update Customer Balance
-            const { error: custError } = await supabase.from('customers').update({
-                current_balance: newBalance
-            }).eq('id', customerId);
-
-            if (custError) throw custError;
-
-            // 4. Log Transaction
-            await supabase.from('customer_transactions').insert([{
-                company_id: company.id,
-                customer_id: customerId,
-                type: 'payment',
-                amount: -paid, // Negative amount for payments (credits)
-                reference_id: payment.id,
-                description: notes || 'Debt Payment'
-            }]);
-
-            return payment;
+            if (error) throw error;
+            return data;
         },
         onSuccess: (_, variables) => {
+            // Comprehensive Invalidation
             queryClient.invalidateQueries({ queryKey: ['customers'] });
-            queryClient.invalidateQueries({ queryKey: ['customer', variables.customerId] }); // If specific query exists? currently manually fetching in screen
-            // Since CustomerDetailScreen fetches manually, we might need to trigger a refetch there or use useQuery
+            queryClient.invalidateQueries({ queryKey: ['customer', variables.customerId] });
+            queryClient.invalidateQueries({ queryKey: ['customer_history', variables.customerId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['ar-aging'] });
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+            queryClient.invalidateQueries({ queryKey: ['sales'] }); // Invalidate sales since balance_due changed
         },
     });
 };

@@ -4,13 +4,13 @@ import { SummaryCard } from '@/components/SummaryCard';
 import { DateFilter, DatePeriod, DateRange, getRangeForPeriod } from '@/components/reports/DateFilter';
 import { ReportChart } from '@/components/reports/ReportChart';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useExpenseReports, useExpenses, useExpenseStats, useProcessRecurringExpenses } from '@/hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -151,7 +151,7 @@ export default function ExpensesScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <AppHeader title="Expenses" />
 
             <View style={styles.tabContainer}>
@@ -191,7 +191,7 @@ export default function ExpensesScreen() {
                         </View>
                     )}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+                    contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
                     refreshControl={<RefreshControl refreshing={listLoading} onRefresh={refetch} />}
                     ListEmptyComponent={
                         !listLoading ? (
@@ -227,8 +227,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginTop: 16,
         borderRadius: 12,
         padding: 4,
-        borderWidth: 1,
-        borderColor: colors.border
     },
     tab: {
         flex: 1,
@@ -252,8 +250,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: colors.border
     },
     branchBtnText: { fontSize: 13, color: colors.text, fontWeight: '500' },
     expenseCard: {
@@ -261,7 +257,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
-
     },
     expenseMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     iconCircle: {
@@ -279,18 +274,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: 20,
+        bottom: 110,
         width: 56,
         height: 56,
         borderRadius: 28,
         backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
     },
     reportsContent: { padding: 16 },
     chartCard: {
@@ -298,10 +288,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
     },
     chartTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 16 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

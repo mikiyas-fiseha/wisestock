@@ -1,5 +1,5 @@
 
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useInventoryMovements, useInventorySummary } from '@/hooks/useInventory';
@@ -24,7 +24,7 @@ function KpiCard({ label, value, sub, icon, color, bg, onPress }: any) {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
         <Pressable
-            style={({ pressed }) => [styles.kpiCard, pressed && { opacity: onPress ? 0.8 : 1 }, { borderTopColor: color }]}
+            style={({ pressed }) => [styles.kpiCard, pressed && { opacity: onPress ? 0.8 : 1 }]}
             onPress={onPress}
             disabled={!onPress}
         >
@@ -224,8 +224,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     header: {
         backgroundColor: colors.card + 'E0',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
         paddingTop: 16,
     },
     headerTop: {
@@ -253,13 +251,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     kpiCard: {
         flex: 1,
         minWidth: isWeb ? 0 : '46%',
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 14,
-        padding: 16,
-        borderTopWidth: 3,
+        backgroundColor: colors.card + 'F0',
+        borderRadius: 20,
+        padding: 20,
         alignItems: 'flex-start',
         gap: 6,
-        ...Layout.shadows.small,
     },
     kpiIcon: { borderRadius: 10, padding: 8, marginBottom: 4 },
     kpiValue: { fontSize: 24, fontWeight: '800', color: colors.text },
@@ -267,9 +263,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     kpiSub: { fontSize: 11, color: colors.textSecondary },
     section: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 14,
+        borderRadius: 20,
         overflow: 'hidden',
-        ...Layout.shadows.small,
     },
     sectionHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -282,22 +277,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     seeAll: { fontSize: 13, color: colors.primary, fontWeight: '600' },
     table: {},
     thead: {
-        flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 8,
-        backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border,
+        flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 12,
+        backgroundColor: 'transparent',
     },
     th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 },
     tr: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 18, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     trEven: { backgroundColor: colors.card + 'E0' },
     td: { fontSize: 13, color: colors.text },
     branchDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
     movRow: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 18, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
+        paddingHorizontal: 18, paddingVertical: 12,
         gap: 12,
     },
     movIcon: { width: 34, height: 34, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },

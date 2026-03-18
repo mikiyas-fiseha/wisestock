@@ -54,9 +54,9 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
         <View style={styles.container}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
                 <QuickChip label="Today" value="today" />
-                <QuickChip label="Last 7 Days" value="week" />
-                <QuickChip label="This Month" value="month" />
-                <QuickChip label={period === 'custom' ? `${customRange.start.getDate()}/${customRange.start.getMonth() + 1} - ${customRange.end.getDate()}/${customRange.end.getMonth() + 1}` : "Custom"} value="custom" />
+                <QuickChip label="7D" value="week" />
+                <QuickChip label="30D" value="month" />
+                <QuickChip label={period === 'custom' ? `${customRange.start.getDate()}/${customRange.start.getMonth() + 1}` : "Custom"} value="custom" />
             </ScrollView>
 
             <Modal visible={modalVisible} transparent animationType="fade">
@@ -121,11 +121,9 @@ export const getRangeForPeriod = (period: DatePeriod, currentCustom: { start: Da
         return { start, end };
     }
     if (period === 'month') {
-        start.setDate(1); // 1st of current month
+        start.setDate(now.getDate() - 30);
         start.setHours(0, 0, 0, 0);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day of month
-        lastDay.setHours(23, 59, 59, 999);
-        return { start, end: lastDay };
+        return { start, end };
     }
     return currentCustom;
 };
@@ -134,7 +132,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { ScrollView } from 'react-native';
 
 const createStyles = (colors: any) => StyleSheet.create({
-    container: { marginBottom: 16 },
+    container: { marginBottom: 0 },
     scroll: { gap: 8 },
     chip: {
         paddingHorizontal: 16,

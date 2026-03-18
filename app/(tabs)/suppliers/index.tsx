@@ -1,14 +1,14 @@
 
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
 
+import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SuppliersScreen() {
     const { colors, theme } = useTheme();
@@ -29,7 +29,7 @@ export default function SuppliersScreen() {
 
     if (isLoading && !suppliers) {
         return (
-            <View style={styles.center}><LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <View style={styles.center}><LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -37,7 +37,7 @@ export default function SuppliersScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <ResponsiveContainer>
                 {/* Header Section */}
                 <View style={[styles.header, { paddingTop: headerTopPadding }]}>
@@ -68,7 +68,7 @@ export default function SuppliersScreen() {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
-                        <RefreshControl refreshing={isLoading} onRefresh={() => {}} />
+                        <RefreshControl refreshing={isLoading} onRefresh={() => { }} />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
@@ -150,7 +150,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 25,
-        elevation: 2,
     },
     addButtonText: {
         color: '#fff',
@@ -178,7 +177,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     listContent: {
         paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingBottom: 110,
     },
     card: {
         backgroundColor: colors.card + 'E0',
@@ -186,11 +185,6 @@ const createStyles = (colors: any) => StyleSheet.create({
 
         padding: 16,
         marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 2,
     },
     cardHeader: {
         flexDirection: 'row',

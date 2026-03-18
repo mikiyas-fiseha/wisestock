@@ -68,7 +68,7 @@ export const Colors = {
     success: '#34C759',
     danger: '#FF3B30',
     warning: '#FF9500',
-    card: '#FFFFFF',
+    card: '#F0F9FA', // Porcelain Blue
     border: '#E4E4E7', // Zinc 200
     primaryLight: '#E5F1FF',
   },
@@ -84,8 +84,8 @@ export const Colors = {
     success: '#30D158',
     danger: '#FF453A',
     warning: '#FF9F0A',
-    card: '#18181B', // Zinc 900 (Subtle elevation)
-    border: '#27272A', // Zinc 800 (Clean separation)
+    card: '#1A2342', // Premium Navy
+    border: '#243160', // Deep Navy Border
     primaryLight: '#002E7A', // Deep tinted blue for selected states
   },
 };

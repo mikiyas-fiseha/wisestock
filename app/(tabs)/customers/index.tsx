@@ -170,7 +170,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         height: 40,
         width: 80,
         borderRadius: 20,
-        ...Layout.shadows.small,
     },
     newButtonText: {
         fontSize: 14,
@@ -179,6 +178,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     list: {
         padding: Layout.spacing.lg,
         paddingTop: Layout.spacing.xs,
+        paddingBottom: 110,
     },
     center: {
         flex: 1,
@@ -194,7 +194,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: 'transparent',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: Layout.spacing.md,

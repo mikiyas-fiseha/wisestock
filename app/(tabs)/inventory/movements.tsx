@@ -279,8 +279,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     header: {
         backgroundColor: colors.card + 'E0',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
         paddingTop: 16,
     },
     headerTop: {
@@ -304,8 +302,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     subTabTextActive: { color: colors.primary, fontWeight: '700' },
     filterContainer: {
         backgroundColor: colors.card + 'E0',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
     filterBar: {
         flexGrow: 0,
@@ -333,11 +329,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     // Mobile card
     card: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 14,
         flexDirection: 'row',
         gap: 12,
-
     },
     typeIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
     typeIconSm: { width: 22, height: 22, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
@@ -351,14 +346,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     dateText: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
     // Web table
     thead: {
-        flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 10,
-        backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border,
+        flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12,
+        backgroundColor: 'transparent',
     },
     th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 },
     tr: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 20, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
+        paddingHorizontal: 20, paddingVertical: 12,
     },
     trEven: { backgroundColor: colors.card + 'E0' },
     td: { justifyContent: 'center' },
@@ -370,7 +364,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     pageBtn: {
         paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8,
-        borderWidth: 1, borderColor: colors.primary,
+        backgroundColor: colors.primary + '15',
     },
     pageBtnDis: { borderColor: colors.border, opacity: 0.5 },
     pageBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },

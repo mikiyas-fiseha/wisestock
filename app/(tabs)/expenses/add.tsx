@@ -3,19 +3,19 @@ import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useBranches } from '@/hooks/useBranches';
 import { useAddExpense, useExpenseCategories } from '@/hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function AddExpenseScreen() {
     const { colors, theme } = useTheme();
@@ -40,7 +40,6 @@ export default function AddExpenseScreen() {
     // Recurring State
     const [isRecurring, setIsRecurring] = useState(false);
     const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-    const [endDate, setEndDate] = useState('');
     const [attachment, setAttachment] = useState<string | null>(null);
 
     const pickImage = async () => {
@@ -69,7 +68,7 @@ export default function AddExpenseScreen() {
                 amount: parseFloat(amount),
                 category_id: categoryId,
                 category: selectedCategory?.name || 'Uncategorized',
-                branch_id: branchId || undefined, // Use undefined (which results in null in DB) if empty
+                branch_id: branchId || undefined,
                 date: date.toISOString(),
                 payment_method: paymentMethod,
                 reference: reference || undefined,
@@ -79,7 +78,7 @@ export default function AddExpenseScreen() {
                 recurring_start_date: isRecurring ? date.toISOString() : undefined,
             });
             showFeedback('success', 'Success', 'Expense recorded');
-            router.push('/expenses'); // Use push/replace instead of back to ensure we land on the list
+            router.push('/expenses');
         } catch (e: any) {
             showFeedback('error', 'Error', e.message);
         }
@@ -87,9 +86,9 @@ export default function AddExpenseScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <AppHeader title="New Expense" showBack />
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
 
                 <View style={styles.card}>
                     <Text style={styles.label}>Amount *</Text>
@@ -111,6 +110,7 @@ export default function AddExpenseScreen() {
                                 selectedValue={branchId}
                                 onValueChange={setBranchId}
                                 style={styles.picker}
+                                dropdownIconColor={colors.text}
                             >
                                 <Picker.Item label="Select Branch" value="" />
                                 {branches?.map(b => <Picker.Item key={b.id} label={b.name} value={b.id} />)}
@@ -126,6 +126,7 @@ export default function AddExpenseScreen() {
                             selectedValue={categoryId}
                             onValueChange={setCategoryId}
                             style={styles.picker}
+                            dropdownIconColor={colors.text}
                         >
                             <Picker.Item label="Select Category" value="" />
                             {categories?.map(c => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
@@ -203,11 +204,6 @@ export default function AddExpenseScreen() {
                             </View>
                         )}
                     </TouchableOpacity>
-                    {attachment && (
-                        <TouchableOpacity onPress={() => setAttachment(null)} style={{ marginTop: 8 }}>
-                            <Text style={{ color: colors.danger, textAlign: 'center' }}>Remove</Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 <AppButton
@@ -223,52 +219,44 @@ export default function AddExpenseScreen() {
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    content: { padding: 16, paddingBottom: 50 },
+    container: { flex: 1, backgroundColor: 'transparent' },
+    content: { padding: 16, paddingBottom: Platform.OS === 'web' ? 50 : 180 },
     card: {
-        backgroundColor: 'white',
+        backgroundColor: colors.card + 'E0',
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
     },
-    label: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8 },
-    subLabel: { fontSize: 12, color: '#64748B' },
+    label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
+    subLabel: { fontSize: 12, color: colors.textSecondary },
     pickerWrapper: {
+        backgroundColor: colors.primary + '15',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 10,
-        backgroundColor: '#fff',
-        height: 50,
+        borderColor: colors.background === '#09090B' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
+        borderRadius: 8,
+        height: 48,
         justifyContent: 'center',
         overflow: 'hidden'
     },
-    picker: { height: 50, width: '100%' },
+    picker: { height: 48, width: '100%', color: colors.text, backgroundColor: 'transparent' },
     row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
     switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     chip: {
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 25,
-        backgroundColor: '#F1F5F9',
-        borderWidth: 1,
-        borderColor: 'transparent',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     chipActive: {
-        backgroundColor: '#E0E7FF',
+        backgroundColor: colors.primary + '20',
         borderColor: colors.primary,
     },
-    chipText: { color: '#64748B', fontWeight: '500', fontSize: 13 },
+    chipText: { color: colors.textSecondary, fontWeight: '500', fontSize: 13 },
     chipTextActive: { color: colors.primary, fontWeight: '700' },
     attachmentBtn: {
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
         borderRadius: 12,
         height: 150,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         overflow: 'hidden'
     },
     attachmentPlaceholder: {

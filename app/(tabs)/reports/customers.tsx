@@ -90,12 +90,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     content: { padding: Layout.spacing.lg, paddingBottom: 40 },
     summaryBox: {
         flexDirection: 'row',
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
-
-        padding: 20,
+        backgroundColor: colors.card + 'F0',
+        borderRadius: 20,
+        padding: 24,
         marginBottom: 20,
-        ...Layout.shadows.small,
         alignItems: 'center',
     },
     stat: { flex: 1, alignItems: 'center' },
@@ -104,11 +102,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     divider: { width: 1, height: 40, backgroundColor: colors.border },
     section: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 16,
-
+        borderRadius: 20,
         padding: 16,
         marginBottom: 20,
-        ...Layout.shadows.small,
         overflow: 'hidden',
     },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },

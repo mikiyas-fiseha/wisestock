@@ -1,4 +1,3 @@
-import { Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
@@ -141,10 +140,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: (colors.card + 'E0'),
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
         cursor: 'pointer' as any,
     },
     webColProduct: { flex: 3, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -182,14 +179,13 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: (colors.card + 'E0'),
-        borderRadius: 14,
-        padding: 12,
-        marginTop: 8,
-        marginHorizontal: 12,
-        ...Layout.shadows.small,
+        borderRadius: 16,
+        padding: 14,
+        marginTop: 10,
+        marginHorizontal: 16,
     },
-    mobileCardOut: { borderLeftWidth: 3, borderLeftColor: colors.danger },
-    mobileCardLow: { borderLeftWidth: 3, borderLeftColor: colors.warning },
+    mobileCardOut: { backgroundColor: colors.danger + '10' },
+    mobileCardLow: { backgroundColor: colors.warning + '10' },
     mobileContent: { flex: 1 },
     mobileName: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
     mobilePrice: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: 6 },

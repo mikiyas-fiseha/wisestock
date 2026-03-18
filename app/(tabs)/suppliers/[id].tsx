@@ -4,15 +4,15 @@ import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
 
+import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Gradients } from '@/constants/Colors';
-
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SupplierDetailsScreen() {
     const { colors, theme } = useTheme();
@@ -69,12 +69,26 @@ export default function SupplierDetailsScreen() {
 
     return (
         <View style={styles.container}>
+            <LinearGradient
+                colors={theme === "dark" ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    <FontAwesome name="arrow-left" size={18} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Supplier Details</Text>
+                <View style={{ width: 40 }} />
+            </View>
 
             <ResponsiveContainer>
                 <ScrollView contentContainerStyle={styles.content}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View>
+                    {/* Supplier Info */}
+                    <View style={styles.heroSection}>
+                        <View style={{ flex: 1 }}>
                             <Text style={styles.title}>{supplier.name}</Text>
                             <Text style={styles.subtitle}>{supplier.contact_person || 'No contact person'}</Text>
                         </View>
@@ -90,16 +104,23 @@ export default function SupplierDetailsScreen() {
                                     Balance: ${(supplier.current_balance || 0).toFixed(2)}
                                 </Text>
                             </View>
-                            {(supplier.current_balance || 0) > 0 && (
-                                <AppButton
-                                    title="Record Payment"
-                                    onPress={() => setPaymentModalVisible(true)}
-                                    variant="outline"
-                                    style={{ marginTop: 8, paddingVertical: 6, paddingHorizontal: 12 }}
-                                    textStyle={{ fontSize: 12 }}
-                                />
-                            )}
                         </View>
+                    </View>
+
+                    <View style={styles.actionsRow}>
+                        {(supplier.current_balance || 0) > 0 && (
+                            <AppButton
+                                title="Record Payment"
+                                onPress={() => setPaymentModalVisible(true)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                        )}
+                        <AppButton
+                            title="Restock Items"
+                            onPress={() => router.push({ pathname: '/(tabs)/purchases/add', params: { supplierId: supplier.id } })}
+                            variant="outline"
+                            style={{ flex: 1 }}
+                        />
                     </View>
 
                     {/* Contact Info Card */}
@@ -214,30 +235,52 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    content: {
-        padding: 20,
-        paddingBottom: 60,
-    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 60,
+        paddingBottom: 16,
+        backgroundColor: colors.card + 'C0',
+    },
+    backBtn: {
+        padding: 8,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    content: {
+        padding: 16,
+        paddingBottom: 60,
+    },
+    heroSection: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 24,
+        marginBottom: 20,
+        paddingHorizontal: 4,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         color: colors.text,
-        maxWidth: '60%',
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 14,
         color: colors.textSecondary,
+        marginTop: 4,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        marginBottom: 24,
     },
     balanceBadge: {
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 8,
+        borderRadius: 12,
     },
     balanceText: {
         fontWeight: '700',
@@ -248,18 +291,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 2,
-
     },
     cardTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         marginBottom: 16,
         color: colors.text,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     infoRow: {
         flexDirection: 'row',
@@ -267,62 +306,51 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: 12,
     },
     icon: {
-        width: 24,
-        marginRight: 8,
+        width: 20,
+        marginRight: 10,
     },
     infoText: {
-        fontSize: 16,
+        fontSize: 15,
         color: colors.text,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
         marginBottom: 16,
         color: colors.text,
+        paddingHorizontal: 4,
     },
     subSectionTitle: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
-        marginBottom: 8,
-        color: colors.text,
+        marginBottom: 12,
+        color: colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        paddingHorizontal: 4,
     },
     emptyState: {
-        padding: 40,
+        padding: 30,
         alignItems: 'center',
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: colors.card + 'A0',
         borderRadius: 16,
-
     },
     emptyText: {
         color: colors.textSecondary,
         fontStyle: 'italic',
-        marginBottom: 12,
+        textAlign: 'center',
     },
     historyCard: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: colors.primary,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 1,
     },
     paymentCard: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: colors.secondary, // Different color for payments
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 1,
     },
     historyHeader: {
         flexDirection: 'row',
@@ -330,17 +358,17 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: 8,
     },
     historyDate: {
-        fontSize: 14,
+        fontSize: 13,
         color: colors.textSecondary,
     },
     statusBadge: {
         fontWeight: '700',
-        fontSize: 12,
+        fontSize: 11,
     },
     historyDetails: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        alignItems: 'center',
     },
     historyInv: {
         fontSize: 16,
@@ -352,26 +380,21 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: '700',
         color: colors.text,
     },
-    historyFooter: {
-        alignItems: 'flex-end',
-    },
-    historyPaid: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
     paymentMethod: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 11,
+        fontWeight: '700',
         color: colors.textSecondary,
     },
     paymentNote: {
         fontSize: 14,
         color: colors.text,
         fontStyle: 'italic',
+        flex: 1,
+        marginRight: 8,
     },
     paymentAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: colors.success, // Green for payments made (good thing)
+        color: colors.success,
     }
 });

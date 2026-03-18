@@ -1,7 +1,7 @@
 import { AdjustStockModal } from '@/components/AdjustStockModal';
 import { StockTransferModal } from '@/components/StockTransferModal';
 
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { InventoryProduct, useInventoryStock } from '@/hooks/useInventory';
@@ -319,7 +319,7 @@ export default function InventoryIndex() {
                             onTransfer={() => setTransferProduct(item)}
                         />
                     )}
-                    contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
+                    contentContainerStyle={{ padding: 12, paddingBottom: 110 }}
                     onRefresh={refetch}
                     refreshing={isLoading}
                     ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -354,8 +354,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     header: {
         backgroundColor: colors.card + 'E0',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
         paddingTop: 0,
     },
     headerTop: {
@@ -391,8 +389,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.card + 'E0',
         paddingVertical: 14,
         paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
     kpiItem: { flex: 1, alignItems: 'center' },
     kpiValue: { fontSize: 18, fontWeight: '700', color: colors.text },
@@ -405,8 +401,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: colors.card + 'E0',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
     searchBox: {
         flex: 1,
@@ -440,12 +434,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     // Mobile card
     card: {
         backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 14,
         flexDirection: 'row',
         alignItems: 'center',
-
-        ...Layout.shadows.small,
     },
     cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
     statusDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
@@ -491,8 +483,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 10,
         backgroundColor: 'transparent',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
     th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 },
     tr: {
@@ -500,7 +490,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 12,
-        borderBottomColor: colors.border,
         // @ts-ignore
         cursor: isWeb ? 'pointer' : undefined,
     },
@@ -512,9 +501,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         paddingHorizontal: 20,
         paddingVertical: 12,
-        backgroundColor: colors.card + 'E0',
-        borderTopWidth: 2,
-        borderTopColor: colors.border,
+        backgroundColor: colors.card + 'F0',
+        borderRadius: 12,
+        marginTop: 8,
     },
     totalCell: { fontSize: 13, fontWeight: '700', color: colors.text },
     actionBtn: {
@@ -524,9 +513,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
-        borderWidth: 1,
-        borderColor: colors.primary + '30',
-        backgroundColor: colors.primary + '10',
+        backgroundColor: colors.primary + '15',
     },
     actionBtnText: { fontSize: 11, fontWeight: '600', color: colors.primary },
 });

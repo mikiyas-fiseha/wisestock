@@ -152,17 +152,24 @@ export default function SaleDetailsScreen() {
                 total: item.total_price
             }));
 
+            const subtotal = sale.subtotal || sale.total_amount || 0;
+            const totalDiscount = sale.discount || 0;
+            const totalTax = sale.tax || 0;
+
             await generateAndShareReceipt({
                 companyName: company?.name || 'My Shop',
                 saleId: sale.id.split('-')[0].toUpperCase(),
                 date: new Date(sale.created_at).toLocaleString(),
                 customerName: sale.customers?.name,
                 items: receiptItems,
-                subtotal: sale.total_amount,
-                total: sale.total_amount,
-                amountPaid: sale.paid_amount || sale.total_amount,
-                change: sale.type === 'cash' ? (sale.paid_amount - sale.total_amount) : undefined,
-                paymentMethod: sale.payment_method || sale.type || 'cash'
+                subtotal: subtotal,
+                taxAmount: totalTax,
+                discountAmount: totalDiscount,
+                total: sale.total_amount || sale.total,
+                amountPaid: sale.paid_amount || sale.total_amount || sale.total,
+                change: sale.type === 'cash' ? ((sale.paid_amount || 0) - (sale.total_amount || sale.total || 0)) : undefined,
+                paymentMethod: sale.payment_method || sale.type || 'cash',
+                status: sale.status
             });
         } catch (e) {
             showFeedback('error', 'Error', 'Failed to generate receipt');
@@ -191,7 +198,7 @@ export default function SaleDetailsScreen() {
                     </View>
                     {(isAdmin || isManager || (isSales && sale.status !== 'completed')) && sale.status !== 'cancelled' && (
                         <AppButton
-                            title="Reverse / Cancel"
+                            title="Reverse / Void Sale"
                             onPress={handleReverseSale}
                             variant="outline"
                             loading={actionLoading}
@@ -219,22 +226,42 @@ export default function SaleDetailsScreen() {
 
                     <View style={styles.footer}>
                         <View style={styles.row}>
+                            <Text style={styles.label}>Subtotal</Text>
+                            <Text style={styles.value}>${(sale.subtotal || (sale.total_amount - (sale.tax || 0) + (sale.discount || 0))).toFixed(2)}</Text>
+                        </View>
+                        {(sale.discount > 0) && (
+                            <View style={styles.row}>
+                                <Text style={styles.label}>Discount</Text>
+                                <Text style={[styles.value, { color: colors.success }]}>
+                                    -${(sale.discount || 0).toFixed(2)}
+                                </Text>
+                            </View>
+                        )}
+                        {(sale.tax > 0) && (
+                            <View style={styles.row}>
+                                <Text style={styles.label}>Tax</Text>
+                                <Text style={styles.value}>
+                                    +${(sale.tax || 0).toFixed(2)}
+                                </Text>
+                            </View>
+                        )}
+                        <View style={styles.row}>
                             <Text style={styles.label}>Total Amount</Text>
-                            <Text style={styles.value}>${sale.total_amount.toFixed(2)}</Text>
+                            <Text style={[styles.value, { fontWeight: 'bold' }]}>${(sale.total_amount || sale.total).toFixed(2)}</Text>
                         </View>
                         <View style={styles.row}>
                             <Text style={styles.label}>Paid Amount</Text>
-                            <Text style={styles.value}>${sale.paid_amount.toFixed(2)}</Text>
+                            <Text style={styles.value}>${(sale.paid_amount || 0).toFixed(2)}</Text>
                         </View>
                         <View style={styles.row}>
                             <Text style={styles.label}>Balance Due</Text>
-                            <Text style={[styles.value, { color: colors.danger }]}>
-                                ${(sale.total_amount - sale.paid_amount).toFixed(2)}
+                            <Text style={[styles.value, { color: colors.danger, fontWeight: 'bold' }]}>
+                                ${((sale.total_amount || sale.total) - (sale.paid_amount || 0)).toFixed(2)}
                             </Text>
                         </View>
 
                         <AppButton
-                            title="Download Receipt"
+                            title="Print Professional Invoice"
                             onPress={handleDownloadReceipt}
                             loading={generating}
                             style={{ marginTop: 24 }}

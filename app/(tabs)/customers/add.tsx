@@ -1,20 +1,22 @@
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useAddCustomer, useUpdateCustomer } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/lib/supabase';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddCustomerScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company } = useAuth();
@@ -102,13 +104,13 @@ export default function AddCustomerScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <View style={styles.header}>
                 <Text style={styles.title}>{id ? 'Edit Customer' : 'New Customer'}</Text>
                 <AppButton title="Close" onPress={() => router.back()} variant="outline" style={{ width: 80 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
                 <AppTextInput label="Name *" value={name} onChangeText={setName} placeholder="John Doe" />
                 <AppTextInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+123456789" />
                 <AppTextInput label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="john@example.com" />
@@ -160,16 +162,22 @@ export default function AddCustomerScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee', paddingTop: 16 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', paddingTop: 16 },
     title: { fontSize: 20, fontWeight: 'bold' },
     content: { padding: 16 },
-    footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' },
+    footer: { 
+        padding: 16, 
+        paddingBottom: Platform.OS === 'web' ? 16 : Math.max(insets.bottom, 16) + 110,
+        backgroundColor: 'rgba(255,255,255,0.08)', 
+        borderTopWidth: 1, 
+        borderColor: colors.border + '40' 
+    },
     selectGroup: { marginBottom: 16 },
     label: { fontSize: 14, color: '#666', marginBottom: 8, fontWeight: '500' },
     row: { flexDirection: 'row', gap: 8 },
-    chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
+    chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: colors.border + '40' },
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     chipText: { fontSize: 13, color: '#666', fontWeight: '500' },
     chipTextActive: { color: '#fff' },

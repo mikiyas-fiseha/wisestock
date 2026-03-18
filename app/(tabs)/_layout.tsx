@@ -76,8 +76,8 @@ export default function TabLayout() {
               tabBarStyle: isWeb ? { display: 'none' } : {
                 position: 'absolute',
                 backgroundColor: 'transparent',
-                borderTopColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.4)',
-                borderTopWidth: 1,
+                borderTopColor: 'transparent',
+                borderTopWidth: 0,
                 elevation: 0,
                 shadowOpacity: 0,
                 height: 90,
@@ -88,12 +88,16 @@ export default function TabLayout() {
                 fontSize: 10,
                 fontWeight: '600',
               },
+              tabBarItemStyle: {
+                display: 'none',
+              },
             }}>
             <Tabs.Screen
               name="dashboard"
               options={{
                 title: 'Dashboard',
                 tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
+                tabBarItemStyle: { display: 'flex' },
               }}
             />
             <Tabs.Screen
@@ -101,20 +105,7 @@ export default function TabLayout() {
               options={{
                 title: 'Products',
                 tabBarIcon: ({ color }) => <TabBarIcon name="cube" color={color} />,
-              }}
-            />
-            <Tabs.Screen
-              name="purchases"
-              options={{
-                title: 'Purchases',
-                tabBarIcon: ({ color }) => <TabBarIcon name="shopping-bag" color={color} />,
-              }}
-            />
-            <Tabs.Screen
-              name="inventory"
-              options={{
-                title: 'Inventory',
-                tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
+                tabBarItemStyle: { display: 'flex' },
               }}
             />
             <Tabs.Screen
@@ -122,6 +113,23 @@ export default function TabLayout() {
               options={{
                 title: 'Sales',
                 tabBarIcon: ({ color }) => <TabBarIcon name="shopping-cart" color={color} />,
+                tabBarItemStyle: { display: 'flex' },
+              }}
+            />
+            <Tabs.Screen
+              name="purchases"
+              options={{
+                title: 'Purchases',
+                tabBarIcon: ({ color }) => <TabBarIcon name="shopping-bag" color={color} />,
+                tabBarItemStyle: { display: 'flex' },
+              }}
+            />
+            <Tabs.Screen
+              name="inventory"
+              options={{
+                title: 'Inventory',
+                tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
+                href: null,
               }}
             />
             <Tabs.Screen
@@ -129,6 +137,7 @@ export default function TabLayout() {
               options={{
                 title: 'Reports',
                 tabBarIcon: ({ color }) => <TabBarIcon name="line-chart" color={color} />,
+                tabBarItemStyle: { display: 'flex' },
               }}
             />
             <Tabs.Screen
@@ -137,6 +146,7 @@ export default function TabLayout() {
                 title: 'Customers',
                 tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
                 href: null,
+                tabBarItemStyle: { display: 'none' }
               }}
             />
             <Tabs.Screen
@@ -145,6 +155,7 @@ export default function TabLayout() {
                 title: 'Suppliers',
                 tabBarIcon: ({ color }) => <TabBarIcon name="truck" color={color} />,
                 href: null,
+                tabBarItemStyle: { display: 'none' }
               }}
             />
             <Tabs.Screen
@@ -153,12 +164,14 @@ export default function TabLayout() {
                 title: 'Expenses',
                 tabBarIcon: ({ color }) => <TabBarIcon name="money" color={color} />,
                 href: null,
+                tabBarItemStyle: { display: 'none' }
               }}
             />
             <Tabs.Screen
               name="expenses/add"
               options={{
                 href: null,
+                tabBarItemStyle: { display: 'none' }
               }}
             />
             <Tabs.Screen
@@ -167,6 +180,7 @@ export default function TabLayout() {
                 title: 'Settings',
                 tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
                 href: null,
+                tabBarItemStyle: { display: 'none' }
               }}
             />
           </Tabs>

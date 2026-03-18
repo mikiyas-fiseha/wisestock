@@ -1,12 +1,12 @@
 import { AppButton } from '@/components/ui/AppButton';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
     const { theme, systemTheme, colors, setTheme } = useTheme();
@@ -30,7 +30,7 @@ export default function SettingsScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <LinearGradient
                 colors={theme === 'dark' ? ['#0f172a', '#1e293b'] : ['#1e3c72', '#2a5298']}
                 start={{ x: 0, y: 0 }}
@@ -159,181 +159,36 @@ export default function SettingsScreen() {
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'transparent',
-    },
-    header: {
-        paddingTop: 24,
-        paddingBottom: 30,
-        paddingHorizontal: 20,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-        ...Layout.shadows.small,
-    },
-    profileSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    avatar: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.3)',
-    },
-    avatarText: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    userName: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#fff',
-        marginBottom: 2,
-    },
-    userEmail: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.8)',
-        marginBottom: 6,
-    },
-    roleBadge: {
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
-    roleText: {
-        color: '#FFD700',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    content: {
-        padding: 16,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionHeader: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: colors.textSecondary,
-        marginBottom: 8,
-        marginLeft: 12,
-        letterSpacing: 0.5,
-    },
-    card: {
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
-        overflow: 'hidden',
-        ...Layout.shadows.small,
-
-    },
-    settingItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: colors.card + 'E0',
-    },
-    iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: colors.primary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    settingContent: {
-        flex: 1,
-    },
-    settingTitle: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-    },
-    settingSubtitle: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    separator: {
-        height: 1,
-        backgroundColor: colors.border,
-        marginLeft: 64,
-    },
-    adminCard: {
-        borderRadius: 12,
-        ...Layout.shadows.medium,
-        overflow: 'hidden',
-    },
-    adminCardGradient: {
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    companyInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-    },
-    companyIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: colors.primary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    companyName: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    companyMeta: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    logoutButton: {
-        marginTop: 8,
-    },
-    version: {
-        textAlign: 'center',
-        marginTop: 16,
-        color: colors.textSecondary,
-        fontSize: 12,
-    },
-    themeOptions: {
-        flexDirection: 'row',
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 12,
-        padding: 4,
-
-        ...Layout.shadows.small,
-    },
-    themeOption: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-        borderRadius: 8,
-    },
-    themeOptionActive: {
-        backgroundColor: colors.primary,
-    },
-    themeOptionText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.textSecondary,
-    },
-    themeOptionTextActive: {
-        color: '#fff',
-    },
+    container: { flex: 1, backgroundColor: 'transparent' },
+    header: { paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+    profileSection: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
+    avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    avatarText: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+    userName: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+    userEmail: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
+    roleBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 4 },
+    roleText: { fontSize: 10, fontWeight: 'bold', color: '#fff', textTransform: 'uppercase' },
+    content: { padding: 20, paddingBottom: 40 },
+    section: { marginBottom: 25 },
+    sectionHeader: { fontSize: 12, fontWeight: 'bold', color: colors.textSecondary, marginBottom: 10, marginLeft: 5, letterSpacing: 1 },
+    themeOptions: { flexDirection: 'row', gap: 10 },
+    themeOption: { flex: 1, height: 40, borderRadius: 12, backgroundColor: colors.card + '80', justifyContent: 'center', alignItems: 'center' },
+    themeOptionActive: { backgroundColor: colors.primary },
+    themeOptionText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+    themeOptionTextActive: { color: '#fff' },
+    adminCard: { borderRadius: 16, overflow: 'hidden' },
+    adminCardGradient: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    card: { backgroundColor: colors.card + 'E0', borderRadius: 20, overflow: 'hidden' },
+    companyInfo: { padding: 16, flexDirection: 'row', alignItems: 'center' },
+    companyIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    companyName: { fontSize: 16, fontWeight: 'bold', color: colors.text },
+    companyMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    separator: { height: 1, backgroundColor: colors.border + '40', marginHorizontal: 16 },
+    settingItem: { padding: 16, flexDirection: 'row', alignItems: 'center' },
+    iconContainer: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '10', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    settingContent: { flex: 1 },
+    settingTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+    settingSubtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    logoutButton: { marginTop: 10 },
+    version: { textAlign: 'center', fontSize: 12, color: colors.textSecondary, marginTop: 20 },
 });

@@ -12,20 +12,42 @@ import { ThemeProvider as CustomThemeProvider, useTheme } from '@/context/ThemeC
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Platform } from 'react-native';
 
-if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    input, textarea, select, *:focus {
-      outline: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { theme, colors } = useTheme();
+
+  // Force native elements (like pickers) to respect the theme on Web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleId = 'web-theme-override';
+      let style = document.getElementById(styleId);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        document.head.appendChild(style);
+      }
+      style.textContent = `
+        :root { color-scheme: ${theme}; }
+        input, textarea, select, *:focus {
+          outline: none !important;
+        }
+        /* Mobile-like picker appearance on web */
+        select {
+          background-color: transparent !important;
+          color: inherit !important;
+          border: none !important;
+          padding-left: 10px !important;
+          cursor: pointer;
+        }
+        option {
+          background-color: ${theme === 'dark' ? '#1E293B' : '#FFFFFF'} !important;
+          color: ${theme === 'dark' ? '#FFFFFF' : '#000000'} !important;
+        }
+      `;
+    }
+  }, [theme]);
 
   const customNavigationTheme = {
     ...(theme === 'dark' ? DarkTheme : DefaultTheme),

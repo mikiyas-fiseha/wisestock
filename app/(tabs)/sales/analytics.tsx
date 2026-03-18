@@ -1,4 +1,4 @@
-import {Layout, Gradients } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -78,7 +78,7 @@ function PaymentDonut({ items, textColor, textSecondaryColor }: { items: { label
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 function KpiTile({ label, value, change, icon, color, cardColor, textColor, textSecondaryColor }: { label: string; value: string; change?: string; icon: string; color: string; cardColor: string; textColor: string; textSecondaryColor: string }) {
     return (
-        <View style={[kS.tile, { backgroundColor: cardColor, borderColor: cardColor === '#fff' ? 'transparent' : 'rgba(255,255,255,0.05)', borderWidth: 1 }]}>
+        <View style={[kS.tile, { backgroundColor: cardColor }]}>
             <View style={[kS.iconBox, { backgroundColor: color + '20' }]}>
                 <FontAwesome name={icon as any} size={18} color={color} />
             </View>
@@ -89,7 +89,7 @@ function KpiTile({ label, value, change, icon, color, cardColor, textColor, text
     );
 }
 const kS = StyleSheet.create({
-    tile: { flex: 1, borderRadius: 16, padding: 14, ...Layout.shadows.small },
+    tile: { flex: 1, borderRadius: 16, padding: 14 },
     iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
     value: { fontSize: 22, fontWeight: '800', marginBottom: 2 },
     label: { fontSize: 11, fontWeight: '600' },
@@ -209,8 +209,8 @@ export default function SalesAnalyticsScreen() {
 
     return (
         <View style={aS.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
-            
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+
             {/* Header */}
             <View style={[aS.header, { paddingTop: statusBarPad }]}>
                 <TouchableOpacity style={aS.backBtn} onPress={() => router.back()}>
@@ -307,14 +307,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 16, paddingHorizontal: 16 },
     backBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
     headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: '#fff' },
-    rangeChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
-    rangeChipActive: { backgroundColor: colors.card + 'E0', borderColor: 'transparent' },
-    rangeChipText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
-    rangeChipTextActive: { color: colors.primary },
+    rangeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
+    rangeChipActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
+    rangeChipText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+    rangeChipTextActive: { color: '#fff' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     content: { padding: 16, paddingBottom: 60, gap: 0 },
     kpiRow: { flexDirection: 'row', gap: 10 },
-    card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 18, marginTop: 14, ...Layout.shadows.small, borderWidth: 1, borderColor: colors.border },
+    card: { backgroundColor: colors.card + 'F0', borderRadius: 20, padding: 20, marginTop: 14 },
     cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 14 },
     emptyText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 20 },
 });

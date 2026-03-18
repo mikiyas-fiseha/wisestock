@@ -3,10 +3,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BlurView } from 'expo-blur';
 
 type IconName = React.ComponentProps<typeof FontAwesome>['name'];
 
@@ -78,7 +79,22 @@ export function WebSidebar() {
     };
 
     return (
-        <BlurView intensity={80} tint={theme === 'dark' ? 'dark' : 'light'} style={[styles.sidebar, theme === 'dark' && { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+        <View style={styles.sidebar}>
+            {theme === 'dark' ? (
+                <LinearGradient
+                    colors={['#111B3A', '#1A295A', '#0D1426']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+            ) : (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#E9FAFB' }]} />
+            )}
+            <BlurView
+                intensity={theme === 'dark' ? 40 : 20}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+            />
             {/* Company Header */}
             <View style={styles.header}>
                 <View style={styles.companyLogo}>
@@ -135,19 +151,19 @@ export function WebSidebar() {
                     </TouchableOpacity>
                 </View>
             </View>
-        </BlurView>
+        </View>
     );
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
     sidebar: {
         width: 250,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)', // Light translucent base
         borderRightWidth: 1,
-        borderRightColor: 'rgba(255,255,255,0.2)',
+        borderRightColor: 'rgba(255,255,255,0.1)',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
     },
     themeToggle: {
         padding: 8,

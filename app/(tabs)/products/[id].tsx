@@ -1,7 +1,7 @@
 import { AdjustStockModal } from '@/components/AdjustStockModal';
 import { ReturnModal } from '@/components/ReturnModal';
 import { StockTransferModal } from '@/components/StockTransferModal';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useProductBranchBreakdown } from '@/hooks/useInventory';
@@ -469,13 +469,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     cardsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: -24 },
     cardsColumn: { flexDirection: 'column', marginTop: 12 },
 
-    infoCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 14, padding: 16, ...Layout.shadows.small },
+    infoCard: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 16 },
     infoCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
     infoCardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
     infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
     infoLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     infoValue: { fontSize: 15, fontWeight: '700', color: colors.text },
-    infoDivider: { height: 1, backgroundColor: colors.border, marginVertical: 10 },
+    infoDivider: { height: 1, backgroundColor: colors.border + '40', marginVertical: 10 },
 
     statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
     statusActive: { backgroundColor: colors.success + '20' },
@@ -486,7 +486,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     adjustStockBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
     // Variants
-    variantCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+    variantCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 8 },
     variantName: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
     variantDetails: { fontSize: 12, color: colors.textSecondary },
     variantPrice: { fontSize: 15, fontWeight: '700', color: colors.primary, marginBottom: 2 },
@@ -498,11 +498,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
     // History Table (Web)
-    historyTable: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, overflow: 'hidden', ...Layout.shadows.small },
-    historyHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border },
+    historyTable: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' },
+    historyHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, backgroundColor: 'transparent' },
     historyTh: { fontSize: 10, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
     historyThRight: { textAlign: 'right' },
-    historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+    historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16 },
     historyDate: { fontSize: 12, fontWeight: '600', color: colors.text },
     historyTime: { fontSize: 10, color: colors.textSecondary },
     historyChange: { fontSize: 13, fontWeight: '700' },
@@ -514,7 +514,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     historyEmptyText: { fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' },
 
     // History Card (Mobile)
-    historyCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+    historyCard: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 14, marginBottom: 12 },
     historyCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     historyCardDate: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
     historyCardBody: { flexDirection: 'row', gap: 16 },
@@ -525,12 +525,12 @@ const createStyles = (colors: any) => StyleSheet.create({
 
     // Pagination
     pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 12 },
-    pageBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+    pageBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
     pageBtnDisabled: { opacity: 0.4 },
     pageText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
     // FAB
-    fab: { position: 'absolute', bottom: 28, left: 20, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30, ...Layout.shadows.medium, zIndex: 100 },
+    fab: { position: 'absolute', bottom: 28, left: 20, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30, zIndex: 100 },
     fabText: {
         color: '#FFFFFF', fontWeight: '700', fontSize: 15,
     },
@@ -538,7 +538,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         paddingHorizontal: 18, paddingVertical: 12,
         backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, marginBottom: 8,
-        
+
     },
     branchLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
     branchDot: { width: 8, height: 8, borderRadius: 4 },

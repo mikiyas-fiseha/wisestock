@@ -1,6 +1,6 @@
 import { ReportChart } from '@/components/reports/ReportChart';
 import { SummaryCard } from '@/components/SummaryCard';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useDashboardData } from '@/hooks/useSupabaseQuery';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -382,17 +382,47 @@ export default function DashboardScreen() {
                         </View>
                     </View>
 
-                    {/* Compact Summary Cards - 2x2 */}
+                    {/* Compact Summary Cards - 2x2 + Single row */}
                     <View style={styles.cardRow}>
-                        <SummaryCard title="Receivable" value={fmt(stats.creditDue)} type={stats.creditDue > 0 ? 'danger' : 'neutral'} icon="credit-card" compact />
-                        <SummaryCard title="Payable" value={fmt(stats.totalPayables)} type={stats.totalPayables > 0 ? 'warning' : 'neutral'} icon="send" compact />
+                        <SummaryCard
+                            title="Today Sales"
+                            value={fmt(stats.todaySales)}
+                            type="primary"
+                            icon="shopping-cart"
+                            compact
+                        />
+                        <SummaryCard
+                            title="Today Profit"
+                            value={fmt(stats.todayProfit)}
+                            type={stats.todayProfit >= 0 ? 'success' : 'danger'}
+                            icon="line-chart"
+                            compact
+                        />
                     </View>
                     <View style={styles.cardRow}>
-                        <SummaryCard title="Low Stock" value={stats.lowStockCount.toString()} type={stats.lowStockCount > 0 ? 'warning' : 'neutral'} icon="exclamation-triangle" compact />
-                        <SummaryCard title="Customers" value={stats.totalCustomers.toString()} type="neutral" icon="users" compact />
+                        <SummaryCard
+                            title="This Month"
+                            value={fmt(stats.monthSales)}
+                            type="neutral"
+                            icon="calendar"
+                            compact
+                        />
+                        <SummaryCard
+                            title="Credit Due"
+                            value={fmt(stats.creditDue)}
+                            type={stats.creditDue > 0 ? 'danger' : 'neutral'}
+                            icon="credit-card"
+                            compact
+                        />
                     </View>
                     <View style={styles.cardRow}>
-                        <SummaryCard title="Monthly Exp" value={fmt(data?.stats.monthExpenses || 0)} type="danger" icon="money" compact />
+                        <SummaryCard
+                            title="Today Exp"
+                            value={fmt(data?.stats.todayExpenses || 0)}
+                            type="danger"
+                            icon="money"
+                            compact
+                        />
                     </View>
 
                     {/* Mini Sales Chart */}
@@ -473,17 +503,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.card + 'E0',
         borderRadius: 14,
         padding: 20,
-        ...Layout.shadows.small,
 
         overflow: 'hidden',
     },
     cardLight: {
         backgroundColor: 'rgba(255,255,255,0.6)',
-        borderColor: 'rgba(255,255,255,0.8)',
     },
     cardDark: {
         backgroundColor: 'rgba(0,0,0,0.3)',
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
@@ -492,9 +519,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     countBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
 
     // Toggle
-    toggleRow: { flexDirection: 'row', backgroundColor: colors.border, borderRadius: 8, padding: 2 },
+    toggleRow: { flexDirection: 'row', backgroundColor: colors.border + '40', borderRadius: 8, padding: 2 },
     toggleBtn: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6 },
-    toggleActive: { backgroundColor: colors.card + 'E0', ...Layout.shadows.small },
+    toggleActive: { backgroundColor: colors.card + 'E0' },
     toggleText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
     toggleTextActive: { color: colors.primary },
 
@@ -506,12 +533,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     stockRow: {
         flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
         paddingHorizontal: 12, borderRadius: 10, marginBottom: 6,
-        backgroundColor: colors.warning + '15', borderLeftWidth: 3, borderLeftColor: colors.warning,
+        backgroundColor: colors.warning + '15',
     },
-    stockRowOut: { backgroundColor: colors.danger + '15', borderLeftColor: colors.danger },
+    stockRowOut: { backgroundColor: colors.danger + '15' },
     stockName: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 4 },
     stockBarRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    stockBarTrack: { width: 60, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' },
+    stockBarTrack: { width: 60, height: 4, backgroundColor: colors.border + '40', borderRadius: 2, overflow: 'hidden' },
     stockBarFill: { height: '100%', borderRadius: 2 },
     stockLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
     stockRight: { alignItems: 'center', marginHorizontal: 12 },
@@ -519,7 +546,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     stockMinLabel: { fontSize: 9, color: colors.textSecondary, marginTop: 1 },
     restockBtn: {
         backgroundColor: colors.danger + '15', paddingHorizontal: 10, paddingVertical: 5,
-        borderRadius: 6, borderWidth: 1, borderColor: colors.danger + '25',
+        borderRadius: 6,
     },
     restockBtnUrgent: { backgroundColor: colors.danger, borderColor: colors.danger },
     restockText: { fontSize: 11, fontWeight: '700', color: colors.danger },
@@ -536,28 +563,28 @@ const createStyles = (colors: any) => StyleSheet.create({
     healthLabel: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.3 },
 
     // Credit
-    creditSummary: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingVertical: 12, backgroundColor: colors.card + 'E0', borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+    creditSummary: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingVertical: 12, backgroundColor: colors.card + 'E0', borderRadius: 10 },
     creditStat: { flex: 1, alignItems: 'center' },
-    creditDivider: { width: 1, height: 32, backgroundColor: colors.border },
+    creditDivider: { width: 1, height: 32, backgroundColor: colors.border + '40' },
     creditStatValue: { fontSize: 20, fontWeight: '900', color: colors.text },
     creditStatLabel: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, marginTop: 2, textTransform: 'uppercase' },
     creditList: { marginBottom: 12 },
     creditListTitle: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-    creditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+    creditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     creditAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
     creditAvatarText: { fontSize: 11, fontWeight: '700', color: colors.primary },
     creditName: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.text },
     creditAmount: { fontSize: 14, fontWeight: '800', color: colors.danger },
 
     // Top Selling Products
-    topProductRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10 },
+    topProductRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border + '40', gap: 10 },
     topProductRank: { fontSize: 18, width: 28, textAlign: 'center' },
     topProductName: { fontSize: 13, fontWeight: '700', color: colors.text },
     topProductQty: { fontSize: 11, color: colors.textSecondary, fontWeight: '600', marginTop: 2 },
     topProductRevenue: { fontSize: 14, fontWeight: '800', color: colors.success },
 
     // Transactions
-    txRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+    txRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     txCustomer: { fontSize: 13, fontWeight: '600', color: colors.text },
     txInvoice: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
     txRight: { alignItems: 'flex-end' },
@@ -566,7 +593,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     txBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
 
     // View All
-    viewAllBtn: { alignItems: 'center', paddingVertical: 10, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
+    viewAllBtn: { alignItems: 'center', paddingVertical: 10, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border + '40' },
     viewAllBtnMobile: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
     viewAllText: { fontSize: 13, fontWeight: '600', color: colors.primary },
 
@@ -575,18 +602,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     emptyGreenText: { fontSize: 13, fontWeight: '600', color: colors.success },
 
     // ─── Mobile Layout ───
-    mobileContent: { paddingBottom: 32 },
+    mobileContent: { paddingBottom: 32, paddingHorizontal: 16 },
     mobileHeader: { paddingHorizontal: 16, paddingBottom: 12 },
     mobileGreeting: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     mobileTitle: { fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-    mobileSectionCard: { marginHorizontal: 12, marginTop: 12, padding: 16, borderRadius: 14, overflow: 'hidden', ...Layout.shadows.small, backgroundColor: colors.card + 'E0' },
+    mobileSectionCard: { marginHorizontal: 12, marginTop: 12, padding: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.card + 'E0' },
     mobileSectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 12 },
 
     // Quick actions
     actionCard: {
         flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', padding: 14,
         borderRadius: 12, alignItems: 'center', margin: 4,
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', gap: 6,
+        gap: 6,
     },
     actionTitle: { fontSize: 12, fontWeight: '600', color: colors.text },
 });

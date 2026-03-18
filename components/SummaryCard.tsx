@@ -1,5 +1,4 @@
 
-import { Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,12 +18,15 @@ interface SummaryCardProps {
 }
 
 export function SummaryCard({ title, value, type = 'neutral', icon, change, style, compact }: SummaryCardProps) {
-    const { colors } = useTheme();
+    const { colors, theme } = useTheme();
     const hasChange = change !== undefined && change !== 0;
     const isPositive = (change || 0) >= 0;
 
     const gradientMap = {
-        neutral: [(colors.card + '80'), (colors.card + '40')] as const,
+        neutral: [
+            theme === 'dark' ? '#243160' : '#E0F2F4',
+            theme === 'dark' ? '#1A2342' : '#F0F9FA'
+        ] as const,
         success: [`${colors.success}15`, `${colors.success}25`] as const,
         danger: [`${colors.danger}15`, `${colors.danger}25`] as const,
         warning: [`${colors.warning}15`, `${colors.warning}25`] as const,
@@ -53,7 +55,7 @@ export function SummaryCard({ title, value, type = 'neutral', icon, change, styl
                 colors={[...gradientMap[type]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.card, compact && styles.cardCompact, { borderColor: colors.border, borderWidth: 1 }]}
+                style={[styles.card, compact && styles.cardCompact]}
             >
                 <View style={styles.topRow}>
                     {icon && (
@@ -87,7 +89,6 @@ const styles = StyleSheet.create({
         minWidth: '22%',
         margin: 4,
         borderRadius: 14,
-        ...Layout.shadows.medium,
         backgroundColor: 'transparent',
     },
     containerCompact: {

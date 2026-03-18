@@ -1,4 +1,4 @@
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -35,7 +35,6 @@ const PAYMENT_METHODS = [
     { key: 'cash', label: 'Cash', icon: 'money' },
     { key: 'credit', label: 'Credit', icon: 'user' },
     { key: 'bank', label: 'Bank', icon: 'bank' },
-    { key: 'mobile_money', label: 'Mobile', icon: 'mobile' },
 ] as const;
 
 function getStockColor(s: number) {
@@ -81,7 +80,7 @@ function SuccessScreen({ invoiceId, total, onNewSale, onPrint, colors }: { invoi
 }
 const createSuccessStyles = (colors: any) => StyleSheet.create({
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
-    card: { backgroundColor: 'transparent', borderRadius: 28, padding: 40, alignItems: 'center', width: '85%', maxWidth: 380, ...Layout.shadows.large, borderWidth: 1, borderColor: colors.border },
+    card: { backgroundColor: 'transparent', borderRadius: 28, padding: 40, alignItems: 'center', width: '85%', maxWidth: 380 },
     circle: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     title: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
     inv: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 },
@@ -93,8 +92,9 @@ const createSuccessStyles = (colors: any) => StyleSheet.create({
 });
 
 // ─── Product Card ───────────────────────────────────────────────────────────
-function ProductCard({ product, onAdd, cartQty, colors }: { product: Product; onAdd: (p: Product) => void; cartQty: number; colors: any }) {
-    const styles = React.useMemo(() => createProductCardStyles(colors), [colors]);
+// ─── Product List Item ───────────────────────────────────────────────────────────
+function ProductListItem({ product, onAdd, cartQty, colors, theme }: { product: Product; onAdd: (p: Product) => void; cartQty: number; colors: any; theme: string }) {
+    const styles = React.useMemo(() => createProductItemStyles(colors, theme), [colors, theme]);
     const price = product.isVariant ? (product.price_override || 0) : (product.sale_price || 0);
     const out = product.stock <= 0;
     const low = !out && product.stock < 5;
@@ -102,48 +102,159 @@ function ProductCard({ product, onAdd, cartQty, colors }: { product: Product; on
 
     return (
         <TouchableOpacity
-            style={[styles.card, out && styles.cardDisabled]}
+            style={[styles.container, out && styles.containerDisabled]}
             onPress={() => !out && onAdd(product)}
-            activeOpacity={out ? 1 : 0.75}
+            activeOpacity={out ? 1 : 0.7}
         >
-            {product.image_url
-                ? <Image source={{ uri: product.image_url }} style={styles.image} resizeMode="cover" />
-                : <View style={styles.imagePlaceholder}><FontAwesome name="cube" size={26} color={colors.border} /></View>
-            }
-            <View style={[styles.stockBadge, { backgroundColor: stockColor + '18' }]}>
-                <View style={[styles.stockDot, { backgroundColor: stockColor }]} />
-                <Text style={[styles.stockText, { color: stockColor }]}>
-                    {out ? 'Out of stock' : low ? `Low: ${product.stock}` : `${product.stock}`}
-                </Text>
+            <View style={styles.imageContainer}>
+                {product.image_url
+                    ? <Image source={{ uri: product.image_url }} style={styles.image} resizeMode="cover" />
+                    : <View style={styles.imagePlaceholder}><FontAwesome name="cube" size={20} color={colors.textSecondary + '40'} /></View>
+                }
+                {cartQty > 0 && (
+                    <View style={styles.cartBadge}>
+                        <Text style={styles.cartBadgeText}>{cartQty}</Text>
+                    </View>
+                )}
             </View>
-            <View style={styles.body}>
-                <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
-                <Text style={styles.price}>${price.toFixed(2)}</Text>
+
+            <View style={styles.details}>
+                <View style={styles.nameRow}>
+                    <Text style={styles.name} numberOfLines={1}>{product.name}</Text>
+                    {product.isVariant && <View style={styles.variantBadge}><Text style={styles.variantText}>VAR</Text></View>}
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Text style={styles.price}>${price.toFixed(2)}</Text>
+                    <View style={[styles.stockBadge, { backgroundColor: stockColor + '15' }]}>
+                        <Text style={[styles.stockText, { color: stockColor }]}>
+                            {out ? 'Out' : low ? `Low: ${product.stock}` : `${product.stock} in stock`}
+                        </Text>
+                    </View>
+                </View>
             </View>
-            {!out && (
-                <TouchableOpacity style={styles.addBtn} onPress={() => onAdd(product)}>
-                    {cartQty > 0
-                        ? <Text style={styles.addBtnQty}>{cartQty}</Text>
-                        : <FontAwesome name="plus" size={13} color="#fff" />
-                    }
-                </TouchableOpacity>
-            )}
+
+            <TouchableOpacity
+                style={[styles.addBtn, out && styles.addBtnDisabled]}
+                onPress={() => !out && onAdd(product)}
+                disabled={out}
+            >
+                <FontAwesome name="plus" size={12} color="#fff" />
+            </TouchableOpacity>
         </TouchableOpacity>
     );
 }
-const createProductCardStyles = (colors: any) => StyleSheet.create({
-    card: { backgroundColor: colors.card + 'E0', borderRadius: 16, overflow: 'hidden', ...Layout.shadows.small, marginBottom: 2 },
-    cardDisabled: { opacity: 0.45 },
-    image: { width: '100%', height: 100 },
-    imagePlaceholder: { width: '100%', height: 100, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
-    stockBadge: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10 },
-    stockDot: { width: 5, height: 5, borderRadius: 3 },
-    stockText: { fontSize: 9, fontWeight: '700' },
-    body: { padding: 10, paddingBottom: 8 },
-    name: { fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 18, marginBottom: 4 },
-    price: { fontSize: 17, fontWeight: '800', color: colors.primary },
-    addBtn: { position: 'absolute', bottom: 10, right: 10, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
-    addBtnQty: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+const createProductItemStyles = (colors: any, theme: string) => StyleSheet.create({
+    container: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.card + 'E0',
+        borderRadius: 16,
+        padding: 10,
+        marginBottom: 10,
+        marginHorizontal: 14,
+    },
+    containerDisabled: {
+        opacity: 0.6,
+    },
+    imageContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 12,
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    image: {
+        width: '100%',
+        height: '100%',
+    },
+    imagePlaceholder: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cartBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: colors.primary,
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: colors.card,
+    },
+    cartBadgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '900',
+    },
+    details: {
+        flex: 1,
+        marginLeft: 12,
+        justifyContent: 'center',
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    name: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text,
+        flex: 1,
+    },
+    variantBadge: {
+        backgroundColor: colors.textSecondary + '20',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 4,
+        marginLeft: 6,
+    },
+    variantText: {
+        fontSize: 8,
+        fontWeight: '800',
+        color: colors.textSecondary,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    price: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: colors.primary,
+    },
+    stockBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    stockText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    addBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 8,
+    },
+    addBtnDisabled: {
+        backgroundColor: colors.textSecondary + '40',
+    }
 });
 
 // ─── Cart Row ───────────────────────────────────────────────────────────────
@@ -203,7 +314,7 @@ function CartRow({ item, isAdmin, onIncrease, onDecrease, onRemove, onEditPrice,
     );
 }
 const createCartRowStyles = (colors: any) => StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     name: { fontSize: 13, fontWeight: '600', color: colors.text },
     price: { fontSize: 12, color: colors.textSecondary },
     priceInput: { fontSize: 13, fontWeight: '700', color: colors.primary, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 50 },
@@ -339,7 +450,7 @@ const createCheckoutStyles = (colors: any) => StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
     sheet: { backgroundColor: 'transparent', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '92%' },
     drag: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10 },
-    hdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+    hdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     hdrSub: { fontSize: 12, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
     hdrTotal: { fontSize: 32, fontWeight: '900', color: colors.text },
     closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
@@ -353,7 +464,7 @@ const createCheckoutStyles = (colors: any) => StyleSheet.create({
     label: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 },
     input: { backgroundColor: 'transparent', borderRadius: 12, padding: 13, fontSize: 15, color: colors.text, marginBottom: 14 },
     methods: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-    mBtn: { flex: 1, minWidth: '22%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: 'transparent' },
+    mBtn: { flex: 1, minWidth: '22%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' },
     mBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     mLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
     mLabelActive: { color: '#fff' },
@@ -363,7 +474,7 @@ const createCheckoutStyles = (colors: any) => StyleSheet.create({
     changeBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#D1FAE5', padding: 12, borderRadius: 10, marginTop: 4 },
     changeLabel: { fontSize: 13, fontWeight: '700', color: '#065F46' },
     changeVal: { fontSize: 16, fontWeight: '800', color: '#065F46' },
-    confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 16, marginTop: 10, ...Layout.shadows.medium },
+    confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 16, marginTop: 10 },
     confirmBtnOff: { opacity: 0.6, backgroundColor: colors.textSecondary },
     confirmText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 });
@@ -390,7 +501,6 @@ export default function NewSaleScreen() {
     const [tax, setTax] = useState(0);
 
     const [productSearch, setProductSearch] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [checkoutVisible, setCheckoutVisible] = useState(false);
     const [customerModalVisible, setCustomerModalVisible] = useState(false);
     const [customerSearch, setCustomerSearch] = useState('');
@@ -423,21 +533,15 @@ export default function NewSaleScreen() {
         } finally { setLoadingProducts(false); }
     };
 
-    const categories = useMemo(() => {
-        const cats = new Set<string>();
-        allProducts.forEach(p => cats.add(p.category || 'Uncategorized'));
-        return ['all', ...Array.from(cats).sort()];
-    }, [allProducts]);
-
     const filteredProducts = useMemo(() => {
-        let list = allProducts;
-        if (selectedCategory !== 'all') list = list.filter(p => p.category === selectedCategory);
-        if (productSearch.trim()) {
-            const q = productSearch.toLowerCase();
-            list = list.filter(p => p.name.toLowerCase().includes(q) || p.primary_sku?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
-        }
-        return list;
-    }, [allProducts, selectedCategory, productSearch]);
+        if (!productSearch.trim()) return allProducts;
+        const q = productSearch.toLowerCase();
+        return allProducts.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            p.primary_sku?.toLowerCase().includes(q) ||
+            p.sku?.toLowerCase().includes(q)
+        );
+    }, [allProducts, productSearch]);
 
     const filteredCustomers = useMemo(() => customers.filter(c => !customerSearch || c.name?.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)), [customers, customerSearch]);
     const cartMap = useMemo(() => { const m: Record<string, number> = {}; cart.forEach(i => { m[i.id] = (m[i.id] || 0) + i.quantity; }); return m; }, [cart]);
@@ -459,7 +563,17 @@ export default function NewSaleScreen() {
     const grandTotal = subtotal - discountAmt + taxAmt;
 
     const doProcessSale = (method: string, amountPaid: number, note: string) => {
-        processSale({ cart: cart.map(i => ({ ...i, tax_rate: tax / 100, discount_rate: discount / 100 })), customer: selectedCustomer, paymentMethod: method, amountPaid: amountPaid.toString(), total: grandTotal }, {
+        processSale({
+            cart: cart.map(i => ({ ...i, tax_rate: tax / 100, discount_rate: discount / 100 })),
+            customer: selectedCustomer,
+            paymentMethod: method,
+            amountPaid: amountPaid.toString(),
+            total: grandTotal,
+            subtotal: subtotal,
+            tax: taxAmt,
+            discount: discountAmt,
+            note: note
+        }, {
             onSuccess: (data: any) => { setCheckoutVisible(false); setSuccessTotal(grandTotal); setSuccessInvoice(data || 'new'); },
             onError: (e: any) => showFeedback('error', 'Sale Failed', e.message),
         });
@@ -485,80 +599,129 @@ export default function NewSaleScreen() {
     };
     const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-    const TopBar = () => (
-        <View style={s.topBar}>
-            <TouchableOpacity style={s.backBtn} onPress={() => router.back()}><FontAwesome name="arrow-left" size={14} color={colors.text} /></TouchableOpacity>
-            <View style={s.topCenter}><Text style={s.topHeading}>New Sale</Text>{branch?.name && <View style={s.branchBadge}><Text style={s.branchText}>{branch.name}</Text></View>}</View>
-            <TouchableOpacity style={s.custBtn} onPress={() => setCustomerModalVisible(true)}>
-                <FontAwesome name="user" size={12} color={selectedCustomer ? colors.primary : colors.textSecondary} />
-                <View style={{ flex: 1 }}><Text style={[s.custBtnText, selectedCustomer && { color: colors.primary }]} numberOfLines={1}>{selectedCustomer ? selectedCustomer.name : 'Walk-in'}</Text></View>
-                <FontAwesome name="caret-down" size={10} color={colors.textSecondary} />
-            </TouchableOpacity>
-        </View>
-    );
-
-    const SearchBar = () => (
-        <View style={s.searchRow}>
-            <View style={s.searchBox}>
-                <FontAwesome name="search" size={14} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                <TextInput ref={searchRef} style={s.searchInput} placeholder="Search products..." placeholderTextColor={colors.textSecondary} value={productSearch} onChangeText={setProductSearch} returnKeyType="search" />
-                {productSearch.length > 0 && <TouchableOpacity onPress={() => setProductSearch('')}><FontAwesome name="times-circle" size={14} color={colors.border} /></TouchableOpacity>}
-            </View>
-            <TouchableOpacity style={s.scanBtn} onPress={() => { if (!permission?.granted) requestPermission(); else setShowScanner(true); }}><FontAwesome name="barcode" size={19} color={colors.primary} /></TouchableOpacity>
-        </View>
-    );
-
-    const CategoryTabs = () => (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catRow}>
-            {categories.map(cat => (
-                <TouchableOpacity key={cat} style={[s.catChip, selectedCategory === cat && s.catChipActive]} onPress={() => setSelectedCategory(cat)}>
-                    <Text style={[s.catText, selectedCategory === cat && s.catTextActive]}>{cat === 'all' ? 'All Products' : cat}</Text>
-                </TouchableOpacity>
-            ))}
-        </ScrollView>
-    );
-
-    const CartContent = () => (
+    const renderCartContent = () => (
         <>
             <View style={{ flex: 1 }}>
                 {cart.length === 0 ? (
-                    <View style={s.emptyCart}><View style={s.emptyCartIcon}><FontAwesome name="shopping-cart" size={28} color={colors.textSecondary} /></View><Text style={s.emptyCartTitle}>Cart is empty</Text></View>
+                    <View style={s.emptyCart}>
+                        <View style={s.emptyCartIcon}><FontAwesome name="shopping-cart" size={28} color={colors.textSecondary} /></View>
+                        <Text style={s.emptyCartTitle}>Cart is empty</Text>
+                    </View>
                 ) : (
-                    <ScrollView style={{ flex: 1 }}>{cart.map((item, i) => <CartRow key={`${item.id}-${i}`} item={item} isAdmin={isAdmin} onIncrease={() => increaseQty(i)} onDecrease={() => decreaseQty(i)} onRemove={() => removeFromCart(i)} onEditPrice={p => editPrice(i, p)} colors={colors} />)}</ScrollView>
+                    <ScrollView style={{ flex: 1 }}>
+                        {cart.map((item, i) => (
+                            <CartRow
+                                key={`${item.id}-${i}`}
+                                item={item}
+                                isAdmin={isAdmin}
+                                onIncrease={() => increaseQty(i)}
+                                onDecrease={() => decreaseQty(i)}
+                                onRemove={() => removeFromCart(i)}
+                                onEditPrice={p => editPrice(i, p)}
+                                colors={colors}
+                            />
+                        ))}
+                    </ScrollView>
                 )}
             </View>
             <View style={s.summaryBox}>
                 <View style={s.summaryRow}><Text style={s.summaryLabel}>Subtotal</Text><Text style={s.summaryVal}>${subtotal.toFixed(2)}</Text></View>
-                {discount > 0 && <View style={s.summaryRow}><Text style={[s.summaryLabel, { color: '#059669' }]}>Discount {discount}%</Text><Text style={[s.summaryVal, { color: '#059669' }]}>−${discountAmt.toFixed(2)}</Text></View>}
+                {discount > 0 && (
+                    <View style={s.summaryRow}>
+                        <Text style={[s.summaryLabel, { color: '#059669' }]}>Discount {discount}%</Text>
+                        <Text style={[s.summaryVal, { color: '#059669' }]}>−${discountAmt.toFixed(2)}</Text>
+                    </View>
+                )}
                 <View style={s.totalRow}><Text style={s.totalLabel}>Total</Text><Text style={s.totalVal}>${grandTotal.toFixed(2)}</Text></View>
-                <TouchableOpacity style={[s.checkoutBtn, cart.length === 0 && s.checkoutBtnOff]} onPress={() => cart.length > 0 && setCheckoutVisible(true)} disabled={cart.length === 0}>
-                    <FontAwesome name="credit-card" size={15} color="#fff" /><Text style={s.checkoutText}>Checkout · ${grandTotal.toFixed(2)}</Text>
+                <TouchableOpacity
+                    style={[s.checkoutBtn, cart.length === 0 && s.checkoutBtnOff]}
+                    onPress={() => cart.length > 0 && setCheckoutVisible(true)}
+                    disabled={cart.length === 0}
+                >
+                    <FontAwesome name="credit-card" size={15} color="#fff" />
+                    <Text style={s.checkoutText}>Checkout · ${grandTotal.toFixed(2)}</Text>
                 </TouchableOpacity>
             </View>
         </>
     );
 
+
     return (
         <View style={s.screen}>
             <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-            <TopBar />
+            {/* Top Bar Inline */}
+            <View style={s.topBar}>
+                <TouchableOpacity style={s.backBtn} onPress={() => router.back()}><FontAwesome name="arrow-left" size={14} color={colors.text} /></TouchableOpacity>
+                <View style={s.topCenter}><Text style={s.topHeading}>New Sale</Text>{branch?.name && <View style={s.branchBadge}><Text style={s.branchText}>{branch.name}</Text></View>}</View>
+                <TouchableOpacity style={s.custBtn} onPress={() => setCustomerModalVisible(true)}>
+                    <FontAwesome name="user" size={12} color={selectedCustomer ? colors.primary : colors.textSecondary} />
+                    <View style={{ flex: 1 }}><Text style={[s.custBtnText, selectedCustomer && { color: colors.primary }]} numberOfLines={1}>{selectedCustomer ? selectedCustomer.name : 'Walk-in'}</Text></View>
+                    <FontAwesome name="caret-down" size={10} color={colors.textSecondary} />
+                </TouchableOpacity>
+            </View>
+
             {isWebSplit ? (
                 <View style={s.splitRoot}>
                     <View style={s.leftPane}>
-                        <SearchBar /><CategoryTabs />
+                        {/* Search Bar Inline */}
+                        <View style={s.searchRow}>
+                            <View style={s.searchBox}>
+                                <FontAwesome name="search" size={14} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                                <TextInput ref={searchRef} style={s.searchInput} placeholder="Search products..." placeholderTextColor={colors.textSecondary} value={productSearch} onChangeText={setProductSearch} returnKeyType="search" />
+                                {productSearch.length > 0 && <TouchableOpacity onPress={() => setProductSearch('')}><FontAwesome name="times-circle" size={14} color={colors.border} /></TouchableOpacity>}
+                            </View>
+                            <TouchableOpacity style={s.scanBtn} onPress={() => { if (!permission?.granted) requestPermission(); else setShowScanner(true); }}><FontAwesome name="barcode" size={19} color={colors.primary} /></TouchableOpacity>
+                        </View>
+
                         {loadingProducts ? <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View> : (
-                            <FlatList data={filteredProducts} keyExtractor={(item, i) => `${item.id}-${i}`} numColumns={3} columnWrapperStyle={{ gap: 12, paddingHorizontal: 16, marginBottom: 12 }} renderItem={({ item }) => <ProductCard product={item} onAdd={addToCart} cartQty={cartMap[item.id] || 0} colors={colors} />} ListEmptyComponent={<View style={s.center}><Text style={{ color: colors.textSecondary }}>No products found</Text></View>} />
+                            <FlatList
+                                data={filteredProducts}
+                                keyExtractor={(item, i) => `${item.id}-${i}`}
+                                renderItem={({ item }) => (
+                                    <ProductListItem
+                                        product={item}
+                                        onAdd={addToCart}
+                                        cartQty={cartMap[item.id] || 0}
+                                        colors={colors}
+                                        theme={theme}
+                                    />
+                                )}
+                                ListEmptyComponent={<View style={s.center}><Text style={{ color: colors.textSecondary }}>No products found</Text></View>}
+                            />
                         )}
                     </View>
-                    <View style={s.rightPane}><View style={s.cartHeader}><Text style={s.cartTitle}>Cart</Text>{itemCount > 0 && <View style={s.cartBadge}><Text style={s.cartBadgeText}>{itemCount}</Text></View>}</View><CartContent /></View>
+                    <View style={s.rightPane}><View style={s.cartHeader}><Text style={s.cartTitle}>Cart</Text>{itemCount > 0 && <View style={s.cartBadge}><Text style={s.cartBadgeText}>{itemCount}</Text></View>}</View>{renderCartContent()}</View>
                 </View>
             ) : (
                 <View style={{ flex: 1 }}>
-                    <SearchBar /><CategoryTabs />
-                    <FlatList data={filteredProducts} keyExtractor={(item, i) => `${item.id}-${i}`} numColumns={2} columnWrapperStyle={{ gap: 10, paddingHorizontal: 14, marginBottom: 10 }} contentContainerStyle={{ paddingBottom: 100 }} renderItem={({ item }) => <ProductCard product={item} onAdd={addToCart} cartQty={cartMap[item.id] || 0} colors={colors} />} />
+                    {/* Search Bar Inline */}
+                    <View style={s.searchRow}>
+                        <View style={s.searchBox}>
+                            <FontAwesome name="search" size={14} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                            <TextInput ref={searchRef} style={s.searchInput} placeholder="Search products..." placeholderTextColor={colors.textSecondary} value={productSearch} onChangeText={setProductSearch} returnKeyType="search" />
+                            {productSearch.length > 0 && <TouchableOpacity onPress={() => setProductSearch('')}><FontAwesome name="times-circle" size={14} color={colors.border} /></TouchableOpacity>}
+                        </View>
+                        <TouchableOpacity style={s.scanBtn} onPress={() => { if (!permission?.granted) requestPermission(); else setShowScanner(true); }}><FontAwesome name="barcode" size={19} color={colors.primary} /></TouchableOpacity>
+                    </View>
+
+                    <FlatList
+                        style={{ flex: 1 }}
+                        data={filteredProducts}
+                        keyExtractor={(item, i) => `${item.id}-${i}`}
+                        contentContainerStyle={{ paddingBottom: 180 }}
+                        renderItem={({ item }) => (
+                            <ProductListItem
+                                product={item}
+                                onAdd={addToCart}
+                                cartQty={cartMap[item.id] || 0}
+                                colors={colors}
+                                theme={theme}
+                            />
+                        )}
+                    />
                     <TouchableOpacity style={[s.mobileBar, cart.length === 0 && { backgroundColor: colors.border }]} onPress={() => cart.length > 0 && setCartDrawerOpen(true)} disabled={cart.length === 0}><View style={s.mobileBarLeft}><View style={s.mobileBarBadge}><Text style={s.mobileBarBadgeText}>{itemCount}</Text></View><Text style={s.mobileBarText}>{itemCount} items</Text></View><Text style={s.mobileBarTotal}>${grandTotal.toFixed(2)}</Text></TouchableOpacity>
                     <Modal visible={cartDrawerOpen} transparent animationType="slide" onRequestClose={() => setCartDrawerOpen(false)}>
-                        <View style={s.drawerOverlay}><TouchableOpacity style={{ flex: 1 }} onPress={() => setCartDrawerOpen(false)} /><View style={s.drawer}><View style={s.drawerHandle} /><View style={s.drawerHeader}><Text style={s.drawerTitle}>Cart</Text><TouchableOpacity onPress={() => setCartDrawerOpen(false)}><FontAwesome name="times" size={14} color={colors.textSecondary} /></TouchableOpacity></View><CartContent /></View></View>
+                        <View style={s.drawerOverlay}><TouchableOpacity style={{ flex: 1 }} onPress={() => setCartDrawerOpen(false)} /><View style={s.drawer}><View style={s.drawerHandle} /><View style={s.drawerHeader}><Text style={s.drawerTitle}>Cart</Text><TouchableOpacity onPress={() => setCartDrawerOpen(false)}><FontAwesome name="times" size={14} color={colors.textSecondary} /></TouchableOpacity></View>{renderCartContent()}</View></View>
                     </Modal>
                 </View>
             )}
@@ -583,7 +746,7 @@ export default function NewSaleScreen() {
 
 const createStyles = (colors: any) => StyleSheet.create({
     screen: { flex: 1, backgroundColor: 'transparent' },
-    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: colors.card + 'E0', borderBottomWidth: 1, borderBottomColor: colors.border },
+    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: colors.card + 'E0' },
     backBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     topCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
     topHeading: { fontSize: 17, fontWeight: '800', color: colors.text },
@@ -592,48 +755,48 @@ const createStyles = (colors: any) => StyleSheet.create({
     custBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, maxWidth: 140 },
     custBtnText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, flex: 1 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 46, ...Layout.shadows.small },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 46 },
     searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineStyle: 'none' } as any,
     scanBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.primary + '18', justifyContent: 'center', alignItems: 'center' },
     catRow: { paddingHorizontal: 14, paddingBottom: 10, gap: 8 },
-    catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card + 'E0', borderWidth: 1.5, borderColor: colors.border },
+    catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card + 'E0' },
     catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     catText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
     catTextActive: { color: '#fff' },
     splitRoot: { flex: 1, flexDirection: 'row' },
     leftPane: { flex: 7 },
-    rightPane: { flex: 3, backgroundColor: colors.card + 'E0', borderLeftWidth: 1, borderLeftColor: colors.border },
+    rightPane: { flex: 3, backgroundColor: colors.card + 'E0' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
-    cartHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+    cartHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
     cartTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
     cartBadge: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
     cartBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
     emptyCart: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
     emptyCartIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
     emptyCartTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 },
-    summaryBox: { borderTopWidth: 1, borderTopColor: colors.border, padding: 14, backgroundColor: colors.card + 'E0' },
+    summaryBox: { borderTopWidth: 1, borderTopColor: colors.border + '40', padding: 14, backgroundColor: colors.card + 'E0' },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
     summaryLabel: { fontSize: 13, color: colors.textSecondary },
     summaryVal: { fontSize: 13, fontWeight: '600', color: colors.text },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border, marginBottom: 12 },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border + '40', marginBottom: 12 },
     totalLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
     totalVal: { fontSize: 28, fontWeight: '900', color: colors.primary },
     checkoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#059669', borderRadius: 16, paddingVertical: 15 },
     checkoutBtnOff: { backgroundColor: colors.border },
     checkoutText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-    mobileBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14, paddingBottom: Platform.OS === 'ios' ? 28 : 14 },
+    mobileBar: { position: 'absolute', bottom: 110, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
     mobileBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     mobileBarBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center' },
     mobileBarBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
     mobileBarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     mobileBarTotal: { color: '#fff', fontSize: 17, fontWeight: '800' },
     drawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    drawer: { backgroundColor: colors.card + 'E0', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '85%', flexDirection: 'column' },
+    drawer: { backgroundColor: colors.card + 'F6', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '85%', flexDirection: 'column' },
     drawerHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10 },
     drawerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
     drawerTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
     custOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-    custSheet: { backgroundColor: colors.card + 'E0', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+    custSheet: { backgroundColor: colors.card + 'F6', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
     custHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
     custTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
     custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
