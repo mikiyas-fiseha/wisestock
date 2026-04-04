@@ -38,6 +38,7 @@ export function useInventoryLogs(productId: string, page: number = 0, pageSize: 
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
+            // For non-admins viewing from a branch, filter by that branch
             if (branch?.id) {
                 query = query.eq('branch_id', branch.id);
             }
@@ -47,8 +48,14 @@ export function useInventoryLogs(productId: string, page: number = 0, pageSize: 
 
             const mapped = (data || []).map(row => ({
                 ...row,
+                // stock_movements uses qty_change; map to quantity for UI
                 quantity: row.qty_change,
-                reference_id: row.reason,
+                // stock_movements uses reason; map to notes for UI
+                notes: row.reason,
+                // stock_movements doesn't store previous/new stock — show dash
+                previous_stock: row.previous_stock ?? null,
+                new_stock: row.new_stock ?? null,
+                reference_type: row.type,
             }));
 
             return { data: mapped || [], count: count || 0 };

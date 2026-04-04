@@ -111,10 +111,10 @@ export default function DashboardScreen() {
                                     icon="credit-card"
                                 />
                                 <SummaryCard
-                                    title="Total Customers"
-                                    value={stats.totalCustomers?.toString() || '0'}
-                                    type="neutral"
-                                    icon="users"
+                                    title="Loan on store"
+                                    value={fmtFull(stats.totalPayables)}
+                                    type="warning"
+                                    icon="bank"
                                 />
                                 <SummaryCard
                                     title="Today Expenses"
@@ -423,6 +423,13 @@ export default function DashboardScreen() {
                             icon="money"
                             compact
                         />
+                        <SummaryCard
+                            title="Loan Store"
+                            value={fmt(stats.totalPayables)}
+                            type="warning"
+                            icon="bank"
+                            compact
+                        />
                     </View>
 
                     {/* Mini Sales Chart */}
@@ -447,17 +454,17 @@ export default function DashboardScreen() {
                     <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={[styles.mobileSectionCard, theme === 'dark' ? styles.cardDark : styles.cardLight]}>
                         <Text style={styles.mobileSectionTitle}>Quick Actions</Text>
                         <View style={styles.cardRow}>
+                            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/sales/new')} activeOpacity={0.7}>
+                                <Text style={{ fontSize: 22 }}>💰</Text>
+                                <Text style={styles.actionTitle}>Add Sale</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/purchases/add')} activeOpacity={0.7}>
+                                <Text style={{ fontSize: 22 }}>🛍️</Text>
+                                <Text style={styles.actionTitle}>Add Purchase</Text>
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/expenses')} activeOpacity={0.7}>
                                 <Text style={{ fontSize: 22 }}>💸</Text>
                                 <Text style={styles.actionTitle}>Expenses</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/expenses/add')} activeOpacity={0.7}>
-                                <Text style={{ fontSize: 22 }}>✍️</Text>
-                                <Text style={styles.actionTitle}>Add Expense</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/products')} activeOpacity={0.7}>
-                                <Text style={{ fontSize: 22 }}>📦</Text>
-                                <Text style={styles.actionTitle}>Inventory</Text>
                             </TouchableOpacity>
                         </View>
                     </BlurView>
@@ -606,7 +613,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     mobileHeader: { paddingHorizontal: 16, paddingBottom: 12 },
     mobileGreeting: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     mobileTitle: { fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-    mobileSectionCard: { marginHorizontal: 12, marginTop: 12, padding: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.card + 'E0' },
+    mobileSectionCard: { marginHorizontal: 0, marginTop: 12, padding: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.card + 'E0' },
     mobileSectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 12 },
 
     // Quick actions

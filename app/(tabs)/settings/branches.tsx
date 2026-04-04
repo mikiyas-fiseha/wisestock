@@ -30,7 +30,9 @@ export default function BranchesScreen() {
     const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
 
     const handleCreate = async () => {
+        if (isCreating) return;
         if (!name.trim()) return;
+
         try {
             await createBranch({ name, address, phone });
             setCreateModalVisible(false);
@@ -44,7 +46,9 @@ export default function BranchesScreen() {
     };
 
     const handleUpdate = async () => {
+        if (isUpdating) return;
         if (!selectedBranch || !name.trim()) return;
+
         try {
             await updateBranch({ id: selectedBranch.id, name, address, phone });
             setEditModalVisible(false);
@@ -56,7 +60,9 @@ export default function BranchesScreen() {
     };
 
     const handleToggleStatus = async (branch: Branch) => {
+        if (isUpdating) return;
         const newStatus = branch.status === 'active' ? 'inactive' : 'active';
+
         try {
             await updateBranch({ id: branch.id, status: newStatus } as any);
             showFeedback('success', 'Status Updated', `${branch.name} is now ${newStatus}`);
@@ -256,22 +262,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: 13,
-        color: '#94A3B8',
+        color: colors.textSecondary,
     },
     listContent: { padding: 16, paddingBottom: 100 },
 
     // Branch Card
     branchCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border + '50',
     },
     branchCardInactive: {
         opacity: 0.6,
-        backgroundColor: '#F8FAFC',
     },
     branchHeader: {
         flexDirection: 'row',
@@ -304,12 +309,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     branchAddress: {
         fontSize: 13,
-        color: '#64748B',
+        color: colors.textSecondary,
         marginLeft: 24,
     },
     branchPhone: {
         fontSize: 12,
-        color: '#94A3B8',
+        color: colors.textSecondary + '80',
         marginLeft: 24,
         marginTop: 2,
     },
@@ -321,7 +326,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     statusLabel: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#94A3B8',
+        color: colors.textSecondary,
         marginBottom: 2,
     },
 
@@ -332,7 +337,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginTop: 12,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
+        borderTopColor: colors.border + '20',
     },
     actionBtn: {
         flexDirection: 'row',
@@ -341,15 +346,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 6,
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.border + '30',
     },
     actionBtnText: {
         fontSize: 12,
         fontWeight: '500',
-        color: '#64748B',
+        color: colors.textSecondary,
     },
     actionBtnDanger: {
-        backgroundColor: '#FEF2F2',
+        backgroundColor: '#FEF2F220',
     },
     actionBtnTextDanger: {
         fontSize: 12,
@@ -366,13 +371,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     emptyText: {
         fontSize: 15,
-        color: '#94A3B8',
+        color: colors.textSecondary,
     },
 
     // FAB & Modal
-    fab: { padding: 16, borderTopWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
+    fab: { padding: 16, borderTopWidth: 1, borderColor: colors.border + '20', backgroundColor: 'transparent' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-    modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 24 },
-    modalTitle: { fontSize: 20, fontWeight: '600', marginBottom: 16 },
+    modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 24, borderWidth: 1, borderColor: colors.border + '50' },
+    modalTitle: { fontSize: 20, fontWeight: '600', marginBottom: 16, color: colors.text },
     modalButtons: { flexDirection: 'row', marginTop: 16 },
 });

@@ -195,9 +195,28 @@ export const useAddExpense = () => {
     const queryClient = useQueryClient();
     const { company, branch, user } = useAuth();
 
+    // Simple client-side deduplication to prevent double-taps
+    const lastSubmission = React.useRef<{ time: number, hash: string } | null>(null);
+
     return useMutation({
         mutationFn: async (expenseData: Partial<Expense>) => {
             if (!company?.id) throw new Error('No company ID');
+
+            const submissionHash = JSON.stringify({
+                amount: expenseData.amount,
+                category_id: expenseData.category_id,
+                date: expenseData.date?.substring(0, 16), // Minute precision
+                description: expenseData.description
+            });
+
+            const now = Date.now();
+            if (lastSubmission.current &&
+                now - lastSubmission.current.time < 3000 &&
+                lastSubmission.current.hash === submissionHash) {
+                console.warn('Duplicate expense submission blocked');
+                return null; // Silent block or could throw
+            }
+            lastSubmission.current = { time: now, hash: submissionHash };
 
             const { data, error } = await supabase
                 .from('expenses')

@@ -52,8 +52,10 @@ export default function AttributesScreen() {
     };
 
     const createAttribute = async () => {
+        if (creating) return;
         if (!name.trim() || !code.trim()) return;
-        setCreating(true);
+        
+setCreating(true);
         try {
             const { error } = await supabase
                 .from('attributes')

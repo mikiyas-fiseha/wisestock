@@ -66,6 +66,8 @@ export default function TeamScreen() {
     }, [company?.id]);
 
     const handleInvite = async () => {
+        if (loading) return;
+
         if (!inviteEmail || !inviteName || !invitePassword) {
             showFeedback('error', 'Error', 'Please enter email, name, and temporary password');
             return;

@@ -61,7 +61,9 @@ export default function CategoriesScreen() {
     };
 
     const createCategory = async () => {
+        if (creating) return;
         if (!newCategoryName.trim()) return;
+
         setCreating(true);
         try {
             const { error } = await supabase
@@ -105,7 +107,8 @@ export default function CategoriesScreen() {
     };
 
     const saveLinks = async () => {
-        if (!selectedCategory) return;
+        if (savingLinks || !selectedCategory) return;
+
         setSavingLinks(true);
         try {
             // 1. Delete all existing links

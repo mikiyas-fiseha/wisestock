@@ -16,9 +16,10 @@ export function ScreenWrapper({ children, style }: { children: React.ReactNode; 
     // The floating header = safe area top + header bar (~56dp on Android, ~44dp on iOS)
     const HEADER_BAR_HEIGHT = Platform.OS === 'ios' ? 44 : 56;
     const topPadding = isWeb ? 0 : (insets.top + HEADER_BAR_HEIGHT);
+    const bottomPadding = isWeb ? 0 : 90;
 
     return (
-        <View style={[styles.container, !isWeb && { paddingTop: topPadding }, style]}>
+        <View style={[styles.container, !isWeb && { paddingTop: topPadding, paddingBottom: bottomPadding }, style]}>
             {children}
         </View>
     );

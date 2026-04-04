@@ -142,7 +142,7 @@ export default function PurchasesListScreen() {
                     data={purchases}
                     keyExtractor={(item: any) => item.id}
                     renderItem={renderPurchaseCard}
-                    contentContainerStyle={[styles.list, isWeb && styles.listWeb, { paddingBottom: 110 }]}
+                    contentContainerStyle={[styles.list, isWeb && styles.listWeb, { paddingBottom: 20 }]}
                     showsVerticalScrollIndicator={false}
                 />
             )}

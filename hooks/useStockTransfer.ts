@@ -36,7 +36,7 @@ export function useStockTransfer() {
             if (fromBranchId === toBranchId) throw new Error('Source and destination must be different');
             if (quantity <= 0) throw new Error('Quantity must be positive');
 
-            // 1. Get source branch_products
+            // 1. Verify source has enough stock
             const { data: sourceBP, error: sourceErr } = await supabase
                 .from('branch_products')
                 .select('id, stock')
@@ -49,88 +49,54 @@ export function useStockTransfer() {
             const sourceStock = Number(sourceBP.stock) || 0;
             if (sourceStock < quantity) throw new Error(`Insufficient stock. Available: ${sourceStock}`);
 
-            // 2. Get or create destination branch_products
-            let { data: destBP } = await supabase
+            // 2. Get destination stock for history logging
+            const { data: destBP } = await supabase
                 .from('branch_products')
                 .select('id, stock')
                 .eq('product_id', productId)
                 .eq('branch_id', toBranchId)
-                .single();
+                .maybeSingle();
 
-            if (!destBP) {
-                // Create branch_products row for destination
-                const { data: newBP, error: createErr } = await supabase
-                    .from('branch_products')
-                    .insert({
-                        product_id: productId,
-                        branch_id: toBranchId,
-                        stock: 0,
-                        company_id: company.id,
-                    })
-                    .select()
-                    .single();
+            const destStock = Number(destBP?.stock) || 0;
 
-                if (createErr) throw new Error('Could not create stock record for destination branch');
-                destBP = newBP;
-            }
-
-            if (!destBP) throw new Error('Failed to get destination branch stock record');
-
-            const destStock = Number(destBP.stock) || 0;
-
-            // 3. Update source: decrease stock
-            const { error: srcUpdateErr } = await supabase
-                .from('branch_products')
-                .update({ stock: sourceStock - quantity })
-                .eq('id', sourceBP.id);
-
-            if (srcUpdateErr) throw srcUpdateErr;
-
-            // 4. Update destination: increase stock
-            const { error: destUpdateErr } = await supabase
-                .from('branch_products')
-                .update({ stock: destStock + quantity })
-                .eq('id', destBP.id);
-
-            if (destUpdateErr) throw destUpdateErr;
-
-            // 5. Log transfer in stock_transactions (two entries)
+            // 3. Insert stock_movements — the DB trigger handles updating branch_products automatically
             const fromBranch = allBranches.find(b => b.id === fromBranchId);
             const toBranch = allBranches.find(b => b.id === toBranchId);
             const transferNote = notes || `Transfer: ${fromBranch?.name || 'Branch'} → ${toBranch?.name || 'Branch'}`;
 
-            await supabase.from('stock_transactions').insert([
+            const movements = [
                 {
                     product_id: productId,
-                    type: 'transfer_out',
-                    quantity: -quantity,
-                    previous_stock: sourceStock,
-                    new_stock: sourceStock - quantity,
-                    reference_type: 'transfer',
-                    notes: transferNote,
                     company_id: company.id,
-                    created_by: user.id,
                     branch_id: fromBranchId,
+                    type: 'transfer_out',
+                    qty_change: -quantity,
+                    user_id: user.id,
+                    reason: transferNote,
                 },
                 {
                     product_id: productId,
-                    type: 'transfer_in',
-                    quantity: quantity,
-                    previous_stock: destStock,
-                    new_stock: destStock + quantity,
-                    reference_type: 'transfer',
-                    notes: transferNote,
                     company_id: company.id,
-                    created_by: user.id,
                     branch_id: toBranchId,
+                    type: 'transfer_in',
+                    qty_change: quantity,
+                    user_id: user.id,
+                    reason: transferNote,
                 },
-            ]);
+            ];
+
+            const { error: moveErr } = await supabase.from('stock_movements').insert(movements);
+            if (moveErr) throw moveErr;
 
             return { from: sourceStock - quantity, to: destStock + quantity };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['inventory-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory-stock'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory-summary'] });
+            queryClient.invalidateQueries({ queryKey: ['product-branch-breakdown'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             queryClient.invalidateQueries({ queryKey: ['branch-stock'] });
         },

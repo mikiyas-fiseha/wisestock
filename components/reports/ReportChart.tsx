@@ -1,10 +1,10 @@
 import { useTheme } from '@/context/ThemeContext';
 import React, { useState } from 'react';
 import { Dimensions, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
-import { BarChart, LineChart } from 'react-native-gifted-charts';
+import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
 
 interface ReportChartProps {
-    type: 'line' | 'bar';
+    type: 'line' | 'bar' | 'pie';
     data: any[];
     height?: number;
     width?: number; // Optional override
@@ -32,6 +32,7 @@ export function ReportChart({
 
     const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 48);
     const [isLayoutReady, setIsLayoutReady] = useState(false);
+    const [selectedSector, setSelectedSector] = useState<any>(null);
 
     const onLayout = (event: LayoutChangeEvent) => {
         const { width } = event.nativeEvent.layout;
@@ -45,9 +46,13 @@ export function ReportChart({
     const chartData = data.map(item => ({
         ...item,
         frontColor: item.frontColor || primaryColor,
+        // For PieCharts, we want distinct colors if not provided
+        color: item.color || item.frontColor || primaryColor,
         // Ensure value is a number
         value: Number(item.value) || 0
     }));
+
+    const totalValue = chartData.reduce((acc, curr) => acc + curr.value, 0);
 
     // Calculate dynamic properties
     const calculatedWidth = width || containerWidth;
@@ -126,13 +131,38 @@ export function ReportChart({
                         endOpacity={0.05}
                         areaChart
                     />
-                ) : (
+                ) : type === 'bar' ? (
                     <BarChart
                         {...commonProps}
                         barWidth={barWidth}
                         noOfSections={4}
                         barBorderRadius={4}
                         frontColor={primaryColor}
+                    />
+                ) : (
+                    <PieChart
+                        data={chartData}
+                        donut
+                        radius={height / 2.5}
+                        innerRadius={height / 5}
+                        innerCircleColor={colors.card}
+                        centerLabelComponent={() => (
+                            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                                <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '600' }}>
+                                    {selectedSector ? selectedSector.label : 'TOTAL'}
+                                </Text>
+                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold', marginTop: 2 }}>
+                                    {selectedSector
+                                        ? (selectedSector.value > 1000 ? `${(selectedSector.value / 1000).toFixed(1)}k` : selectedSector.value.toFixed(0))
+                                        : (totalValue > 1000 ? `${(totalValue / 1000).toFixed(1)}k` : totalValue.toFixed(0))
+                                    }
+                                </Text>
+                            </View>
+                        )}
+                        onPress={(item: any) => setSelectedSector(item)}
+                        focusOnPress
+                        sectionAutoFocus
+                        paddingVertical={10}
                     />
                 )
             ) : (

@@ -12,6 +12,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CollectPaymentModal } from '@/components/customers/CollectPaymentModal';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 function useARaging() {
@@ -48,9 +50,8 @@ export default function ReceivablesReport() {
 
     // Collection State
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-    const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentNotes, setPaymentNotes] = useState('');
     const { mutate: collectPayment, isPending: isCollecting } = useCollectPayment();
+    const [isUploading, setIsUploading] = useState(false);
 
     const totals = useMemo(() => ({
         total: data.reduce((s: number, r: any) => s + Number(r.current_balance || 0), 0),
@@ -59,27 +60,37 @@ export default function ReceivablesReport() {
         b61: data.reduce((s: number, r: any) => s + Number(r.bucket_61_plus || 0), 0),
     }), [data]);
 
-    const handlePaymentSubmit = () => {
-        if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
-            showFeedback('error', 'Error', "Please enter a valid amount");
-            return;
+    const handlePaymentSubmit = async (data: { amount: number; method: string; date: Date; notes: string; receiptUri: string | null; saleId?: string }) => {
+        setIsUploading(true);
+        let receiptUrl = null;
+        if (data.receiptUri) {
+            try {
+                receiptUrl = await uploadImageToCloudinary(data.receiptUri);
+            } catch (e: any) {
+                showFeedback('error', 'Upload Failed', e.message);
+                setIsUploading(false);
+                return;
+            }
         }
 
         collectPayment({
             customerId: selectedCustomer.customer_id,
-            amount: paymentAmount,
-            notes: paymentNotes
+            amount: data.amount.toString(),
+            method: data.method,
+            notes: data.notes,
+            receiptUrl: receiptUrl,
+            saleId: data.saleId
         }, {
             onSuccess: () => {
                 setSelectedCustomer(null);
-                setPaymentAmount('');
-                setPaymentNotes('');
                 showFeedback('success', 'Success', "Payment recorded");
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+                setIsUploading(false);
             },
             onError: (err) => {
                 showFeedback('error', 'Error', err.message);
+                setIsUploading(false);
             }
         });
     };
@@ -140,7 +151,6 @@ export default function ReceivablesReport() {
                                                 style={styles.actionBtn}
                                                 onPress={() => {
                                                     setSelectedCustomer(row);
-                                                    setPaymentAmount(row.current_balance.toString());
                                                 }}
                                             >
                                                 <FontAwesome name="money" size={16} color={colors.primary} />
@@ -177,36 +187,14 @@ export default function ReceivablesReport() {
                     </ScrollView>
                 )}
                 {/* Payment Modal */}
-                <Modal visible={!!selectedCustomer} animationType="fade" transparent>
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Collect Payment</Text>
-                            <Text style={styles.modalSubtitle}>Record a payment from {selectedCustomer?.customer_name}</Text>
-
-                            <View style={{ marginBottom: 16 }}>
-                                <AppTextInput
-                                    label="Amount"
-                                    value={paymentAmount}
-                                    onChangeText={setPaymentAmount}
-                                    keyboardType="numeric"
-                                    prefix="$"
-                                    placeholder="0.00"
-                                />
-                                <AppTextInput
-                                    label="Notes (Optional)"
-                                    value={paymentNotes}
-                                    onChangeText={setPaymentNotes}
-                                    placeholder="Ref #, Bank info..."
-                                />
-                            </View>
-
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <AppButton title="Cancel" variant="outline" onPress={() => setSelectedCustomer(null)} style={{ flex: 1 }} />
-                                <AppButton title="Confirm Payment" onPress={handlePaymentSubmit} loading={isCollecting} style={{ flex: 1 }} />
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
+                <CollectPaymentModal
+                    visible={!!selectedCustomer}
+                    onClose={() => setSelectedCustomer(null)}
+                    onSubmit={handlePaymentSubmit}
+                    customerName={selectedCustomer?.customer_name || 'Customer'}
+                    currentBalance={Number(selectedCustomer?.current_balance || 0)}
+                    isLoading={isCollecting || isUploading}
+                />
             </View>
         </ReportLayout>
     );

@@ -9,7 +9,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function AddSupplierScreen() {
     const { colors, theme } = useTheme();

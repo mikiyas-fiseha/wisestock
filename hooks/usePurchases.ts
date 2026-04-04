@@ -43,7 +43,15 @@ export function usePurchases() {
                     *,
                     product:products(name, primary_sku)
                 ),
-                payments:supplier_payments(*)
+                payments:supplier_payments(
+                    id,
+                    amount,
+                    payment_date,
+                    method,
+                    notes,
+                    receipt_url,
+                    created_at
+                )
             `)
             .eq('id', id)
             .single();
@@ -76,13 +84,14 @@ export function usePurchases() {
                 payment_method: string;
                 notes: string;
                 items: PurchaseItem[];
+                receipt_url?: string | null;
             }) => {
                 if (!company?.id || !user?.id) throw new Error("Missing company or user ID");
 
                 // Call the RPC function
-                const { data, error } = await supabase.rpc('create_purchase', {
+                const { data: purchaseId, error } = await supabase.rpc('create_purchase', {
                     p_company_id: company.id,
-                    p_supplier_id: params.supplier_id || null, // Allow null for walk-in/generic purchases if needed
+                    p_supplier_id: params.supplier_id || null,
                     p_purchase_date: params.purchase_date.toISOString(),
                     p_invoice_number: params.invoice_number,
                     p_total_amount: params.total_amount,
@@ -95,7 +104,18 @@ export function usePurchases() {
                 });
 
                 if (error) throw error;
-                return data;
+                
+                // If a receipt URL was provided, update the record immediately
+                if (params.receipt_url && purchaseId) {
+                    const { error: updateError } = await supabase
+                        .from('purchases')
+                        .update({ receipt_url: params.receipt_url })
+                        .eq('id', purchaseId);
+                    
+                    if (updateError) console.error('Error updating receipt_url:', updateError);
+                }
+
+                return purchaseId;
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['purchases'] });

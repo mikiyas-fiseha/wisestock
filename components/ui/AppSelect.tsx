@@ -26,9 +26,10 @@ interface AppSelectProps {
     onValueChange: (value: any) => void;
     placeholder?: string;
     error?: string;
+    containerStyle?: any;
 }
 
-export function AppSelect({ label, options, selectedValue, onValueChange, placeholder, error }: AppSelectProps) {
+export function AppSelect({ label, options, selectedValue, onValueChange, placeholder, error, containerStyle }: AppSelectProps) {
     const { colors, theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const { width, height } = useWindowDimensions();
@@ -42,7 +43,7 @@ export function AppSelect({ label, options, selectedValue, onValueChange, placeh
     };
 
     return (
-        <View style={[styles.container, { zIndex: isOpen ? 9999 : 1 }]}>
+        <View style={[styles.container, containerStyle, { zIndex: isOpen ? 9999 : 1 }]}>
             {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
 
             <View style={styles.anchorContainer}>
@@ -50,8 +51,8 @@ export function AppSelect({ label, options, selectedValue, onValueChange, placeh
                     style={[
                         styles.selector,
                         {
-                            backgroundColor: 'rgba(255,255,255,0.05)',
-                            borderColor: colors.background === '#09090B' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            borderColor: theme === 'dark' ? colors.border : 'rgba(0,0,0,0.12)',
                         },
                         isOpen && { borderColor: colors.primary },
                         error ? styles.selectorError : null
@@ -75,7 +76,7 @@ export function AppSelect({ label, options, selectedValue, onValueChange, placeh
                         <View style={[
                             styles.dropdown,
                             {
-                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)',
+                                borderColor: colors.border,
                             }
                         ]}>
                             <LinearGradient

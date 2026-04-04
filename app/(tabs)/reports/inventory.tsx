@@ -77,14 +77,6 @@ export default function InventoryReportScreen() {
                     </View>
                 </View>
 
-                {/* Alerts Section */}
-                {(inv?.lowStock?.length || 0) > 0 && (
-                    <View style={styles.alertBox}>
-                        <Text style={styles.alertTitle}>Low Stock Alerts ({inv?.lowStock?.length})</Text>
-                        <Text style={styles.alertText}>The following items are below reorder levels.</Text>
-                    </View>
-                )}
-
                 {/* Movement Table */}
                 <View style={[styles.section, { padding: 0 }]}>
                     <View style={{ padding: 16 }}>
@@ -116,14 +108,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     valLabel: { fontSize: 10, fontWeight: '800', color: colors.textSecondary, letterSpacing: 0.5 },
     valValue: { fontSize: 20, fontWeight: '900', color: colors.text, marginTop: 4 },
-    alertBox: {
-        backgroundColor: colors.danger + '10',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-    },
-    alertTitle: { fontSize: 14, fontWeight: '700', color: colors.danger },
-    alertText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
     section: {
         backgroundColor: colors.card + 'E0',
         borderRadius: 20,

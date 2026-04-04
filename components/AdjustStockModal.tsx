@@ -14,8 +14,6 @@ const REASONS = [
     { label: 'Damaged', value: 'damaged', icon: '💥' },
     { label: 'Expired', value: 'expired', icon: '⏰' },
     { label: 'Correction', value: 'correction', icon: '✏️' },
-    { label: 'Transfer', value: 'transfer', icon: '🔄' },
-    { label: 'Return', value: 'return', icon: '↩️' },
     { label: 'Other', value: 'other', icon: '📋' },
 ];
 

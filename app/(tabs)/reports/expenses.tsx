@@ -5,10 +5,12 @@ import { Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 export default function ExpensesReportScreen() {
     const { colors } = useTheme();
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [range, setRange] = useState<DateRange>({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -18,9 +20,13 @@ export default function ExpensesReportScreen() {
 
     const fmt = (val: number | null | undefined) => `$${(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-    const chartData = data?.expenses?.byCategory?.map((c: any) => ({
+    const PIE_COLORS = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
+
+    const chartData = data?.expenses?.byCategory?.map((c: any, i: number) => ({
         label: c.category,
         value: c.amount,
+        color: PIE_COLORS[i % PIE_COLORS.length],
+        frontColor: PIE_COLORS[i % PIE_COLORS.length],
     })) || [];
 
     const columns = [
@@ -52,10 +58,16 @@ export default function ExpensesReportScreen() {
                     </View>
                 </View>
 
-                {/* Category Chart */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Expense by Category</Text>
-                    <ReportChart type="bar" data={chartData} height={200} color={colors.danger} />
+                {/* Charts Section */}
+                <View style={[styles.chartRow, isMobile && { flexDirection: 'column' }]}>
+                    <View style={[styles.section, { flex: 1 }]}>
+                        <Text style={styles.sectionTitle}>Expense Share</Text>
+                        <ReportChart type="pie" data={chartData} height={200} />
+                    </View>
+                    <View style={[styles.section, { flex: 1 }]}>
+                        <Text style={styles.sectionTitle}>By Category</Text>
+                        <ReportChart type="bar" data={chartData} height={200} color={colors.danger} />
+                    </View>
                 </View>
 
                 {/* Category Table */}
@@ -96,4 +108,5 @@ const createStyles = (colors: any) => StyleSheet.create({
         overflow: 'hidden',
     },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    chartRow: { flexDirection: 'row', gap: 12, marginBottom: 0 },
 });

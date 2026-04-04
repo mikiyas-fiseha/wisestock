@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 function useAPaging() {
@@ -48,6 +49,7 @@ export default function PayablesReport() {
     // Payment State
     const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
     const { recordPayment, isRecordingPayment } = useSuppliers();
+    const [isUploading, setIsUploading] = useState(false);
 
     const totals = useMemo(() => ({
         total: data.reduce((s: number, r: any) => s + Number(r.current_balance || 0), 0),
@@ -56,21 +58,31 @@ export default function PayablesReport() {
         b61: data.reduce((s: number, r: any) => s + Number(r.bucket_61_plus || 0), 0),
     }), [data]);
 
-    const handlePaymentSubmit = async (p: { amount: number; method: string; date: Date; notes: string }) => {
+    const handlePaymentSubmit = async (p: { amount: number; method: string; date: Date; notes: string; receiptUri: string | null }) => {
         try {
-            await recordPayment({
+            setIsUploading(true);
+            let receiptUrl = null;
+            if (p.receiptUri) {
+                receiptUrl = await uploadImageToCloudinary(p.receiptUri);
+            }
+            const paymentId = await recordPayment({
                 supplier_id: selectedSupplier.supplier_id,
                 amount: p.amount,
                 payment_date: p.date,
                 method: p.method,
                 notes: p.notes
             });
+            if (receiptUrl && paymentId) {
+                await supabase.from('supplier_payments').update({ receipt_url: receiptUrl }).eq('id', paymentId);
+            }
             showFeedback('success', 'Success', 'Payment recorded');
             setSelectedSupplier(null);
             refetch();
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         } catch (error: any) {
             showFeedback('error', 'Error', error.message);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -173,7 +185,7 @@ export default function PayablesReport() {
                     onSubmit={handlePaymentSubmit}
                     supplierName={selectedSupplier?.supplier_name || ''}
                     currentBalance={Number(selectedSupplier?.current_balance || 0)}
-                    isLoading={isRecordingPayment}
+                    isLoading={isRecordingPayment || isUploading}
                 />
             </View>
         </ReportLayout>

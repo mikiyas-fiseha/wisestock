@@ -3,6 +3,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useProcessSale } from '@/hooks/useSupabaseQuery';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { pickImage } from '@/lib/imagePicker';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useCameraPermissions } from 'expo-camera';
@@ -11,9 +13,11 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator, FlatList, Image, Keyboard, Modal,
-    Platform, ScrollView, StyleSheet, Text, TextInput,
-    TouchableOpacity, View, useWindowDimensions,
+    Platform,
+    ScrollView, StyleSheet, Text, TextInput,
+    TouchableOpacity, View, useWindowDimensions
 } from 'react-native';
+import { QuickAddCustomerModal } from '@/components/customers/QuickAddCustomerModal';
 
 const isWeb = Platform.OS === 'web';
 
@@ -49,6 +53,11 @@ function SuccessScreen({ invoiceId, total, onNewSale, onPrint, colors }: { invoi
     const styles = React.useMemo(() => createSuccessStyles(colors), [colors]);
     return (
         <View style={styles.overlay}>
+            <TouchableOpacity 
+                activeOpacity={1} 
+                style={StyleSheet.absoluteFill} 
+                onPress={onNewSale} 
+            />
             <View style={[styles.card, { overflow: 'hidden' }]}>
                 <LinearGradient
                     colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
@@ -56,6 +65,11 @@ function SuccessScreen({ invoiceId, total, onNewSale, onPrint, colors }: { invoi
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 />
+                
+                <TouchableOpacity style={styles.closeX} onPress={onNewSale}>
+                    <FontAwesome name="times" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+
                 <View style={styles.circle}>
                     <FontAwesome name="check" size={40} color="#059669" />
                 </View>
@@ -80,7 +94,8 @@ function SuccessScreen({ invoiceId, total, onNewSale, onPrint, colors }: { invoi
 }
 const createSuccessStyles = (colors: any) => StyleSheet.create({
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
-    card: { backgroundColor: 'transparent', borderRadius: 28, padding: 40, alignItems: 'center', width: '85%', maxWidth: 380 },
+    card: { backgroundColor: 'transparent', borderRadius: 28, padding: 40, alignItems: 'center', width: '85%', maxWidth: 380, position: 'relative' },
+    closeX: { position: 'absolute', top: 20, right: 20, zIndex: 10, padding: 4 },
     circle: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     title: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
     inv: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 },
@@ -331,15 +346,16 @@ const createCartRowStyles = (colors: any) => StyleSheet.create({
 function CheckoutModal({ visible, subtotal, discount, tax, onDiscountChange, onTaxChange, onConfirm, onClose, isProcessing, customer, onSelectCustomer, colors }: {
     visible: boolean; subtotal: number; discount: number; tax: number;
     onDiscountChange: (v: number) => void; onTaxChange: (v: number) => void;
-    onConfirm: (method: string, amountPaid: number, note: string) => void;
+    onConfirm: (method: string, amountPaid: number, note: string, receiptUri: string | null) => void;
     onClose: () => void; isProcessing: boolean; customer: any; onSelectCustomer: () => void;
     colors: any;
 }) {
     const { theme } = useTheme();
-    const styles = React.useMemo(() => createCheckoutStyles(colors), [colors]);
+    const styles = React.useMemo(() => createCheckoutStyles(colors, theme), [colors, theme]);
     const [method, setMethod] = useState<string>('cash');
     const [amountPaid, setAmountPaid] = useState('');
     const [note, setNote] = useState('');
+    const [receiptUri, setReceiptUri] = useState<string | null>(null);
 
     const discountAmt = subtotal * discount / 100;
     const taxAmt = (subtotal - discountAmt) * tax / 100;
@@ -434,10 +450,28 @@ function CheckoutModal({ visible, subtotal, discount, tax, onDiscountChange, onT
                             {change > 0 && <View style={styles.changeBanner}><Text style={styles.changeLabel}>Change Due</Text><Text style={styles.changeVal}>${change.toFixed(2)}</Text></View>}
                         </View>
 
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border + '50', marginTop: 8 }}
+                            onPress={async () => {
+                                const uri = await pickImage();
+                                if (uri) {
+                                    setReceiptUri(uri);
+                                }
+                            }}
+                        >
+                            <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                            <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                            {receiptUri && (
+                                <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
+                                    <FontAwesome name="times-circle" size={18} color={colors.danger} />
+                                </TouchableOpacity>
+                            )}
+                        </TouchableOpacity>
+
                         <Text style={styles.label}>Note (optional)</Text>
                         <TextInput style={[styles.input, { height: 70, textAlignVertical: 'top', paddingTop: 10 }]} value={note} onChangeText={setNote} placeholder="Order note..." placeholderTextColor={colors.textSecondary} multiline />
 
-                        <TouchableOpacity style={[styles.confirmBtn, (!canSubmit || isProcessing) && styles.confirmBtnOff]} onPress={() => onConfirm(method, paid, note)} disabled={!canSubmit || isProcessing}>
+                        <TouchableOpacity style={[styles.confirmBtn, (!canSubmit || isProcessing) && styles.confirmBtnOff]} onPress={() => onConfirm(method, paid, note, receiptUri)} disabled={!canSubmit || isProcessing}>
                             {isProcessing ? <ActivityIndicator color="#fff" /> : <><FontAwesome name="check-circle" size={18} color="#fff" /><Text style={styles.confirmText}>Complete Sale · ${grand.toFixed(2)}</Text></>}
                         </TouchableOpacity>
                     </ScrollView>
@@ -446,7 +480,7 @@ function CheckoutModal({ visible, subtotal, discount, tax, onDiscountChange, onT
         </Modal>
     );
 }
-const createCheckoutStyles = (colors: any) => StyleSheet.create({
+const createCheckoutStyles = (colors: any, theme: string) => StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
     sheet: { backgroundColor: 'transparent', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '92%' },
     drag: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10 },
@@ -462,9 +496,18 @@ const createCheckoutStyles = (colors: any) => StyleSheet.create({
     grandLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
     grandVal: { fontSize: 24, fontWeight: '800', color: colors.primary },
     label: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 },
-    input: { backgroundColor: 'transparent', borderRadius: 12, padding: 13, fontSize: 15, color: colors.text, marginBottom: 14 },
+    input: {
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)',
+        borderRadius: 14,
+        padding: 14,
+        fontSize: 15,
+        color: colors.text,
+        marginBottom: 14,
+        borderWidth: 1.5,
+        borderColor: theme === 'dark' ? colors.border + '40' : 'rgba(0,0,0,0.12)',
+    },
     methods: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-    mBtn: { flex: 1, minWidth: '22%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' },
+    mBtn: { flex: 1, minWidth: '22%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderWidth: 1, borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)' },
     mBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     mLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
     mLabelActive: { color: '#fff' },
@@ -482,7 +525,7 @@ const createCheckoutStyles = (colors: any) => StyleSheet.create({
 // ─── Main Screen ────────────────────────────────────────────────────────────
 export default function NewSaleScreen() {
     const { colors, theme } = useTheme();
-    const s = React.useMemo(() => createStyles(colors), [colors]);
+    const s = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const { company, user, branch, isAdmin } = useAuth();
     const router = useRouter();
     const { showFeedback } = useFeedback();
@@ -505,12 +548,14 @@ export default function NewSaleScreen() {
     const [customerModalVisible, setCustomerModalVisible] = useState(false);
     const [customerSearch, setCustomerSearch] = useState('');
     const [showScanner, setShowScanner] = useState(false);
+    const [showQuickAddCustomer, setShowQuickAddCustomer] = useState(false);
     const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
     const [successTotal, setSuccessTotal] = useState(0);
     const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
     const [creditWarning, setCreditWarning] = useState({ visible: false, pendingMethod: '', pendingPaid: 0, pendingNote: '', message: '' });
 
     const { mutate: processSale, isPending: isProcessing } = useProcessSale();
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => { if (company) fetchData(); }, [company]);
     useEffect(() => { setTimeout(() => searchRef.current?.focus(), 300); }, []);
@@ -537,9 +582,10 @@ export default function NewSaleScreen() {
         if (!productSearch.trim()) return allProducts;
         const q = productSearch.toLowerCase();
         return allProducts.filter(p =>
-            p.name.toLowerCase().includes(q) ||
-            p.primary_sku?.toLowerCase().includes(q) ||
-            p.sku?.toLowerCase().includes(q)
+            p.name?.toLowerCase()?.includes(q) ||
+            p.primary_sku?.toLowerCase()?.includes(q) ||
+            p.sku?.toLowerCase()?.includes(q) ||
+            p.category?.toLowerCase()?.includes(q)
         );
     }, [allProducts, productSearch]);
 
@@ -562,7 +608,21 @@ export default function NewSaleScreen() {
     const taxAmt = (subtotal - discountAmt) * tax / 100;
     const grandTotal = subtotal - discountAmt + taxAmt;
 
-    const doProcessSale = (method: string, amountPaid: number, note: string) => {
+    const doProcessSale = async (method: string, amountPaid: number, note: string, receiptUri: string | null) => {
+        if (isProcessing || isUploading) return;
+        let receiptUrl = null;
+
+        if (receiptUri) {
+            setIsUploading(true);
+            try {
+                receiptUrl = await uploadImageToCloudinary(receiptUri);
+            } catch (e: any) {
+                showFeedback('error', 'Upload Failed', e.message);
+                setIsUploading(false);
+                return;
+            }
+        }
+
         processSale({
             cart: cart.map(i => ({ ...i, tax_rate: tax / 100, discount_rate: discount / 100 })),
             customer: selectedCustomer,
@@ -574,12 +634,25 @@ export default function NewSaleScreen() {
             discount: discountAmt,
             note: note
         }, {
-            onSuccess: (data: any) => { setCheckoutVisible(false); setSuccessTotal(grandTotal); setSuccessInvoice(data || 'new'); },
-            onError: (e: any) => showFeedback('error', 'Sale Failed', e.message),
+            onSuccess: async (data: any) => {
+                if (receiptUrl && data?.id) {
+                    await supabase.from('sales').update({ receipt_url: receiptUrl }).eq('id', data.id);
+                }
+                setCheckoutVisible(false);
+                setSuccessTotal(grandTotal);
+                setSuccessInvoice(data || 'new');
+                setIsUploading(false);
+            },
+            onError: (e: any) => {
+                showFeedback('error', 'Sale Failed', e.message);
+                setIsUploading(false);
+            },
         });
     };
-    const handleConfirmSale = (method: string, amountPaid: number, note: string) => {
+    const handleConfirmSale = (method: string, amountPaid: number, note: string, receiptUri: string | null) => {
+        if (isProcessing || isUploading) return;
         if (!company?.id) return;
+
         if (method === 'credit' && !selectedCustomer) { showFeedback('error', 'Customer Required', 'Select a customer for credit sales.'); return; }
         if (method === 'credit' && selectedCustomer) {
             const creditLimit = Number(selectedCustomer.credit_limit || 0);
@@ -589,7 +662,7 @@ export default function NewSaleScreen() {
                 else { showFeedback('error', 'Credit Limit Exceeded', `Customer credit limit reached.`); return; }
             }
         }
-        doProcessSale(method, amountPaid, note);
+        doProcessSale(method, amountPaid, note, receiptUri);
     };
     const handleNewSale = () => { setCart([]); setSelectedCustomer(null); setDiscount(0); setTax(0); setSuccessInvoice(null); setCartDrawerOpen(false); setTimeout(() => searchRef.current?.focus(), 300); };
     const handleScan = ({ data }: { data: string }) => {
@@ -708,7 +781,7 @@ export default function NewSaleScreen() {
                         style={{ flex: 1 }}
                         data={filteredProducts}
                         keyExtractor={(item, i) => `${item.id}-${i}`}
-                        contentContainerStyle={{ paddingBottom: 180 }}
+                        contentContainerStyle={{ paddingBottom: 40 }}
                         renderItem={({ item }) => (
                             <ProductListItem
                                 product={item}
@@ -728,7 +801,41 @@ export default function NewSaleScreen() {
             <Modal visible={customerModalVisible} transparent animationType="slide">
                 <View style={s.custOverlay}>
                     <View style={s.custSheet}>
-                        <View style={s.custHeader}><Text style={s.custTitle}>Select Customer</Text><TouchableOpacity onPress={() => setCustomerModalVisible(false)}><FontAwesome name="times" size={15} color={colors.textSecondary} /></TouchableOpacity></View>
+                        <View style={s.custHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <Text style={s.custTitle}>Select Customer</Text>
+                                <TouchableOpacity 
+                                    style={{ 
+                                        backgroundColor: colors.primary + '20', 
+                                        padding: 6, 
+                                        borderRadius: 8,
+                                        marginTop: -2 // Nudge up to align with text baseline
+                                    }}
+                                    onPress={() => setShowQuickAddCustomer(true)}
+                                >
+                                    <FontAwesome name="plus" size={14} color={colors.primary} />
+                                </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity onPress={() => setCustomerModalVisible(false)}>
+                                <FontAwesome name="times" size={15} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput 
+                            style={[s.searchInput, { 
+                                margin: 16, 
+                                marginBottom: 8, 
+                                backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                                borderWidth: 1,
+                                borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)',
+                                borderRadius: 10,
+                                paddingHorizontal: 12,
+                                height: 46
+                            }]} 
+                            placeholder="Search by name or phone..." 
+                            placeholderTextColor={colors.textSecondary}
+                            value={customerSearch}
+                            onChangeText={setCustomerSearch}
+                        />
                         <FlatList data={filteredCustomers} keyExtractor={c => c.id} renderItem={({ item }) => (
                             <TouchableOpacity style={s.custRow} onPress={() => { setSelectedCustomer(item); setCustomerModalVisible(false); }}>
                                 <View style={s.custAvatar}><Text style={s.custAvatarText}>{item.name?.[0]}</Text></View>
@@ -738,15 +845,25 @@ export default function NewSaleScreen() {
                     </View>
                 </View>
             </Modal>
+            <QuickAddCustomerModal
+                visible={showQuickAddCustomer}
+                onClose={() => setShowQuickAddCustomer(false)}
+                onSuccess={(newCustomer) => {
+                    setCustomers(prev => [newCustomer, ...prev]);
+                    setSelectedCustomer(newCustomer);
+                    setCustomerModalVisible(false);
+                    showFeedback('success', 'Customer Added', `${newCustomer.name} selected`);
+                }}
+            />
             <CheckoutModal visible={checkoutVisible} subtotal={subtotal} discount={discount} tax={tax} onDiscountChange={setDiscount} onTaxChange={setTax} onConfirm={handleConfirmSale} onClose={() => setCheckoutVisible(false)} isProcessing={isProcessing} customer={selectedCustomer} onSelectCustomer={() => { setCheckoutVisible(false); setCustomerModalVisible(true); }} colors={colors} />
             {successInvoice && <SuccessScreen invoiceId={successInvoice} total={successTotal} onNewSale={handleNewSale} colors={colors} />}
         </View>
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, theme: string) => StyleSheet.create({
     screen: { flex: 1, backgroundColor: 'transparent' },
-    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: colors.card + 'E0' },
+    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: colors.card + 'E0', borderBottomWidth: 1, borderBottomColor: theme === 'dark' ? colors.border + '40' : 'rgba(0,0,0,0.08)' },
     backBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     topCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
     topHeading: { fontSize: 17, fontWeight: '800', color: colors.text },
@@ -755,9 +872,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     custBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, maxWidth: 140 },
     custBtnText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, flex: 1 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 46 },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 46, borderWidth: 1, borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)' },
     searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineStyle: 'none' } as any,
-    scanBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.primary + '18', justifyContent: 'center', alignItems: 'center' },
+    scanBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.primary + '30' },
     catRow: { paddingHorizontal: 14, paddingBottom: 10, gap: 8 },
     catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card + 'E0' },
     catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -784,7 +901,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     checkoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#059669', borderRadius: 16, paddingVertical: 15 },
     checkoutBtnOff: { backgroundColor: colors.border },
     checkoutText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-    mobileBar: { position: 'absolute', bottom: 110, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
+    mobileBar: { position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
     mobileBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     mobileBarBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center' },
     mobileBarBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },

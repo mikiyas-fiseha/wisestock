@@ -3,11 +3,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useReceiptGenerator } from '@/hooks/useReceiptGenerator';
-import { SaleFilters, useProcessReturn, useSaleDetail, useSales } from '@/hooks/useSupabaseQuery';
+import { SaleFilters, useSales } from '@/hooks/useSupabaseQuery';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
+
 import {
     ActivityIndicator,
     FlatList,
@@ -29,6 +30,7 @@ const isWeb = Platform.OS === 'web';
 const formatDate = (d: string) => new Date(d).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
 const formatTime = (d: string) => new Date(d).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
 const shortId = (id: string) => id.split('-')[0].toUpperCase();
+
 
 const PAYMENT_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
     cash: { label: 'Cash', bg: '#D1FAE5', color: '#065F46' },
@@ -98,8 +100,8 @@ const badgeStyles = StyleSheet.create({
 });
 
 // ─── Action Menu ─────────────────────────────────────────────────────────────
-function QuickActions({ sale, onView, onRefund, onPrint }: {
-    sale: any; onView: () => void; onRefund: () => void; onPrint: () => void;
+function QuickActions({ onView, onPrint }: {
+    onView: () => void; onPrint: () => void;
 }) {
     return (
         <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -109,11 +111,6 @@ function QuickActions({ sale, onView, onRefund, onPrint }: {
             <TouchableOpacity style={actionStyles.btn} onPress={onPrint}>
                 <FontAwesome name="print" size={13} color="#475569" />
             </TouchableOpacity>
-            {sale.status !== 'returned' && sale.status !== 'cancelled' && (
-                <TouchableOpacity style={[actionStyles.btn, { backgroundColor: '#FEE2E2' }]} onPress={onRefund}>
-                    <FontAwesome name="undo" size={13} color="#DC2626" />
-                </TouchableOpacity>
-            )}
         </View>
     );
 }
@@ -121,7 +118,7 @@ const actionStyles = StyleSheet.create({
     btn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }
 });
 
-function SaleCard({ sale, onView, onPrint, onRefund }: any) {
+function SaleCard({ sale, onView, onPrint }: any) {
     const { colors } = useTheme();
     return (
         <TouchableOpacity style={[cardS.container, { backgroundColor: colors.card + 'E0' }]} onPress={onView} activeOpacity={0.7}>
@@ -138,7 +135,7 @@ function SaleCard({ sale, onView, onPrint, onRefund }: any) {
             </View>
             <View style={cardS.bottom}>
                 <Text style={[cardS.amount, { color: colors.text }]}>${(sale.total_amount || 0).toFixed(2)}</Text>
-                <QuickActions sale={sale} onView={onView} onPrint={onPrint} onRefund={onRefund} />
+                <QuickActions onView={onView} onPrint={onPrint} />
             </View>
         </TouchableOpacity>
     );
@@ -158,13 +155,63 @@ const cardS = StyleSheet.create({
 // ─── Filter Popover ───────────────────────────────────────────────────────────
 function FilterPopover({ visible, filters, onApply, onClose }: any) {
     const { colors } = useTheme();
-    const [localFilters, setLocalFilters] = useState(filters);
+    const [localFilters, setLocalFilters] = useState<any>({});
+
+    React.useEffect(() => {
+        if (visible) setLocalFilters(filters || {});
+    }, [visible, filters]);
+
+    const toggleStatus = (s: string) => {
+        setLocalFilters((prev: any) => ({ ...prev, status: prev.status === s ? undefined : s }));
+    };
+
+    const togglePayment = (p: string) => {
+        setLocalFilters((prev: any) => ({ ...prev, paymentMethod: prev.paymentMethod === p ? undefined : p }));
+    };
+
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-                <View style={{ backgroundColor: colors.card + 'E0', padding: 20, borderRadius: 16, width: 300 }}>
+                <View style={{ backgroundColor: colors.card + 'E0', padding: 20, borderRadius: 16, width: 320 }}>
                     <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: colors.text }}>Filters</Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 }}>Status</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                        {Object.entries(STATUS_CONFIG)
+                            .filter(([key]) => key !== 'credit')
+                            .map(([key, cfg]) => {
+                                const active = localFilters.status === key;
+                                return (
+                                    <TouchableOpacity
+                                        key={key}
+                                        onPress={() => toggleStatus(key)}
+                                        style={[{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                                    >
+                                        <Text style={[{ fontSize: 13, color: colors.text }, active && { color: '#fff', fontWeight: 'bold' }]}>{cfg.label}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                    </View>
+
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 }}>Payment Method</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {Object.entries(PAYMENT_CONFIG)
+                            .filter(([key]) => key !== 'mobile_money' && key !== 'card')
+                            .map(([key, cfg]) => {
+                                const active = localFilters.paymentMethod === key;
+                                return (
+                                    <TouchableOpacity
+                                        key={key}
+                                        onPress={() => togglePayment(key)}
+                                        style={[{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                                    >
+                                        <Text style={[{ fontSize: 13, color: colors.text }, active && { color: '#fff', fontWeight: 'bold' }]}>{cfg.label}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
                         <TouchableOpacity onPress={onClose}><Text style={{ color: colors.textSecondary, padding: 10 }}>Cancel</Text></TouchableOpacity>
                         <TouchableOpacity onPress={() => { onApply(localFilters); onClose(); }} style={{ backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
                             <Text style={{ color: '#fff', fontWeight: 'bold' }}>Apply</Text>
@@ -177,7 +224,7 @@ function FilterPopover({ visible, filters, onApply, onClose }: any) {
 }
 
 // ─── Web Table Row ────────────────────────────────────────────────────────────
-function WebTableRow({ sale, isAdmin, onView, onPrint, onRefund }: any) {
+function WebTableRow({ sale, onView, onPrint }: any) {
     const { colors } = useTheme();
     const [hovered, setHovered] = useState(false);
     return (
@@ -185,7 +232,7 @@ function WebTableRow({ sale, isAdmin, onView, onPrint, onRefund }: any) {
             style={[
                 { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomColor: colors.border + '40', borderBottomWidth: 1 } as any,
                 hovered && { backgroundColor: colors.primary + '10' }
-            ]}
+            ] as any}
             onHoverIn={() => setHovered(true)}
             onHoverOut={() => setHovered(false)}
             onPress={onView}
@@ -197,68 +244,12 @@ function WebTableRow({ sale, isAdmin, onView, onPrint, onRefund }: any) {
             <Text style={[{ flex: 1.2, fontSize: 13, color: colors.text, fontWeight: '700', textAlign: 'right' }]}>${(sale.total_amount || 0).toFixed(2)}</Text>
             <Text style={[{ flex: 1.5, fontSize: 12, color: colors.textSecondary, paddingLeft: 12 }]}>{formatDate(sale.created_at)} · {formatTime(sale.created_at)}</Text>
             <View style={{ flex: 1.5 }}>
-                <QuickActions sale={sale} onView={onView} onPrint={onPrint} onRefund={onRefund} />
+                <QuickActions onView={onView} onPrint={onPrint} />
             </View>
         </Pressable>
     );
 }
 
-// ─── Sale Detail Modal ────────────────────────────────────────────────────────
-function SaleDetailModal({ saleId, visible, onClose }: any) {
-    const { colors } = useTheme();
-    const { data: detail, isLoading } = useSaleDetail(saleId || '');
-    const { mutate: processReturn, isPending: isReturning } = useProcessReturn();
-    const { showFeedback } = useFeedback();
-
-    const handleReturn = () => {
-        if (!detail) return;
-        processReturn({
-            saleId: detail.sale.id,
-            items: detail.items,
-            refundAmount: detail.sale.paid_amount
-        }, {
-            onSuccess: () => {
-                onClose();
-                showFeedback('success', 'Return Processed', 'Sale returned successfully.');
-            },
-            onError: (err: any) => showFeedback('error', 'Return Failed', err.message)
-        });
-    };
-
-    return (
-        <Modal visible={visible} transparent animationType="slide">
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-                <View style={{ backgroundColor: colors.card + 'E0', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Sale Details</Text>
-                        <TouchableOpacity onPress={onClose}><FontAwesome name="times" size={24} color={colors.textSecondary} /></TouchableOpacity>
-                    </View>
-                    {isLoading ? <ActivityIndicator size="large" color={colors.primary} /> : !detail ? <Text style={{ color: colors.text }}>No details found</Text> : (
-                        <ScrollView>
-                            <View style={{ marginBottom: 16 }}>
-                                <Text style={{ fontSize: 14, color: colors.textSecondary }}>Invoice: INV-{shortId(detail.sale.id)}</Text>
-                                <Text style={{ fontSize: 14, color: colors.textSecondary }}>Customer: {detail.sale.customers?.name || 'Walk-in Guest'}</Text>
-                                <Text style={{ fontSize: 14, color: colors.textSecondary }}>Total: ${detail.sale.total_amount}</Text>
-                            </View>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: colors.text }}>Items</Text>
-                            {detail.items.map((item: any, i: number) => (
-                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                                    <Text style={{ color: colors.text }}>{item.quantity}x {item.product_name}</Text>
-                                    <Text style={{ fontWeight: '500', color: colors.text }}>${item.total_price}</Text>
-                                </View>
-                            ))}
-                            {detail.sale.status !== 'returned' && detail.sale.status !== 'cancelled' && (
-                                <TouchableOpacity onPress={handleReturn} disabled={isReturning} style={{ backgroundColor: '#EF4444', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 24 }}>
-                                    {isReturning ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Return / Refund</Text>}
-                                </TouchableOpacity>
-                            )}
-                        </ScrollView>
-                    )}
-                </View>
-            </View>
-        </Modal>
-    );
-}
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function SalesScreen() {
@@ -267,15 +258,13 @@ export default function SalesScreen() {
     const router = useRouter();
     const { isAdmin } = useAuth();
     const { width } = useWindowDimensions();
-    const isWebWide = isWeb && width >= 900;
+    const isWebWide = width >= 768;
     const statusBarPadding = 0;
 
     const [search, setSearch] = useState('');
     const [dateRange, setDateRange] = useState<SaleFilters['dateRange']>('all');
     const [filters, setFilters] = useState<SaleFilters>({});
     const [filterVisible, setFilterVisible] = useState(false);
-    const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
-    const [detailVisible, setDetailVisible] = useState(false);
 
     const { generateAndShareReceipt } = useReceiptGenerator();
     const { company } = useAuth();
@@ -293,7 +282,7 @@ export default function SalesScreen() {
     const todayCount = todaySales.length;
     const creditCount = useMemo(() => todaySales.filter((x: any) => x.payment_method === 'credit').length, [todaySales]);
 
-    const openDetail = (id: string) => { setSelectedSaleId(id); setDetailVisible(true); };
+    const openDetail = (id: string) => { router.push(`/(tabs)/sales/${id}`); };
 
     const handlePrint = async (sale: any) => {
         const { data: items } = await import('@/lib/supabase').then(m => m.supabase.from('sale_items').select('*').eq('sale_id', sale.id));
@@ -343,11 +332,19 @@ export default function SalesScreen() {
                 </View>
             </View>
 
-            <View style={styles.kpiRow}>
+            {/* <View style={[styles.kpiRow, !isWebWide && { display: 'none' }]}>
                 <KpiCard label="Today's Revenue" value={`$${todayTotal.toFixed(2)}`} />
                 <KpiCard label="Today's Sales" value={`${todayCount}`} />
                 <KpiCard label="On Credit" value={`${creditCount}`} color="#D97706" />
-            </View>
+            </View> */}
+
+            {isWebWide && (
+                <View style={styles.kpiRow}>
+                    <KpiCard label="Today Revenue" value={`$${todayTotal.toFixed(2)}`} />
+                    <KpiCard label="Today's Sales" value={`${todayCount}`} />
+                    <KpiCard label="On Credit" value={`${creditCount}`} color="#D97706" />
+                </View>
+            )}
 
             <View style={styles.searchRow}>
                 <View style={styles.searchBox}>
@@ -406,10 +403,8 @@ export default function SalesScreen() {
                             <WebTableRow
                                 key={sale.id}
                                 sale={sale}
-                                isAdmin={isAdmin}
                                 onView={() => openDetail(sale.id)}
                                 onPrint={() => handlePrint(sale)}
-                                onRefund={() => openDetail(sale.id)}
                             />
                         ))}
                         {sales.length === 0 && (
@@ -427,7 +422,6 @@ export default function SalesScreen() {
                             sale={item}
                             onView={() => openDetail(item.id)}
                             onPrint={() => handlePrint(item)}
-                            onRefund={() => openDetail(item.id)}
                         />
                     )}
                     ListEmptyComponent={
@@ -443,11 +437,6 @@ export default function SalesScreen() {
                 />
             )}
 
-            <SaleDetailModal
-                saleId={selectedSaleId}
-                visible={detailVisible}
-                onClose={() => setDetailVisible(false)}
-            />
 
             <FilterPopover
                 visible={filterVisible}
@@ -478,7 +467,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     dateChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     dateChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
     dateChipTextActive: { color: '#fff' },
-    list: { padding: 16, paddingTop: 4, paddingBottom: 110 },
+    list: { padding: 16, paddingTop: 4, paddingBottom: 20 },
     table: { marginHorizontal: 16, backgroundColor: colors.card + 'E0', borderRadius: 16, overflow: 'hidden', marginBottom: 24 },
     tableRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
     tableHead: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border + '40' },

@@ -66,6 +66,8 @@ export default function AddCustomerScreen() {
     const updateCustomer = useUpdateCustomer();
 
     const handleSave = () => {
+        if (addCustomer.isPending || updateCustomer.isPending) return;
+
         if (!company?.id) {
             showFeedback('error', 'Error', 'Company ID missing. Please re-login.');
             return;

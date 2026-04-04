@@ -1,5 +1,4 @@
 import { AdjustStockModal } from '@/components/AdjustStockModal';
-import { ReturnModal } from '@/components/ReturnModal';
 import { StockTransferModal } from '@/components/StockTransferModal';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -27,7 +26,6 @@ export default function ProductDetailsScreen() {
     const [loading, setLoading] = useState(true);
     const [adjustModalVisible, setAdjustModalVisible] = useState(false);
     const [transferModalVisible, setTransferModalVisible] = useState(false);
-    const [returnType, setReturnType] = useState<'customer_return' | 'supplier_return' | null>(null);
 
     const { data: branchBreakdown = [] } = useProductBranchBreakdown(id as string);
 
@@ -311,20 +309,6 @@ export default function ProductDetailsScreen() {
                                     <FontAwesome name="truck" size={13} color="#fff" />
                                     <Text style={styles.adjustStockBtnText}>Transfer Stock</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.adjustStockBtn, { backgroundColor: '#06B6D4', marginTop: 8 }]}
-                                    onPress={() => setReturnType('customer_return')}
-                                >
-                                    <FontAwesome name="undo" size={13} color="#fff" />
-                                    <Text style={styles.adjustStockBtnText}>Customer Return</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.adjustStockBtn, { backgroundColor: '#F97316', marginTop: 8 }]}
-                                    onPress={() => setReturnType('supplier_return')}
-                                >
-                                    <FontAwesome name="reply" size={13} color="#fff" />
-                                    <Text style={styles.adjustStockBtnText}>Supplier Return</Text>
-                                </TouchableOpacity>
                             </>
                         )}
                     </View>
@@ -426,20 +410,6 @@ export default function ProductDetailsScreen() {
                 productId={id as string}
                 productName={product.name}
             />
-
-            {/* Return Modal */}
-            {returnType && (
-                <ReturnModal
-                    visible={!!returnType}
-                    type={returnType}
-                    productId={id as string}
-                    productName={product.name}
-                    onClose={() => {
-                        setReturnType(null);
-                        fetchProductDetails();
-                    }}
-                />
-            )}
         </View>
     );
 }

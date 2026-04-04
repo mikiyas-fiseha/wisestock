@@ -1,7 +1,7 @@
-
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 // --- Sales Hooks ---
 
@@ -370,6 +370,34 @@ export const useUpdateCustomerNotes = () => {
 
 export const useDashboardData = () => {
     const { company, branch } = useAuth();
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!company?.id) return;
+
+        const channel = supabase.channel('dashboard_changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'supplier_payments' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [company?.id, queryClient]);
+
     return useQuery({
         queryKey: ['dashboard', company?.id, branch?.id],
 
@@ -750,7 +778,7 @@ export const useCollectPayment = () => {
     const queryClient = useQueryClient();
     const { company, user } = useAuth();
     return useMutation({
-        mutationFn: async ({ customerId, amount, notes }: any) => {
+        mutationFn: async ({ customerId, amount, method, notes, receiptUrl, saleId }: any) => {
             if (!company?.id) throw new Error('No company ID');
 
             const paid = parseFloat(amount);
@@ -760,9 +788,11 @@ export const useCollectPayment = () => {
                 p_company_id: company.id,
                 p_customer_id: customerId,
                 p_amount: paid,
-                p_method: 'cash',
+                p_method: method || 'cash',
                 p_notes: notes || 'Debt Payment',
-                p_created_by: user?.id
+                p_created_by: user?.id,
+                p_receipt_url: receiptUrl || null,
+                p_sale_id: saleId || null
             });
 
             if (error) throw error;

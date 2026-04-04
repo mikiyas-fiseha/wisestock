@@ -318,7 +318,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     thRight: { textAlign: 'right', paddingRight: 12 },
 
     listContent: {
-        paddingBottom: 110,
+        paddingBottom: 20,
     },
     listContentWeb: {
         marginHorizontal: 12,
@@ -356,7 +356,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     fabContainer: {
         position: 'absolute',
-        bottom: 110,
+        bottom: 24,
         right: 24,
     },
     fab: {

@@ -9,9 +9,9 @@ import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBranches } from '@/hooks/useBranches';
 import { useAddExpense, useExpenseCategories } from '@/hooks/useExpenses';
+import { pickImage } from '@/lib/imagePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -40,26 +40,25 @@ export default function AddExpenseScreen() {
     // Recurring State
     const [isRecurring, setIsRecurring] = useState(false);
     const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-    const [attachment, setAttachment] = useState<string | null>(null);
+    const [receipt, setReceipt] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const pickImage = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.5,
-        });
-
-        if (!result.canceled) {
-            setAttachment(result.assets[0].uri);
+    const pickReceipt = async () => {
+        const uri = await pickImage();
+        if (uri) {
+            setReceipt(uri);
         }
     };
 
     const handleSave = async () => {
+        if (addExpense.isPending || isSubmitting) return;
+
         if (!amount || !categoryId) {
             showFeedback('error', 'Required Fields', 'Please enter amount and select a category');
             return;
         }
+
+        setIsSubmitting(true);
 
         const selectedCategory = categories?.find(c => c.id === categoryId);
 
@@ -78,9 +77,15 @@ export default function AddExpenseScreen() {
                 recurring_start_date: isRecurring ? date.toISOString() : undefined,
             });
             showFeedback('success', 'Success', 'Expense recorded');
-            router.push('/expenses');
+            if (router.canGoBack()) {
+                router.back();
+            } else {
+                router.replace('/expenses');
+            }
         } catch (e: any) {
             showFeedback('error', 'Error', e.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -182,6 +187,9 @@ export default function AddExpenseScreen() {
                         placeholder="What was this for?"
                         value={description}
                         onChangeText={setDescription}
+                        multiline
+                        numberOfLines={3}
+                        style={{ minHeight: 80, paddingTop: 10 }}
                     />
                     <View style={{ height: 12 }} />
                     <AppTextInput
@@ -194,9 +202,9 @@ export default function AddExpenseScreen() {
 
                 <View style={styles.card}>
                     <Text style={styles.label}>Receipt / Attachment</Text>
-                    <TouchableOpacity style={styles.attachmentBtn} onPress={pickImage}>
-                        {attachment ? (
-                            <Image source={{ uri: attachment }} style={styles.attachmentPreview} />
+                    <TouchableOpacity style={styles.attachmentBtn} onPress={pickReceipt}>
+                        {receipt ? (
+                            <Image source={{ uri: receipt }} style={styles.attachmentPreview} />
                         ) : (
                             <View style={styles.attachmentPlaceholder}>
                                 <Ionicons name="camera-outline" size={32} color="#64748B" />
@@ -209,7 +217,7 @@ export default function AddExpenseScreen() {
                 <AppButton
                     title="Save Expense"
                     onPress={handleSave}
-                    loading={addExpense.isPending}
+                    loading={addExpense.isPending || isSubmitting}
                     style={{ marginTop: 16 }}
                 />
 
@@ -220,7 +228,7 @@ export default function AddExpenseScreen() {
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    content: { padding: 16, paddingBottom: Platform.OS === 'web' ? 50 : 180 },
+    content: { padding: 16, paddingBottom: Platform.OS === 'web' ? 50 : 20 },
     card: {
         backgroundColor: colors.card + 'E0',
         borderRadius: 16,

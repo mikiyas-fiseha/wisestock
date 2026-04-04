@@ -1,14 +1,17 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 interface Plan {
     id: string;
@@ -21,8 +24,10 @@ interface Plan {
 }
 
 export default function SubscriptionPlansScreen() {
-    const { colors } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { colors, theme } = useTheme();
+    const { width } = useWindowDimensions();
+    const isDesktop = width > 768;
+    const styles = React.useMemo(() => createStyles(colors, isDesktop), [colors, isDesktop]);
     const { company } = useAuth();
     const router = useRouter();
     const { showFeedback } = useFeedback();
@@ -114,47 +119,71 @@ export default function SubscriptionPlansScreen() {
     }
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-            <Text style={styles.header}>Choose a Plan</Text>
-            <Text style={styles.subHeader}>Select the best plan for {company?.name}</Text>
+        <View style={styles.container}>
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+            <ScrollView contentContainerStyle={{ paddingVertical: 20 }}>
+                <Text style={styles.header}>Choose a Plan</Text>
+                <Text style={styles.subHeader}>Select the best plan for {company?.name}</Text>
 
-            <View style={styles.plansContainer}>
-                {plans.map(plan => (
-                    <View key={plan.id} style={styles.planCard}>
-                        <View style={styles.planHeader}>
-                            <Text style={styles.planName}>{plan.name}</Text>
-                            <Text style={styles.planPrice}>${plan.price}</Text>
-                            <Text style={styles.planDuration}>/ {plan.duration_months === 1 ? 'month' : plan.duration_months === 12 ? 'year' : `${plan.duration_months} months`}</Text>
-                        </View>
+                <View style={styles.plansContainer}>
+                    {plans.map((plan, index) => {
+                        const isPopular = index === 1 || plan.name.toLowerCase().includes('pro');
+                        return (
+                            <BlurView
+                                key={plan.id}
+                                tint={theme === 'dark' ? 'dark' : 'light'}
+                                intensity={theme === 'dark' ? 60 : 80}
+                                style={[
+                                    styles.planCard,
+                                    theme === 'dark' ? styles.cardDark : styles.cardLight,
+                                    isPopular && styles.cardPopular
+                                ]}
+                            >
+                                {isPopular && (
+                                    <View style={styles.popularBadge}>
+                                        <Text style={styles.popularText}>★ MOST POPULAR</Text>
+                                    </View>
+                                )}
+                                <View style={styles.planHeader}>
+                                    <Text style={styles.planName}>{plan.name}</Text>
+                                    <Text style={styles.planPrice}>${plan.price}</Text>
+                                    <Text style={styles.planDuration}>/ {plan.duration_months === 1 ? 'month' : plan.duration_months === 12 ? 'year' : `${plan.duration_months} months`}</Text>
+                                </View>
 
-                        <View style={styles.divider} />
+                                <View style={[styles.divider, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]} />
 
-                        <Text style={styles.description}>{plan.description}</Text>
+                                <Text style={styles.description}>{plan.description}</Text>
 
-                        {/* Feature List (Mock) */}
-                        <View style={styles.features}>
-                            <View style={styles.featureRow}><FontAwesome name="check" color="#4CAF50" /><Text style={styles.featureText}>{plan.max_users === 0 ? 'Unlimited' : plan.max_users} Users</Text></View>
-                            <View style={styles.featureRow}><FontAwesome name="check" color="#4CAF50" /><Text style={styles.featureText}>Full Inventory Access</Text></View>
-                            <View style={styles.featureRow}><FontAwesome name="check" color="#4CAF50" /><Text style={styles.featureText}>24/7 Support</Text></View>
-                        </View>
+                                {/* Feature List (Mock) */}
+                                <View style={styles.features}>
+                                    <View style={styles.featureRow}><FontAwesome name="check" color={colors.primary} /><Text style={styles.featureText}>{plan.max_users === 0 ? 'Unlimited' : plan.max_users} Users</Text></View>
+                                    <View style={styles.featureRow}><FontAwesome name="check" color={colors.primary} /><Text style={styles.featureText}>Full Inventory Access</Text></View>
+                                    <View style={styles.featureRow}><FontAwesome name="check" color={colors.primary} /><Text style={styles.featureText}>24/7 Support</Text></View>
+                                </View>
 
-                        <AppButton
-                            title={subscribing === plan.id ? "Processing..." : "Subscribe"}
-                            onPress={() => handleSubscribe(plan)}
-                            loading={subscribing === plan.id}
-                            style={{ marginTop: 'auto' }}
-                        />
-                    </View>
-                ))}
-            </View>
-        </ScrollView>
+                                <AppButton
+                                    title={subscribing === plan.id ? "Processing..." : "Subscribe"}
+                                    onPress={() => handleSubscribe(plan)}
+                                    loading={subscribing === plan.id}
+                                    style={{ ...styles.subscribeBtn, ...(isPopular ? { backgroundColor: colors.primary } : {}) } as any}
+                                />
+                            </BlurView>
+                        );
+                    })}
+                </View>
+            </ScrollView>
+        </View>
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, isDesktop: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
     center: {
         flex: 1,
@@ -166,7 +195,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: 'bold',
         color: colors.text,
         textAlign: 'center',
-        marginTop: 40,
+        marginTop: Platform.OS === 'ios' ? 60 : 40,
     },
     subHeader: {
         fontSize: 16,
@@ -175,20 +204,71 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: 30,
     },
     plansContainer: {
-        gap: 20,
+        gap: 24,
         paddingBottom: 40,
+        flexDirection: isDesktop ? 'row' : 'column',
+        flexWrap: isDesktop ? 'wrap' : 'nowrap',
+        justifyContent: isDesktop ? 'center' : 'flex-start',
+        alignItems: isDesktop ? 'center' : 'stretch',
     },
     planCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+        borderRadius: 24,
+        padding: 32,
+        paddingTop: 40,
+        overflow: 'hidden',
+        position: 'relative',
+        width: isDesktop ? 300 : '100%',
+    },
+    cardPopular: {
+        transform: isDesktop ? [{ scale: 1.05 }] : undefined,
+        borderColor: colors.primary,
+        borderWidth: 2,
+        zIndex: 10,
+        ...Platform.select({
+            ios: {
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.4,
+                shadowRadius: 16,
+            },
+            android: {
+                elevation: 10,
+            }
+        })
+    },
+    popularBadge: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: colors.primary,
+        paddingVertical: 8,
+        alignItems: 'center',
+    },
+    popularText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    cardLight: {
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        borderColor: 'rgba(255,255,255,0.8)',
         borderWidth: 1,
-        borderColor: '#f0f0f0',
+    },
+    cardDark: {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+    },
+    subscribeBtn: {
+        marginTop: 20,
+        borderRadius: 16,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     planHeader: {
         alignItems: 'center',

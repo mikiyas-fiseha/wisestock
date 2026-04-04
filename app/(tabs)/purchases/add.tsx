@@ -7,6 +7,8 @@ import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { pickImage } from '@/lib/imagePicker';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,8 +24,10 @@ import {
     Text,
     TouchableOpacity,
     useWindowDimensions,
-    View
+    View,
+    ActivityIndicator
 } from 'react-native';
+import { QuickAddSupplierModal } from '@/components/suppliers/QuickAddSupplierModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PurchaseLineItem {
@@ -36,7 +40,7 @@ interface PurchaseLineItem {
 export default function AddPurchaseScreen() {
     const { colors, theme } = useTheme();
     const insets = useSafeAreaInsets();
-    const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
+    const styles = React.useMemo(() => createStyles(colors, insets, theme), [colors, insets, theme]);
     const router = useRouter();
     const { company, allBranches } = useAuth();
     const { showFeedback } = useFeedback();
@@ -53,12 +57,15 @@ export default function AddPurchaseScreen() {
     const [notes, setNotes] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [amountPaid, setAmountPaid] = useState('');
+    const [receiptUri, setReceiptUri] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Line Items
     const [lineItems, setLineItems] = useState<PurchaseLineItem[]>([]);
 
     // Product Search Modal
     const [showProductModal, setShowProductModal] = useState(false);
+    const [showQuickAddSupplier, setShowQuickAddSupplier] = useState(false);
     const [productSearch, setProductSearch] = useState('');
     const [productResults, setProductResults] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
@@ -79,28 +86,36 @@ export default function AddPurchaseScreen() {
         }, 0);
     }, [lineItems]);
 
-    // Auto-set amount paid for cash
+    // Auto-set amount paid
     useEffect(() => {
         if (paymentMethod === 'cash') {
             setAmountPaid(totalAmount.toFixed(2));
+        } else if (paymentMethod === 'credit') {
+            setAmountPaid('0');
         }
     }, [totalAmount, paymentMethod]);
 
     // Search Products
     const searchProducts = async (query: string) => {
         setProductSearch(query);
-        if (!query || query.length < 2 || !company?.id) {
-            setProductResults([]);
-            return;
-        }
+        if (!company?.id) return;
+        
         setSearchLoading(true);
         try {
-            const { data, error } = await supabase
+            let queryBuilder = supabase
                 .from('products')
                 .select('id, name, primary_sku, cost_price, unit')
                 .eq('company_id', company.id)
-                .ilike('name', `%${query}%`)
                 .limit(20);
+
+            if (query.trim()) {
+                queryBuilder = queryBuilder.ilike('name', `%${query}%`);
+            } else {
+                // If no query, just show the most recent products
+                queryBuilder = queryBuilder.order('created_at', { ascending: false }).limit(10);
+            }
+
+            const { data, error } = await queryBuilder;
             if (!error) setProductResults(data || []);
         } catch (e) {
             console.error(e);
@@ -137,6 +152,8 @@ export default function AddPurchaseScreen() {
     };
 
     const handleSubmit = async () => {
+        if (isCreating || isUploading) return;
+
         if (!branchId) { showFeedback('error', 'Error', 'Please select a branch'); return; }
         if (!supplierId) { showFeedback('error', 'Error', 'Please select a supplier'); return; }
         if (lineItems.length === 0) { showFeedback('error', 'Error', 'Please add at least one product'); return; }
@@ -147,11 +164,31 @@ export default function AddPurchaseScreen() {
             return;
         }
 
+        const parsedAmountPaid = parseFloat(amountPaid) || 0;
+        if (parsedAmountPaid > totalAmount) {
+            showFeedback('error', 'Error', 'Amount paid cannot exceed total amount');
+            return;
+        }
+
         try {
+            setIsUploading(true);
+            let receiptUrl = null;
+            if (receiptUri) {
+                try {
+                    receiptUrl = await uploadImageToCloudinary(receiptUri);
+                } catch (e: any) {
+                    showFeedback('error', 'Upload Failed', e.message);
+                    setIsUploading(false);
+                    return;
+                }
+            }
+
+            const finalInvoiceNumber = invoiceNumber.trim() || `PUR-${Date.now().toString().slice(-6)}${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+
             await createPurchase({
                 supplier_id: supplierId,
                 purchase_date: new Date(purchaseDate),
-                invoice_number: invoiceNumber,
+                invoice_number: finalInvoiceNumber,
                 total_amount: totalAmount,
                 amount_paid: parseFloat(amountPaid) || 0,
                 payment_method: paymentMethod,
@@ -161,13 +198,21 @@ export default function AddPurchaseScreen() {
                     quantity: parseFloat(li.quantity),
                     unit_cost: parseFloat(li.unit_cost),
                 })),
+                receipt_url: receiptUrl
             });
+
             showFeedback('success', 'Success', 'Purchase recorded successfully');
+            setIsUploading(false);
             router.back();
         } catch (err: any) {
+            setIsUploading(false);
             showFeedback('error', 'Error', err.message || 'Failed to create purchase');
         }
     };
+
+    const calculatedAmountPaid = parseFloat(amountPaid) || 0;
+    const remainingAmount = Math.max(0, totalAmount - calculatedAmountPaid);
+    const paymentStatus = calculatedAmountPaid >= totalAmount ? 'Full' : 'Credit';
 
     return (
         <View style={styles.container}>
@@ -201,18 +246,30 @@ export default function AddPurchaseScreen() {
                         selectedValue={branchId}
                         onValueChange={setBranchId}
                         placeholder="Select Branch..."
+                        containerStyle={{ zIndex: 100 }}
                     />
 
-                    <AppSelect
-                        label="Supplier *"
-                        options={suppliers?.map((s: any) => ({
-                            label: s.name,
-                            value: s.id
-                        })) || []}
-                        selectedValue={supplierId}
-                        onValueChange={setSupplierId}
-                        placeholder="Select Supplier..."
-                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginBottom: 16, zIndex: 90 }}>
+                        <View style={{ flex: 1, marginBottom: 0 }}>
+                            <AppSelect
+                                label="Supplier *"
+                                options={suppliers?.map((s: any) => ({
+                                    label: s.name,
+                                    value: s.id
+                                })) || []}
+                                selectedValue={supplierId}
+                                onValueChange={setSupplierId}
+                                placeholder="Select Supplier..."
+                                containerStyle={{ marginBottom: 0 }}
+                            />
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setShowQuickAddSupplier(true)}
+                            style={[styles.miniBtn, { height: 52, width: 52, marginBottom: 0 }]}
+                        >
+                            <FontAwesome name="plus" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.row}>
                         <View style={styles.half}>
@@ -228,7 +285,7 @@ export default function AddPurchaseScreen() {
                                 label="Invoice Number"
                                 value={invoiceNumber}
                                 onChangeText={setInvoiceNumber}
-                                placeholder="Optional"
+                                placeholder="Auto-generated if empty"
                             />
                         </View>
                     </View>
@@ -240,7 +297,10 @@ export default function AddPurchaseScreen() {
                         <Text style={styles.sectionTitle}>Products</Text>
                         <AppButton
                             title="+ Add Product"
-                            onPress={() => setShowProductModal(true)}
+                            onPress={() => {
+                                setShowProductModal(true);
+                                searchProducts(''); // Load initial products
+                            }}
                             variant="outline"
                             style={{ paddingHorizontal: 14, paddingVertical: 6 }}
                         />
@@ -267,6 +327,7 @@ export default function AddPurchaseScreen() {
                                             value={item.quantity}
                                             onChangeText={(v) => updateLineItem(index, 'quantity', v)}
                                             keyboardType="numeric"
+                                            containerStyle={{ marginBottom: 0 }}
                                         />
                                     </View>
                                     <View style={{ flex: 1 }}>
@@ -276,6 +337,7 @@ export default function AddPurchaseScreen() {
                                             onChangeText={(v) => updateLineItem(index, 'unit_cost', v)}
                                             keyboardType="numeric"
                                             prefix="$"
+                                            containerStyle={{ marginBottom: 0 }}
                                         />
                                     </View>
                                     <View style={styles.lineTotal}>
@@ -302,31 +364,76 @@ export default function AddPurchaseScreen() {
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Payment</Text>
                     <View style={[styles.row, { zIndex: 10 }]}>
-                        <View style={[styles.half, { zIndex: 11 }]}>
+                        <View style={[styles.half, { zIndex: 10 }]}>
                             <AppSelect
                                 label="Payment Method"
                                 options={[
-                                    { label: 'Cash (Full)', value: 'cash' },
-                                    { label: 'Credit (Pay Later)', value: 'credit' },
-                                    { label: 'Bank Transfer', value: 'bank' }
+                                    { label: 'Cash', value: 'cash' },
+                                    { label: 'Bank Transfer', value: 'bank' },
+                                    { label: 'Credit', value: 'credit' }
                                 ]}
                                 selectedValue={paymentMethod}
-                                onValueChange={(v) => {
-                                    setPaymentMethod(v);
-                                    if (v === 'credit') setAmountPaid('0');
-                                }}
+                                onValueChange={setPaymentMethod}
                             />
                         </View>
                         <View style={styles.half}>
                             <AppTextInput
                                 label="Amount Paid"
                                 value={amountPaid}
-                                onChangeText={setAmountPaid}
+                                onChangeText={(text) => {
+                                    if (text === '') {
+                                        setAmountPaid('');
+                                        return;
+                                    }
+                                    const val = parseFloat(text);
+                                    if (!isNaN(val) && val > totalAmount) {
+                                        setAmountPaid(totalAmount.toFixed(2));
+                                    } else {
+                                        setAmountPaid(text);
+                                    }
+                                }}
                                 keyboardType="numeric"
                                 prefix="$"
+                                editable={paymentMethod !== 'credit'}
                             />
                         </View>
                     </View>
+                    <View style={[styles.row, { marginTop: 16, marginBottom: 16 }]}>
+                        <View style={styles.half}>
+                            <Text style={styles.label}>Payment Status</Text>
+                            <View style={[styles.pickerWrapper, { backgroundColor: paymentStatus === 'Full' ? `${colors.success}15` : `${colors.warning}15`, paddingHorizontal: 16 }]}>
+                                <Text style={{ color: paymentStatus === 'Full' ? colors.success : colors.warning, fontWeight: '700' }}>
+                                    {paymentStatus}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.half}>
+                            <Text style={styles.label}>Remaining Balance</Text>
+                            <View style={[styles.pickerWrapper, { paddingHorizontal: 16 }]}>
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>
+                                    ${remainingAmount.toFixed(2)}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        style={{ marginTop: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
+                        onPress={async () => {
+                            const uri = await pickImage();
+                            if (uri) {
+                                setReceiptUri(uri);
+                            }
+                        }}
+                    >
+                        <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                        <Text style={{ color: colors.text, flex: 1 }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                        {receiptUri && (
+                            <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
+                                <FontAwesome name="times-circle" size={18} color={colors.danger} />
+                            </TouchableOpacity>
+                        )}
+                    </TouchableOpacity>
 
                     <AppTextInput
                         label="Notes"
@@ -339,7 +446,7 @@ export default function AddPurchaseScreen() {
                     />
                 </View>
 
-                <View style={{ height: 100 }} />
+                <View style={{ height: 60 }} />
             </ScrollView>
 
             {/* Sticky Footer */}
@@ -398,21 +505,30 @@ export default function AddPurchaseScreen() {
                                 </TouchableOpacity>
                             )}
                             ListEmptyComponent={
-                                productSearch.length >= 2 ? (
-                                    <Text style={styles.noResults}>{searchLoading ? 'Searching...' : 'No products found'}</Text>
+                                searchLoading ? (
+                                    <Text style={styles.noResults}>Searching...</Text>
                                 ) : (
-                                    <Text style={styles.noResults}>Type at least 2 characters to search</Text>
+                                    <Text style={styles.noResults}>No products found</Text>
                                 )
                             }
                         />
                     </View>
                 </View>
             </Modal>
+            {/* Quick Add Supplier Modal */}
+            <QuickAddSupplierModal
+                visible={showQuickAddSupplier}
+                onClose={() => setShowQuickAddSupplier(false)}
+                onSuccess={(newSupplier) => {
+                    setSupplierId(newSupplier.id);
+                    showFeedback('success', 'Supplier Added', `${newSupplier.name} selected`);
+                }}
+            />
         </View>
     );
 }
 
-const createStyles = (colors: any, insets: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any, theme: string) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
 
     // Header
@@ -422,9 +538,9 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         paddingTop: 16,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.02)',
         borderBottomWidth: 1,
-        borderColor: colors.border,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
     },
     headerWeb: { paddingTop: 20 },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -437,10 +553,12 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
 
     // Card
     card: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
     },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -448,12 +566,13 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
     // Form
     label: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
     pickerWrapper: {
-
         borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
         height: 52,
         justifyContent: 'center',
-        marginBottom: 16
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
     },
     picker: { height: 52, width: '100%' },
     row: { flexDirection: 'row', gap: 12 },
@@ -461,15 +580,17 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
 
     // Line Items
     lineItem: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
     },
     lineItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     lineItemName: { fontSize: 14, fontWeight: '700', color: colors.text, flex: 1, marginRight: 8 },
     lineItemFields: { flexDirection: 'row', gap: 10, alignItems: 'flex-end' },
-    lineTotal: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
+    lineTotal: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 11 },
     lineTotalLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase' },
     lineTotalValue: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 2 },
 
@@ -498,7 +619,7 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.1)',
         borderTopWidth: 1,
         borderColor: 'rgba(255,255,255,0.08)',
-        paddingBottom: Platform.OS === 'web' ? 16 : Math.max(insets.bottom, 16) + 110,
+        paddingBottom: Platform.OS === 'web' ? 16 : 16,
     },
     footerTotal: { alignItems: 'center' },
     footerTotalLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase' },
@@ -531,10 +652,19 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 6,
         borderBottomWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)'
+        borderColor: colors.border
     },
     productResultName: { fontSize: 15, fontWeight: '700', color: colors.text },
     productResultSku: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
     productResultCost: { fontSize: 16, fontWeight: '800', color: colors.primary },
     noResults: { textAlign: 'center', color: colors.textSecondary, paddingVertical: 32, fontSize: 14, fontWeight: '600' },
+
+    miniBtn: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
 });

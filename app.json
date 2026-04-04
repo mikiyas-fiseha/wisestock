@@ -22,7 +22,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.pyaixp.stock"
     },
     "web": {
       "bundler": "metro",
@@ -37,10 +42,24 @@
         {
           "cameraPermission": "Allow Wisestock to access your camera to scan barcodes."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Wisestock to access your photos to save receipts.",
+          "savePhotosPermission": "Allow Wisestock to save receipts to your gallery.",
+          "granularPermissions": ["photo"]
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2218f8ed-7f47-4cb6-b73c-823dffb671a5"
+      }
     }
   }
 }

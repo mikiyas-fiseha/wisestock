@@ -178,7 +178,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     list: {
         padding: Layout.spacing.lg,
         paddingTop: Layout.spacing.xs,
-        paddingBottom: 110,
+        paddingBottom: 20,
     },
     center: {
         flex: 1,

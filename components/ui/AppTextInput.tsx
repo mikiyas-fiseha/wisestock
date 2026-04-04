@@ -9,22 +9,30 @@ interface AppTextInputProps extends TextInputProps {
     error?: string;
     prefix?: string;
     icon?: keyof typeof FontAwesome.glyphMap;
+    containerStyle?: any;
 }
 
-export function AppTextInput({ label, error, style, prefix, icon, ...props }: AppTextInputProps) {
+export function AppTextInput({ label, error, style, prefix, icon, containerStyle, ...props }: AppTextInputProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const isMultiline = props.multiline;
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, containerStyle]}>
             {label && <Text style={styles.label}>{label}</Text>}
-            <View style={[styles.inputContainer, error ? styles.inputError : null]}>
+            <View style={[
+                styles.inputContainer,
+                error ? styles.inputError : null,
+                isMultiline ? { alignItems: 'flex-start', paddingTop: 8 } : { alignItems: 'center' }
+            ]}>
                 {icon && (
-                    <FontAwesome name={icon} size={16} color={colors.primary} style={styles.icon} />
+                    <FontAwesome name={icon} size={16} color={colors.primary} style={[styles.icon, isMultiline && { marginTop: 4 }]} />
                 )}
-                {prefix && <Text style={styles.prefix}>{prefix}</Text>}
+                {prefix && <Text style={[styles.prefix, isMultiline && { marginTop: 4 }]}>{prefix}</Text>}
                 <TextInput
                     style={[styles.input, style]}
                     placeholderTextColor={colors.textSecondary}
+                    textAlignVertical={isMultiline ? 'top' : 'center'}
                     {...props}
                 />
             </View>
@@ -46,19 +54,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     inputContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: colors.background === '#09090B' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
         borderWidth: 1,
-        borderColor: colors.background === '#09090B' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
+        borderColor: colors.background === '#09090B' ? colors.border : 'rgba(0,0,0,0.12)',
         borderRadius: 8,
-        height: 48,
+        minHeight: 48,
         overflow: 'hidden',
     },
     input: {
         flex: 1,
         fontSize: 16,
         color: colors.text,
-        height: '100%',
+        paddingHorizontal: 12,
+        minHeight: 48,
         ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
     },
     icon: {

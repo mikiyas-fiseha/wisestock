@@ -123,26 +123,44 @@ export function useSuppliers() {
             },
         }),
         recordPayment: useMutation({
-            mutationFn: async (params: { supplier_id: string; amount: number; payment_date: Date; method: string; notes?: string }) => {
+            mutationFn: async (params: { supplier_id: string; amount: number; payment_date: Date; method: string; notes?: string; purchase_id?: string; receipt_url?: string | null }) => {
                 if (!company?.id || !user?.id) throw new Error("Missing context");
 
-                const { data, error } = await supabase.rpc('process_supplier_payment', {
+                const { data: paymentId, error } = await supabase.rpc('process_supplier_payment', {
                     p_company_id: company.id,
                     p_supplier_id: params.supplier_id,
                     p_amount: params.amount,
                     p_payment_date: params.payment_date.toISOString(),
                     p_method: params.method,
                     p_notes: params.notes || '',
-                    p_created_by: user.id
+                    p_created_by: user.id,
+                    p_purchase_id: params.purchase_id || null
                 });
 
                 if (error) throw error;
-                return data;
+                
+                // If a receipt URL was provided, update the record immediately
+                if (params.receipt_url && paymentId) {
+                    const { error: updateError } = await supabase
+                        .from('supplier_payments')
+                        .update({ receipt_url: params.receipt_url })
+                        .eq('id', paymentId);
+                    
+                    if (updateError) console.error('Error updating receipt_url:', updateError);
+                }
+
+                return paymentId;
             },
             onSuccess: (_, { supplier_id }) => {
-                queryClient.invalidateQueries({ queryKey: ['suppliers'] }); // Update list balance
-                queryClient.invalidateQueries({ queryKey: ['supplier', supplier_id] }); // Update detail balance
-                queryClient.invalidateQueries({ queryKey: ['supplier_payments', supplier_id] }); // Update history
+                // Exhaustive invalidation to ensure UI consistency
+                queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+                queryClient.invalidateQueries({ queryKey: ['supplier'] });
+                queryClient.invalidateQueries({ queryKey: ['supplier_payments'] });
+                queryClient.invalidateQueries({ queryKey: ['purchases'] });
+                queryClient.invalidateQueries({ queryKey: ['purchase'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+                console.log('Payment recorded successfully, cache invalidated for supplier:', supplier_id);
             },
             onError: (error: any) => {
                 Alert.alert('Error', error.message);

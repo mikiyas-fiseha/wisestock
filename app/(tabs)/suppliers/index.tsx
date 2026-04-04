@@ -177,7 +177,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     listContent: {
         paddingHorizontal: 20,
-        paddingBottom: 110,
+        paddingBottom: 20,
     },
     card: {
         backgroundColor: colors.card + 'E0',

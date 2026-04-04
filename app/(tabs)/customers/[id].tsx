@@ -12,6 +12,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '@/lib/supabase';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 export default function CustomerDetailsScreen() {
     const { colors, theme } = useTheme();
@@ -29,20 +31,38 @@ export default function CustomerDetailsScreen() {
     const { data: history, isLoading: isLoadingHistory } = useCustomerHistory(id as string, selectedBranch);
     const { branches } = useBranches();
     const { mutate: collectPayment, isPending: isCollecting } = useCollectPayment();
+    const [isUploading, setIsUploading] = useState(false);
 
-    const handlePaymentSubmit = async (data: { amount: number; method: string; date: Date; notes: string }) => {
+    const handlePaymentSubmit = async (data: { amount: number; method: string; date: Date; notes: string; receiptUri: string | null; saleId?: string }) => {
+        setIsUploading(true);
+        let receiptUrl = null;
+        if (data.receiptUri) {
+            try {
+                receiptUrl = await uploadImageToCloudinary(data.receiptUri);
+            } catch (e: any) {
+                showFeedback('error', 'Upload Failed', e.message);
+                setIsUploading(false);
+                return;
+            }
+        }
+
         collectPayment({
             customerId: id,
             amount: data.amount.toString(),
-            notes: data.notes
+            method: data.method,
+            notes: data.notes,
+            receiptUrl: receiptUrl,
+            saleId: data.saleId
         }, {
-            onSuccess: () => {
+            onSuccess: async () => {
                 setPaymentModalVisible(false);
                 showFeedback('success', 'Success', "Payment recorded");
                 refetchCustomer();
+                setIsUploading(false);
             },
             onError: (err) => {
                 showFeedback('error', 'Error', err.message);
+                setIsUploading(false);
             }
         });
     };
@@ -249,7 +269,8 @@ export default function CustomerDetailsScreen() {
                     onSubmit={handlePaymentSubmit as any}
                     customerName={customer.name}
                     currentBalance={customer.current_balance || 0}
-                    isLoading={isCollecting}
+                    isLoading={isCollecting || isUploading}
+                    sales={history?.sales?.filter((s: any) => (s.balance_due || ((s.total_amount || 0) - (s.paid_amount || 0))) > 0)}
                 />
             </SafeAreaView>
         </View>

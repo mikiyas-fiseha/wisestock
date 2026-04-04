@@ -319,7 +319,7 @@ export default function InventoryIndex() {
                             onTransfer={() => setTransferProduct(item)}
                         />
                     )}
-                    contentContainerStyle={{ padding: 12, paddingBottom: 110 }}
+                    contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
                     onRefresh={refetch}
                     refreshing={isLoading}
                     ItemSeparatorComponent={() => <View style={{ height: 8 }} />}

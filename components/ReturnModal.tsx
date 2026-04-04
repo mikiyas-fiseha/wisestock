@@ -2,11 +2,15 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBranches } from '@/hooks/useBranches';
-import { useCreateReturn } from '@/hooks/useInventory';
-import { useProducts } from '@/hooks/useProducts';
+import {
+    useCreatePurchaseReturn,
+    useCreateSaleReturn,
+    type ReturnItemInput,
+} from '@/hooks/useReturns';
+import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -23,105 +27,278 @@ import {
 
 const isWeb = Platform.OS === 'web';
 
-interface ReturnModalProps {
-    visible: boolean;
-    type: 'customer_return' | 'supplier_return';
-    /** Pre-fill if opened from a specific product detail */
-    productId?: string;
-    productName?: string;
-    referenceId?: string;
-    onClose: () => void;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface InvoiceItem {
+    product_id: string;
+    variant_id?: string | null;
+    product_name: string;
+    quantity: number;
+    unit_price: number;   // for sale items
+    unit_cost: number;    // for purchase items
 }
 
-const RETURN_REASONS = {
+interface ReturnItemState extends InvoiceItem {
+    returnQty: number;
+    selected: boolean;
+    currentStock: number; // physically in branch
+}
+
+export interface ReturnModalProps {
+    visible: boolean;
+    /** 'customer_return' = opened from sales, 'supplier_return' = opened from purchases */
+    type: 'customer_return' | 'supplier_return';
+    /** UUID of the original sale or purchase */
+    referenceId?: string;
+    /** Human-readable label like "Sale #ABC — John — $150.00" */
+    referenceLabel?: string;
+    onClose: () => void;
+    /** Called after a successful return is recorded */
+    onSuccess?: () => void;
+}
+
+const REASONS = {
     customer_return: ['Defective item', 'Wrong item', 'Customer changed mind', 'Expired', 'Other'],
     supplier_return: ['Defective batch', 'Wrong item received', 'Overstocked', 'Expired on arrival', 'Other'],
 };
 
+const REFUND_METHODS_CUSTOMER: { value: 'cash' | 'ar_adjustment' | 'store_credit'; label: string; desc: string; icon: string }[] = [
+    { value: 'cash',         label: 'Cash Refund',       desc: 'Refund cash to customer',            icon: 'money' },
+    { value: 'ar_adjustment',label: 'Reduce Balance',    desc: 'Customer owed less on account',      icon: 'minus-circle' },
+    { value: 'store_credit', label: 'Store Credit',      desc: 'Issue credit for future purchases',  icon: 'gift' },
+];
+
+const REFUND_METHODS_SUPPLIER: { value: 'cash' | 'ap_adjustment'; label: string; desc: string; icon: string }[] = [
+    { value: 'cash',         label: 'Cash Back',         desc: 'Supplier refunds cash',              icon: 'money' },
+    { value: 'ap_adjustment',label: 'Reduce Payable',    desc: 'Reduce amount owed to supplier',     icon: 'minus-circle' },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function ReturnModal({
     visible,
     type,
-    productId: preProductId,
-    productName: preProductName,
     referenceId,
+    referenceLabel,
     onClose,
+    onSuccess,
 }: ReturnModalProps) {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { branch } = useAuth();
     const { branches = [] } = useBranches();
-    const { data: products = [] } = useProducts();
-    const createReturn = useCreateReturn();
 
-    const [selectedProductId, setSelectedProductId] = useState(preProductId ?? '');
-    const [selectedBranchId, setSelectedBranchId] = useState(branch?.id ?? branches[0]?.id ?? '');
-    const [quantity, setQuantity] = useState('1');
-    const [reason, setReason] = useState('');
-    const [notes, setNotes] = useState('');
-    const [productSearch, setProductSearch] = useState(preProductName ?? '');
-    const [showProductList, setShowProductList] = useState(!preProductId);
-    const [error, setError] = useState('');
+    const createSaleReturn     = useCreateSaleReturn();
+    const createPurchaseReturn = useCreatePurchaseReturn();
 
-    const title = type === 'customer_return' ? 'Customer Return' : 'Supplier Return';
-    const icon = type === 'customer_return' ? 'undo' : 'reply';
+    const isPending   = createSaleReturn.isPending || createPurchaseReturn.isPending;
     const accentColor = type === 'customer_return' ? '#06B6D4' : '#F97316';
 
-    const filteredProducts = products.filter(
-        p => p.name.toLowerCase().includes(productSearch.toLowerCase())
+    // ── State ────────────────────────────────────────────────────────────────
+    const [invoiceItems, setInvoiceItems]       = useState<ReturnItemState[]>([]);
+    const [loadingItems, setLoadingItems]       = useState(false);
+    const [selectedBranchId, setSelectedBranchId] = useState(branch?.id ?? '');
+    const [reason, setReason]                   = useState('');
+    const [notes, setNotes]                     = useState('');
+    const [refundMethod, setRefundMethod]       = useState<string>(
+        type === 'customer_return' ? 'cash' : 'cash'
     );
+    const [customAmount, setCustomAmount]       = useState('');
+    const [useCustomAmount, setUseCustomAmount] = useState(false);
+    const [error, setError]                     = useState('');
+    const initialized = useRef(false);
 
-    const selectedProduct = products.find(p => p.id === selectedProductId);
-    const reasons = RETURN_REASONS[type];
+    // ── Load invoice items when modal opens ──────────────────────────────────
+    useEffect(() => {
+        if (!visible || !referenceId) { initialized.current = false; return; }
+        if (initialized.current) return;
+        initialized.current = true;
+        loadInvoiceItems();
+    }, [visible, referenceId]);
 
-    const handleConfirm = async () => {
-        setError('');
-        const qty = parseInt(quantity, 10);
-        if (!selectedProductId) return setError('Please select a product');
-        if (!selectedBranchId) return setError('Please select a branch');
-        if (!qty || qty < 1) return setError('Quantity must be at least 1');
-        if (!reason) return setError('Please select a reason');
+    // Reset on close
+    useEffect(() => {
+        if (!visible) {
+            setInvoiceItems([]);
+            setReason('');
+            setNotes('');
+            setRefundMethod('cash');
+            setCustomAmount('');
+            setUseCustomAmount(false);
+            setError('');
+            initialized.current = false;
+        }
+    }, [visible]);
 
+    const loadInvoiceItems = async () => {
+        if (!referenceId) return;
+        setLoadingItems(true);
         try {
-            await createReturn.mutateAsync({
-                type,
-                productId: selectedProductId,
-                branchId: selectedBranchId,
-                quantity: qty,
-                reason,
-                referenceId,
-                notes,
-            });
-            Alert.alert('Success', `${title} recorded. Stock has been updated.`);
-            onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to record return');
+            if (type === 'customer_return') {
+                const { data, error } = await supabase
+                    .from('sale_items')
+                    .select('product_id, variant_id, product_name, quantity, unit_price, cost_price')
+                    .eq('sale_id', referenceId);
+                if (error) throw error;
+                
+                // For customer returns, branch stock is usually irrelevant as we are taking items BACK, 
+                // but we initialize currentStock to 9999 or actual for consistency.
+                setInvoiceItems((data || []).map((item: any) => ({
+                    product_id:   item.product_id,
+                    variant_id:   item.variant_id ?? null,
+                    product_name: item.product_name || 'Unknown',
+                    quantity:     item.quantity,
+                    unit_price:   Number(item.unit_price || 0),
+                    unit_cost:    Number(item.cost_price || 0),
+                    returnQty:    item.quantity,
+                    selected:     true,
+                    currentStock: 9999, 
+                })));
+            } else {
+                // Supplier Return: MUST check branch stock
+                const { data: items, error: itemErr } = await supabase
+                    .from('purchase_items')
+                    .select('product_id, quantity, unit_cost, products(name)')
+                    .eq('purchase_id', referenceId);
+                if (itemErr) throw itemErr;
+
+                // Fetch current stock for these products in this branch
+                const productIds = (items || []).map(i => i.product_id);
+                const { data: stockData } = await supabase
+                    .from('branch_products')
+                    .select('product_id, stock')
+                    .in('product_id', productIds)
+                    .eq('branch_id', selectedBranchId);
+
+                const stockMap = new Map((stockData || []).map(s => [s.product_id, Number(s.stock)]));
+
+                setInvoiceItems((items || []).map((item: any) => {
+                    const avail = stockMap.get(item.product_id) || 0;
+                    return {
+                        product_id:   item.product_id,
+                        variant_id:   null,
+                        product_name: (item.products as any)?.name || 'Unknown',
+                        quantity:     item.quantity,
+                        unit_price:   Number(item.unit_cost || 0),
+                        unit_cost:    Number(item.unit_cost || 0),
+                        returnQty:    Math.min(Number(item.quantity), avail), // default to max available
+                        selected:     avail > 0,
+                        currentStock: avail,
+                    };
+                }));
+            }
+        } catch (e) {
+            console.error(e);
+            setError('Failed to load invoice items or stock');
+        } finally {
+            setLoadingItems(false);
         }
     };
+
+    // ── Computed values ───────────────────────────────────────────────────────
+    const selectedItems = invoiceItems.filter(i => i.selected && i.returnQty > 0);
+
+    const autoRefundAmount = useMemo(
+        () => selectedItems.reduce((sum, i) => sum + i.returnQty * i.unit_price, 0),
+        [selectedItems]
+    );
+
+    const effectiveRefundAmount = useCustomAmount
+        ? parseFloat(customAmount) || 0
+        : autoRefundAmount;
+
+    const overStockError = type === 'supplier_return' && selectedItems.some(i => i.returnQty > i.currentStock);
+    
+    const refundMethods = type === 'customer_return' ? REFUND_METHODS_CUSTOMER : REFUND_METHODS_SUPPLIER;
+
+    // ── Handlers ─────────────────────────────────────────────────────────────
+    const toggleItem = (idx: number) => {
+        setInvoiceItems(prev => prev.map((item, i) =>
+            i === idx ? { ...item, selected: !item.selected } : item
+        ));
+    };
+
+    const updateQty = (idx: number, delta: number) => {
+        setInvoiceItems(prev => prev.map((item, i) => {
+            if (i !== idx) return item;
+            const newQty = Math.max(0, Math.min(item.quantity, item.returnQty + delta));
+            return { ...item, returnQty: newQty, selected: newQty > 0 };
+        }));
+    };
+
+    const handleConfirm = async () => {
+        if (isPending) return;
+        setError('');
+
+        if (selectedItems.length === 0) return setError('Select at least one item to return');
+        if (overStockError) return setError('Cannot return more than physically available in stock');
+        if (!reason) return setError('Please select a reason');
+        if (effectiveRefundAmount < 0) return setError('Refund amount cannot be negative');
+
+        const items: ReturnItemInput[] = selectedItems.map(i => ({
+            product_id:   i.product_id,
+            variant_id:   i.variant_id ?? undefined,
+            product_name: i.product_name,
+            quantity:     i.returnQty,
+            unit_price:   i.unit_price,
+            unit_cost:    i.unit_cost,
+        }));
+
+        try {
+            if (type === 'customer_return') {
+                await createSaleReturn.mutateAsync({
+                    saleId:        referenceId!,
+                    items,
+                    refundMethod:  refundMethod as any,
+                    refundAmount:  effectiveRefundAmount,
+                    reason,
+                    notes:         notes || undefined,
+                    branchId:      selectedBranchId || undefined,
+                });
+            } else {
+                await createPurchaseReturn.mutateAsync({
+                    purchaseId:    referenceId!,
+                    items,
+                    refundMethod:  refundMethod as any,
+                    refundAmount:  effectiveRefundAmount,
+                    reason,
+                    notes:         notes || undefined,
+                    branchId:      selectedBranchId || undefined,
+                });
+            }
+            Alert.alert('Success', 'Return recorded. Inventory and accounts updated.');
+            onSuccess?.();
+            onClose();
+        } catch (e: any) {
+            setError(e.message || 'Failed to record return');
+        }
+    };
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    const title      = type === 'customer_return' ? 'Customer Return' : 'Supplier Return';
+    const iconName   = type === 'customer_return' ? 'undo' : 'reply';
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={[styles.modal, { overflow: 'hidden' }]} onPress={() => { }}>
-                    {/* Background Gradient */}
+                <Pressable style={[styles.modal, { overflow: 'hidden' }]} onPress={() => {}}>
+                    {/* Gradient Background */}
                     <LinearGradient
                         colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
                         style={StyleSheet.absoluteFill}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     />
 
                     {/* Header */}
-                    <View style={[styles.modalHeader, { borderBottomColor: `${accentColor}30` }]}>
-                        <View style={[styles.headerIcon, { backgroundColor: `${accentColor}18` }]}>
-                            <FontAwesome name={icon as any} size={18} color={accentColor} />
+                    <View style={[styles.header, { borderBottomColor: `${accentColor}30` }]}>
+                        <View style={[styles.headerIcon, { backgroundColor: `${accentColor}20` }]}>
+                            <FontAwesome name={iconName as any} size={18} color={accentColor} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.modalTitle}>{title}</Text>
-                            <Text style={styles.modalSub}>
-                                {type === 'customer_return'
-                                    ? 'Stock will increase at the selected branch'
-                                    : 'Returned stock will be added back to inventory'}
-                            </Text>
+                            <Text style={styles.headerTitle}>{title}</Text>
+                            {referenceLabel && (
+                                <Text style={styles.headerSub} numberOfLines={1}>{referenceLabel}</Text>
+                            )}
                         </View>
                         <Pressable onPress={onClose} style={styles.closeBtn}>
                             <FontAwesome name="times" size={16} color={colors.textSecondary} />
@@ -129,125 +306,78 @@ export function ReturnModal({
                     </View>
 
                     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-                        {/* Product Selector */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Product</Text>
-                            {selectedProduct && !showProductList ? (
-                                <Pressable
-                                    style={styles.selectedChip}
-                                    onPress={() => { setShowProductList(true); setSelectedProductId(''); setProductSearch(''); }}
-                                >
-                                    <Text style={styles.selectedChipText} numberOfLines={1}>{selectedProduct.name}</Text>
-                                    <FontAwesome name="times-circle" size={14} color={colors.textSecondary} />
-                                </Pressable>
+
+                        {/* ── Items Section ── */}
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Return Items</Text>
+                            {loadingItems ? (
+                                <ActivityIndicator color={accentColor} style={{ padding: 16 }} />
+                            ) : invoiceItems.length === 0 ? (
+                                <Text style={styles.emptyText}>No items found in original invoice</Text>
                             ) : (
-                                <>
-                                    <View style={styles.searchBox}>
-                                        <FontAwesome name="search" size={13} color={colors.textSecondary} />
-                                        <TextInput
-                                            style={styles.searchInput}
-                                            placeholder="Search products…"
-                                            value={productSearch}
-                                            onChangeText={setProductSearch}
-                                            placeholderTextColor={colors.textSecondary}
-                                        />
-                                    </View>
-                                    <View style={styles.productList}>
-                                        {filteredProducts.slice(0, 5).map(p => (
-                                            <Pressable
-                                                key={p.id}
-                                                style={styles.productOption}
-                                                onPress={() => {
-                                                    setSelectedProductId(p.id);
-                                                    setProductSearch(p.name);
-                                                    setShowProductList(false);
-                                                }}
+                                invoiceItems.map((item, idx) => (
+                                    <View key={idx} style={[
+                                        styles.itemRow,
+                                        !item.selected && { opacity: 0.4 },
+                                    ]}>
+                                        {/* Checkbox */}
+                                        <Pressable
+                                            onPress={() => toggleItem(idx)}
+                                            style={[styles.checkbox, item.selected && { backgroundColor: accentColor, borderColor: accentColor }]}
+                                        >
+                                            {item.selected && <FontAwesome name="check" size={10} color="#fff" />}
+                                        </Pressable>
+
+                                        {/* Product info */}
+                                        <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                            <Text style={styles.itemName} numberOfLines={1}>{item.product_name}</Text>
+                                            <Text style={styles.itemMeta}>
+                                                ${item.unit_price.toFixed(2)} ea · {type === 'supplier_return' ? `Stock: ${item.currentStock}` : `Max: ${item.quantity}`}
+                                            </Text>
+                                        </View>
+
+                                        {/* Qty stepper */}
+                                        <View style={styles.stepper}>
+                                            <TouchableOpacity
+                                                style={styles.stepBtn}
+                                                onPress={() => updateQty(idx, -1)}
                                             >
-                                                <Text style={styles.productOptionName}>{p.name}</Text>
-                                                <Text style={styles.productOptionStock}>
-                                                    Stock: {p.stock}
-                                                </Text>
-                                            </Pressable>
-                                        ))}
+                                                <Text style={[styles.stepTxt, { color: accentColor }]}>−</Text>
+                                            </TouchableOpacity>
+                                            <Text style={[
+                                                styles.qtyTxt,
+                                                type === 'supplier_return' && item.returnQty > item.currentStock && { color: colors.danger }
+                                            ]}>
+                                                {item.returnQty}
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.stepBtn}
+                                                onPress={() => updateQty(idx, +1)}
+                                            >
+                                                <Text style={[styles.stepTxt, { color: accentColor }]}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {/* Line total */}
+                                        <Text style={[styles.lineTotal, { color: accentColor }]}>
+                                            ${(item.returnQty * item.unit_price).toFixed(2)}
+                                        </Text>
                                     </View>
-                                </>
+                                ))
                             )}
                         </View>
 
-                        {/* Branch Selector */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Return to Branch</Text>
-                            <View style={styles.branchRow}>
-                                {branches.map(b => (
-                                    <TouchableOpacity
-                                        key={b.id}
-                                        style={[
-                                            styles.branchChip,
-                                            selectedBranchId === b.id && {
-                                                backgroundColor: `${accentColor}18`,
-                                                borderColor: accentColor,
-                                            },
-                                        ]}
-                                        onPress={() => setSelectedBranchId(b.id)}
-                                    >
-                                        <Text style={[
-                                            styles.branchChipText,
-                                            selectedBranchId === b.id && { color: accentColor, fontWeight: '700' },
-                                        ]}>
-                                            {b.name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        {/* Quantity */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Quantity</Text>
-                            <View style={styles.qtyRow}>
-                                <TouchableOpacity
-                                    style={styles.qtyBtn}
-                                    onPress={() => setQuantity(q => String(Math.max(1, parseInt(q || '1') - 1)))}
-                                >
-                                    <Text style={styles.qtyBtnText}>−</Text>
-                                </TouchableOpacity>
-                                <TextInput
-                                    style={styles.qtyInput}
-                                    value={quantity}
-                                    onChangeText={setQuantity}
-                                    keyboardType="number-pad"
-                                    selectTextOnFocus
-                                    placeholderTextColor={colors.textSecondary}
-                                />
-                                <TouchableOpacity
-                                    style={styles.qtyBtn}
-                                    onPress={() => setQuantity(q => String(parseInt(q || '0') + 1))}
-                                >
-                                    <Text style={styles.qtyBtnText}>+</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        {/* Reason */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Reason</Text>
-                            <View style={styles.reasonGrid}>
-                                {reasons.map(r => (
+                        {/* ── Reason ── */}
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Reason</Text>
+                            <View style={styles.chipRow}>
+                                {REASONS[type].map(r => (
                                     <TouchableOpacity
                                         key={r}
-                                        style={[
-                                            styles.reasonChip,
-                                            reason === r && {
-                                                backgroundColor: `${accentColor}18`,
-                                                borderColor: accentColor,
-                                            },
-                                        ]}
+                                        style={[styles.chip, reason === r && { backgroundColor: `${accentColor}20`, borderColor: accentColor }]}
                                         onPress={() => setReason(r)}
                                     >
-                                        <Text style={[
-                                            styles.reasonChipText,
-                                            reason === r && { color: accentColor, fontWeight: '700' },
-                                        ]}>
+                                        <Text style={[styles.chipText, reason === r && { color: accentColor, fontWeight: '700' }]}>
                                             {r}
                                         </Text>
                                     </TouchableOpacity>
@@ -255,9 +385,104 @@ export function ReturnModal({
                             </View>
                         </View>
 
-                        {/* Notes */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Notes (optional)</Text>
+                        {/* ── Refund Method ── */}
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Refund Method</Text>
+                            {refundMethods.map(m => (
+                                <TouchableOpacity
+                                    key={m.value}
+                                    style={[styles.methodRow, refundMethod === m.value && { borderColor: accentColor, backgroundColor: `${accentColor}12` }]}
+                                    onPress={() => setRefundMethod(m.value)}
+                                >
+                                    <View style={[styles.methodIcon, refundMethod === m.value && { backgroundColor: `${accentColor}25` }]}>
+                                        <FontAwesome name={m.icon as any} size={14} color={accentColor} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.methodLabel, refundMethod === m.value && { color: accentColor }]}>
+                                            {m.label}
+                                        </Text>
+                                        <Text style={styles.methodDesc}>{m.desc}</Text>
+                                    </View>
+                                    {refundMethod === m.value && (
+                                        <FontAwesome name="check-circle" size={18} color={accentColor} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* ── Branch ── */}
+                        {branches.length > 1 && (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Branch</Text>
+                                <View style={styles.chipRow}>
+                                    {branches.map(b => (
+                                        <TouchableOpacity
+                                            key={b.id}
+                                            style={[styles.chip, selectedBranchId === b.id && { backgroundColor: `${accentColor}20`, borderColor: accentColor }]}
+                                            onPress={() => setSelectedBranchId(b.id)}
+                                        >
+                                            <Text style={[styles.chipText, selectedBranchId === b.id && { color: accentColor, fontWeight: '700' }]}>
+                                                {b.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* ── Accounting Summary ── */}
+                        <View style={[styles.section, styles.summaryBox]}>
+                            <Text style={[styles.sectionTitle, { color: accentColor }]}>Accounting Impact</Text>
+
+                            <View style={styles.summaryRow}>
+                                <FontAwesome name="cubes" size={13} color={colors.textSecondary} />
+                                <Text style={styles.summaryText}>
+                                    {selectedItems.length} product{selectedItems.length !== 1 ? 's' : ''} returned to inventory
+                                </Text>
+                            </View>
+
+                            <View style={styles.summaryRow}>
+                                <FontAwesome name="bar-chart" size={13} color={colors.textSecondary} />
+                                <Text style={styles.summaryText}>
+                                    {type === 'customer_return' ? 'COGS reversed ·' : 'Cost reversed ·'} Revenue / cost adjusted
+                                </Text>
+                            </View>
+
+                            <View style={styles.summaryRow}>
+                                <FontAwesome name="money" size={13} color={colors.textSecondary} />
+                                <Text style={styles.summaryText}>
+                                    {refundMethods.find(m => m.value === refundMethod)?.desc}
+                                </Text>
+                            </View>
+
+                            {/* Refund amount */}
+                            <View style={[styles.summaryRow, { marginTop: 8 }]}>
+                                <Text style={[styles.summaryLabel, { flex: 1 }]}>Refund Amount</Text>
+                                <TouchableOpacity onPress={() => setUseCustomAmount(v => !v)}>
+                                    <Text style={{ color: accentColor, fontSize: 12 }}>
+                                        {useCustomAmount ? 'Use auto' : 'Edit'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                            {useCustomAmount ? (
+                                <TextInput
+                                    style={[styles.amountInput, { borderColor: accentColor }]}
+                                    value={customAmount}
+                                    onChangeText={setCustomAmount}
+                                    keyboardType="decimal-pad"
+                                    placeholder="0.00"
+                                    placeholderTextColor={colors.textSecondary}
+                                />
+                            ) : (
+                                <Text style={[styles.amountDisplay, { color: accentColor }]}>
+                                    ${effectiveRefundAmount.toFixed(2)}
+                                </Text>
+                            )}
+                        </View>
+
+                        {/* ── Notes ── */}
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Notes (optional)</Text>
                             <TextInput
                                 style={styles.notesInput}
                                 placeholder="Additional details…"
@@ -269,27 +494,32 @@ export function ReturnModal({
                             />
                         </View>
 
-                        {error ? (
+                        {/* ── Error ── */}
+                        {!!error && (
                             <View style={styles.errorBox}>
                                 <FontAwesome name="exclamation-circle" size={14} color={colors.danger} />
                                 <Text style={styles.errorText}>{error}</Text>
                             </View>
-                        ) : null}
+                        )}
                     </ScrollView>
 
                     {/* Footer */}
                     <View style={styles.footer}>
                         <Pressable style={styles.cancelBtn} onPress={onClose}>
-                            <Text style={styles.cancelBtnText}>Cancel</Text>
+                            <Text style={styles.cancelText}>Cancel</Text>
                         </Pressable>
                         <Pressable
-                            style={[styles.confirmBtn, { backgroundColor: accentColor }]}
+                            style={[
+                                styles.confirmBtn, 
+                                { backgroundColor: accentColor }, 
+                                (isPending || overStockError) && { opacity: 0.7 }
+                            ]}
                             onPress={handleConfirm}
-                            disabled={createReturn.isPending}
+                            disabled={isPending || overStockError}
                         >
-                            {createReturn.isPending
-                                ? <ActivityIndicator size="small" color="#FFFFFF" />
-                                : <Text style={styles.confirmBtnText}>Record Return</Text>
+                            {isPending
+                                ? <ActivityIndicator size="small" color="#fff" />
+                                : <Text style={styles.confirmText}>Record Return</Text>
                             }
                         </Pressable>
                     </View>
@@ -299,160 +529,147 @@ export function ReturnModal({
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const createStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: 'rgba(0,0,0,0.65)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: 16,
     },
     modal: {
         backgroundColor: 'transparent',
-        borderRadius: 20,
-        width: isWeb ? 480 : '100%',
-        maxHeight: '90%',
-        overflow: 'hidden',
-
+        borderRadius: 22,
+        width: isWeb ? 520 : '100%',
+        maxHeight: '92%',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.2,
+        shadowRadius: 24,
     },
-    modalHeader: {
+    header: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        gap: 12,
         padding: 20,
         borderBottomWidth: 1,
-        gap: 12,
     },
     headerIcon: { borderRadius: 12, padding: 10 },
-    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-    modalSub: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
-    closeBtn: { padding: 4 },
-    body: { padding: 20, gap: 18 },
-    field: { gap: 8 },
-    label: { fontSize: 13, fontWeight: '600', color: colors.text },
-    searchBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    headerSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    closeBtn: { padding: 4, marginLeft: 4 },
+    body: { padding: 16, gap: 12, paddingBottom: 8 },
+
+    // Section card
+    section: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 14,
+        padding: 14,
         gap: 10,
+    },
+    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        backgroundColor: 'transparent',
-    },
-    searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineWidth: 0 } as any,
-    productList: { borderRadius: 10, overflow: 'hidden' },
-    productOption: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        backgroundColor: colors.card,
-        cursor: 'pointer' as any,
-    },
-    productOptionName: { fontSize: 13, fontWeight: '500', color: colors.text },
-    productOptionStock: { fontSize: 12, color: colors.textSecondary },
-    selectedChip: {
+    // Item rows
+    itemRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        borderWidth: 1,
-        borderColor: colors.primary + '30',
-        backgroundColor: colors.primary + '10',
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-    },
-    selectedChipText: { fontSize: 14, fontWeight: '600', color: colors.primary, flex: 1, marginRight: 8 },
-    branchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    branchChip: {
-        paddingHorizontal: 14,
         paddingVertical: 8,
-        borderRadius: 10,
-
-        backgroundColor: 'transparent',
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border + '30',
     },
-    branchChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
-    qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    qtyBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-
-        backgroundColor: 'transparent',
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 1.5,
+        borderColor: colors.border,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    qtyBtnText: { fontSize: 20, color: colors.text, fontWeight: '700', lineHeight: 22 },
-    qtyInput: {
-        width: 80,
-        textAlign: 'center',
-        fontSize: 20,
-        fontWeight: '700',
-        color: colors.text,
-
-        borderRadius: 10,
-        paddingVertical: 8,
-        outlineWidth: 0,
+    itemName: { fontSize: 14, fontWeight: '600', color: colors.text },
+    itemMeta: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    stepBtn: {
+        width: 28, height: 28, borderRadius: 8,
         backgroundColor: colors.card,
-    } as any,
-    reasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    reasonChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 20,
-
-        backgroundColor: 'transparent',
+        justifyContent: 'center', alignItems: 'center',
     },
-    reasonChipText: { fontSize: 12, color: colors.textSecondary },
-    notesInput: {
+    stepTxt: { fontSize: 18, fontWeight: '700', lineHeight: 20 },
+    qtyTxt: { fontSize: 15, fontWeight: '700', color: colors.text, minWidth: 24, textAlign: 'center' },
+    lineTotal: { fontSize: 13, fontWeight: '700', minWidth: 56, textAlign: 'right' },
+    emptyText: { textAlign: 'center', color: colors.textSecondary, fontStyle: 'italic', paddingVertical: 8 },
 
-        borderRadius: 10,
-        padding: 12,
-        fontSize: 13,
-        color: colors.text,
-        minHeight: 60,
-        backgroundColor: 'transparent',
-        outlineWidth: 0,
-    } as any,
-    errorBox: {
+    // Chips
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+        paddingHorizontal: 12, paddingVertical: 7,
+        borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+    },
+    chipText: { fontSize: 12, color: colors.textSecondary },
+
+    // Refund method
+    methodRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: colors.danger + '15',
-        borderWidth: 1,
-        borderColor: colors.danger + '40',
-        borderRadius: 8,
+        gap: 12,
         padding: 12,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        backgroundColor: colors.card + '40',
+    },
+    methodIcon: {
+        width: 36, height: 36, borderRadius: 10,
+        justifyContent: 'center', alignItems: 'center',
+        backgroundColor: colors.card,
+    },
+    methodLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
+    methodDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+
+    // Summary
+    summaryBox: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+    summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    summaryText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+    summaryLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
+    amountInput: {
+        borderWidth: 1.5, borderRadius: 10,
+        paddingHorizontal: 14, paddingVertical: 10,
+        fontSize: 18, fontWeight: '700', color: colors.text,
+        backgroundColor: colors.card + '60',
+        outlineWidth: 0,
+    } as any,
+    amountDisplay: { fontSize: 26, fontWeight: '800', textAlign: 'center', paddingVertical: 4 },
+
+    // Notes
+    notesInput: {
+        borderRadius: 10, padding: 12,
+        fontSize: 13, color: colors.text,
+        minHeight: 56, backgroundColor: colors.card + '40',
+        outlineWidth: 0,
+    } as any,
+
+    // Error
+    errorBox: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: colors.danger + '18',
+        borderWidth: 1, borderColor: colors.danger + '40',
+        borderRadius: 8, padding: 12,
     },
     errorText: { fontSize: 13, color: colors.danger, flex: 1 },
+
+    // Footer
     footer: {
-        flexDirection: 'row',
-        gap: 10,
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+        flexDirection: 'row', gap: 10, padding: 16,
+        borderTopWidth: 1, borderTopColor: colors.border,
         backgroundColor: colors.background,
     },
     cancelBtn: {
-        flex: 1,
-        padding: 14,
-        borderRadius: 12,
-
-        backgroundColor: 'transparent',
-        alignItems: 'center',
+        flex: 1, padding: 14, borderRadius: 12,
+        alignItems: 'center', backgroundColor: colors.card + '60',
     },
-    cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-    confirmBtn: {
-        flex: 2,
-        padding: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    confirmBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+    cancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+    confirmBtn: { flex: 2, padding: 14, borderRadius: 12, alignItems: 'center' },
+    confirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

@@ -5,10 +5,10 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useAddProduct, useUpdateProduct } from '@/hooks/useSupabaseQuery';
+import { pickImage } from '@/lib/imagePicker';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -237,17 +237,11 @@ export default function AddProductScreen() {
         }
     };
 
-    const pickImage = async () => {
+    const handleImagePick = async () => {
         try {
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.5,
-            });
-
-            if (!result.canceled) {
-                setImageUri(result.assets[0].uri);
+            const uri = await pickImage();
+            if (uri) {
+                setImageUri(uri);
             }
         } catch (e) {
             showFeedback('error', 'Error', 'Could not pick image');
@@ -293,6 +287,8 @@ export default function AddProductScreen() {
     };
 
     const handleSave = async () => {
+        if (loading) return;
+
         // Validation
         if (!name) { showFeedback('error', 'Error', 'Product Name is required'); return; }
 
@@ -414,7 +410,7 @@ export default function AddProductScreen() {
                     <View style={styles.card}>
                         <View style={styles.paramountRow}>
                             {/* Photo Left */}
-                            <TouchableOpacity onPress={pickImage} style={styles.compactImageBtn}>
+                            <TouchableOpacity onPress={handleImagePick} style={styles.compactImageBtn}>
                                 {imageUri ? <Image source={{ uri: imageUri }} style={styles.compactImage} /> :
                                     <View style={styles.imagePlaceholder}><FontAwesome name="camera" size={20} color={colors.textSecondary} /></View>
                                 }
@@ -423,7 +419,14 @@ export default function AddProductScreen() {
                             {/* Name & SKU Right */}
                             <View style={{ flex: 1 }}>
                                 <AppTextInput label="Product Name *" value={name} onChangeText={setName} style={{ marginBottom: 8 }} />
-                                <AppTextInput label="Description" value={description} onChangeText={setDescription} multiline numberOfLines={2} style={{ marginBottom: 8, height: 60 }} />
+                                <AppTextInput 
+                                    label="Description" 
+                                    value={description} 
+                                    onChangeText={setDescription} 
+                                    multiline 
+                                    numberOfLines={4} 
+                                    style={{ marginBottom: 8, minHeight: 80, paddingTop: 10 }} 
+                                />
                                 {!isVariable && (
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <View style={{ flex: 1 }}>
@@ -628,7 +631,7 @@ export default function AddProductScreen() {
 
 const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    content: { padding: 12, paddingBottom: Platform.OS === 'web' ? 100 : 180 },
+    content: { padding: 12, paddingBottom: Platform.OS === 'web' ? 100 : 40 },
     card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 16, marginBottom: 16 },
 
     // Rows
@@ -666,12 +669,12 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
     variantRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, borderBottomWidth: 1, borderColor: colors.border + '40' },
 
     // Footer
-    footer: { 
-        padding: 16, 
-        paddingBottom: Platform.OS === 'web' ? 16 : Math.max(insets.bottom, 16) + 110,
-        backgroundColor: colors.card + 'F0', 
-        borderTopWidth: 1, 
-        borderColor: colors.border + '40' 
+    footer: {
+        padding: 16,
+        paddingBottom: Platform.OS === 'web' ? 16 : 16,
+        backgroundColor: colors.card + 'F0',
+        borderTopWidth: 1,
+        borderColor: colors.border + '40'
     },
 
     // Modals

@@ -1,22 +1,27 @@
 
 import { AppButton } from '@/components/ui/AppButton';
+import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import { pickImage } from '@/lib/imagePicker';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
+import { AppSelect } from '@/components/ui/AppSelect';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 interface RecordPaymentModalProps {
     visible: boolean;
     onClose: () => void;
-    onSubmit: (data: { amount: number; method: string; date: Date; notes: string }) => Promise<void>;
+    onSubmit: (data: { amount: number; method: string; date: Date; notes: string; receiptUri: string | null; purchaseId?: string }) => Promise<void>;
     supplierName: string;
     currentBalance: number;
     isLoading?: boolean;
+    purchases?: any[];
 }
 
-export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, currentBalance, isLoading }: RecordPaymentModalProps) {
+export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, currentBalance, isLoading, purchases }: RecordPaymentModalProps) {
     const { colors, theme } = useTheme();
+    const { showFeedback } = useFeedback();
     const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
@@ -24,6 +29,21 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('cash'); // cash, bank, check
     const [notes, setNotes] = useState('');
+    const [receiptUri, setReceiptUri] = useState<string | null>(null);
+    const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
+
+    // Reset when selecting a purchase
+    useEffect(() => {
+        if (selectedPurchaseId) {
+            const purchase = purchases?.find(p => p.id === selectedPurchaseId);
+            if (purchase) {
+                const unpaid = (purchase.total_amount || 0) - (purchase.amount_paid || 0);
+                if (unpaid > 0) {
+                    setAmount(unpaid.toFixed(2));
+                }
+            }
+        }
+    }, [selectedPurchaseId, purchases]);
 
     // Reset form when opening
     useEffect(() => {
@@ -31,6 +51,8 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
             setAmount('');
             setMethod('cash');
             setNotes('');
+            setReceiptUri(null);
+            setSelectedPurchaseId(null);
         }
     }, [visible]);
 
@@ -39,11 +61,21 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
             return;
         }
+        if (parsedAmount > currentBalance) {
+            setAmount(currentBalance.toFixed(2));
+            return;
+        }
+        if (purchases && purchases.length > 0 && !selectedPurchaseId) {
+            showFeedback('error', 'Selection Required', 'Please select a purchase to pay for.');
+            return;
+        }
         onSubmit({
             amount: parsedAmount,
             method,
             date: new Date(),
-            notes
+            notes,
+            receiptUri,
+            purchaseId: selectedPurchaseId || undefined
         });
     };
 
@@ -86,7 +118,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                     <ScrollView bounces={false} style={{ flexGrow: 0 }}>
                         <View style={styles.form}>
                             {/* Amount */}
-                            <View style={styles.inputGroup}>
+                            <View style={[styles.inputGroup, { zIndex: 100 }]}>
                                 <Text style={styles.label}>Amount Paid</Text>
                                 <TextInput
                                     style={styles.input}
@@ -94,13 +126,41 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="numeric"
                                     value={amount}
-                                    onChangeText={setAmount}
+                                    onChangeText={(text) => {
+                                        if (text === '') {
+                                            setAmount('');
+                                            return;
+                                        }
+
+                                        const parsed = parseFloat(text);
+                                        if (!isNaN(parsed) && parsed > currentBalance) {
+                                            setAmount(currentBalance.toFixed(2));
+                                        } else {
+                                            setAmount(text);
+                                        }
+                                    }}
                                     autoFocus
                                 />
                             </View>
 
+                            {purchases && purchases.length > 0 && (
+                                <View style={[styles.inputGroup, { zIndex: 90 }]}>
+                                    <AppSelect
+                                        label="Link to Purchase"
+                                        options={purchases.map(p => ({
+                                            label: `Inv: ${p.invoice_number || 'N/A'} - Due: $${((p.total_amount || 0) - (p.amount_paid || 0)).toFixed(2)}`,
+                                            value: p.id
+                                        }))}
+                                        selectedValue={selectedPurchaseId || ''}
+                                        onValueChange={(val) => setSelectedPurchaseId(val || null)}
+                                        containerStyle={{ marginBottom: 0 }}
+                                        error={!selectedPurchaseId ? 'Required' : undefined}
+                                    />
+                                </View>
+                            )}
+
                             {/* Method */}
-                            <View style={styles.inputGroup}>
+                            <View style={[styles.inputGroup, { zIndex: 10 }]}>
                                 <Text style={styles.label}>Payment Method</Text>
                                 <View style={styles.methodRow}>
                                     {['cash', 'bank', 'check'].map(m => (
@@ -129,6 +189,24 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                 />
                             </View>
 
+                            <TouchableOpacity
+                                style={[styles.proofBtn, receiptUri ? styles.proofBtnActive : null]}
+                                onPress={async () => {
+                                    const uri = await pickImage();
+                                    if (uri) {
+                                        setReceiptUri(uri);
+                                    }
+                                }}
+                            >
+                                <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                                <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                                {receiptUri && (
+                                    <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
+                                        <FontAwesome name="times-circle" size={18} color={colors.danger} />
+                                    </TouchableOpacity>
+                                )}
+                            </TouchableOpacity>
+
                             {/* Submit */}
                             <View style={styles.actions}>
                                 <AppButton
@@ -142,7 +220,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                     onPress={handleSubmit}
                                     loading={isLoading}
                                     style={{ flex: 2 }}
-                                    disabled={!amount || parseFloat(amount) <= 0}
+                                    disabled={!amount || parseFloat(amount) <= 0 || (purchases && purchases.length > 0 && !selectedPurchaseId)}
                                 />
                             </View>
                         </View>
@@ -224,12 +302,14 @@ const createStyles = (colors: any, theme: string) => StyleSheet.create({
         letterSpacing: 0.5,
     },
     input: {
-        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontSize: 16,
         color: colors.text,
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
     },
     methodRow: {
         flexDirection: 'row',
@@ -239,8 +319,10 @@ const createStyles = (colors: any, theme: string) => StyleSheet.create({
         flex: 1,
         paddingVertical: 10,
         borderRadius: 12,
-        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
     },
     methodChipActive: {
         backgroundColor: colors.primary,
@@ -256,5 +338,20 @@ const createStyles = (colors: any, theme: string) => StyleSheet.create({
     actions: {
         flexDirection: 'row',
         marginTop: 10,
+    },
+    proofBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)',
+    },
+    proofBtnActive: {
+        backgroundColor: colors.primary + '15',
+        borderColor: colors.primary + '30',
+        borderWidth: 1,
     }
 });

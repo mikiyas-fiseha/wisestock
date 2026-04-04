@@ -11,7 +11,7 @@ import { useExpenseReports, useExpenses, useExpenseStats, useProcessRecurringExp
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -30,7 +30,10 @@ export default function ExpensesScreen() {
     const { isAdmin, isSuperAdmin, branch } = useAuth();
 
     // Auto-process recurring expenses on load
-    useProcessRecurringExpenses();
+    const processRecurring = useProcessRecurringExpenses();
+    useEffect(() => {
+        processRecurring.mutate();
+    }, []);
 
     const [activeTab, setActiveTab] = useState<'list' | 'reports'>('list');
     const [period, setPeriod] = useState<DatePeriod>('month');
@@ -113,7 +116,7 @@ export default function ExpensesScreen() {
     const renderReports = () => {
         if (!reports) return null;
         return (
-            <ScrollView style={styles.reportsContent} contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView style={styles.reportsContent} contentContainerStyle={{ paddingBottom: 20 }}>
                 <View style={styles.chartCard}>
                     <Text style={styles.chartTitle}>Spending by Category</Text>
                     <ReportChart
@@ -191,7 +194,7 @@ export default function ExpensesScreen() {
                         </View>
                     )}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+                    contentContainerStyle={{ padding: 16 }}
                     refreshControl={<RefreshControl refreshing={listLoading} onRefresh={refetch} />}
                     ListEmptyComponent={
                         !listLoading ? (
@@ -274,7 +277,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: 110,
+        bottom: 20,
         width: 56,
         height: 56,
         borderRadius: 28,

@@ -8,11 +8,14 @@ import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import { downloadFile } from '@/lib/fileUtils';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 export default function SupplierDetailsScreen() {
     const { colors, theme } = useTheme();
@@ -34,19 +37,31 @@ export default function SupplierDetailsScreen() {
     // Filter purchases for this supplier (Client-side for now)
     const supplierPurchases = purchases?.filter(p => p.supplier_id === id) || [];
 
-    const handleRecordPayment = async (data: { amount: number; method: string; date: Date; notes: string }) => {
+    const [isUploading, setIsUploading] = useState(false);
+    const unpaidPurchases = supplierPurchases.filter(p => (p.total_amount || 0) > (p.amount_paid || 0));
+
+    const handleRecordPayment = async (data: { amount: number; method: string; date: Date; notes: string; receiptUri: string | null; purchaseId?: string }) => {
         try {
+            setIsUploading(true);
+            let receiptUrl = null;
+            if (data.receiptUri) {
+                receiptUrl = await uploadImageToCloudinary(data.receiptUri);
+            }
             await recordPayment({
-                supplier_id: id!,
+                supplier_id: id as string,
                 amount: data.amount,
                 payment_date: data.date,
                 method: data.method,
-                notes: data.notes
+                notes: data.notes,
+                purchase_id: data.purchaseId,
+                receipt_url: receiptUrl
             });
             setPaymentModalVisible(false);
             setFeedback({ visible: true, type: 'success', message: 'Payment recorded successfully' });
         } catch (error: any) {
             setFeedback({ visible: true, type: 'error', message: error.message || 'Failed to record payment' });
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -193,7 +208,27 @@ export default function SupplierDetailsScreen() {
                                     <Text style={styles.paymentMethod}>{payment.method?.toUpperCase()}</Text>
                                 </View>
                                 <View style={styles.historyDetails}>
-                                    <Text style={styles.paymentNote}>{payment.notes || 'Payment'}</Text>
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                        <Text style={styles.paymentNote}>{payment.notes || 'Payment'}</Text>
+                                        {payment.receipt_url && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                                                <TouchableOpacity 
+                                                    onPress={() => Platform.OS === 'web' ? window.open(payment.receipt_url, '_blank') : null}
+                                                    style={styles.proofIconBtn}
+                                                    hitSlop={8}
+                                                >
+                                                    <FontAwesome name="eye" size={14} color={colors.primary} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity 
+                                                    onPress={() => downloadFile(payment.receipt_url, `receipt_${payment.id.split('-')[0]}.jpg`)}
+                                                    style={styles.proofIconBtn}
+                                                    hitSlop={8}
+                                                >
+                                                    <FontAwesome name="download" size={14} color={colors.primary} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                    </View>
                                     <Text style={styles.paymentAmount}>-${payment.amount.toFixed(2)}</Text>
                                 </View>
                             </View>
@@ -211,7 +246,8 @@ export default function SupplierDetailsScreen() {
                 onSubmit={handleRecordPayment}
                 supplierName={supplier.name}
                 currentBalance={supplier.current_balance || 0}
-                isLoading={isRecordingPayment}
+                isLoading={isUploading}
+                purchases={unpaidPurchases}
             />
 
             <FeedbackModal
@@ -396,5 +432,36 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: colors.success,
+    },
+    proofIconBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: colors.primary + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 4,
+    },
+    paymentThumbnailContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 6,
+        overflow: 'hidden',
+        marginLeft: 8,
+        borderWidth: 1,
+        borderColor: colors.border,
+        position: 'relative',
+    },
+    paymentThumbnail: {
+        width: '100%',
+        height: '100%',
+    },
+    thumbnailIconOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 2,
+        borderTopLeftRadius: 4,
     }
 });

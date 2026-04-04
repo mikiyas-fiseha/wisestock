@@ -25,7 +25,9 @@ export default function ExpenseCategoriesScreen() {
     const [name, setName] = useState('');
 
     const handleAdd = () => {
+        if (addCategory.isPending) return;
         if (!name.trim()) return;
+
         addCategory.mutate(name, {
             onSuccess: () => {
                 showFeedback('success', 'Success', 'Category added successfully');

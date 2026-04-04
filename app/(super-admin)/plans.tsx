@@ -1,11 +1,12 @@
 import { SuperAdminGuard } from '@/components/auth/SuperAdminGuard';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients } from '@/constants/Colors';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -137,7 +138,16 @@ export default function ManagePlansScreen() {
 
                 <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 10 }}>
                     {plans.map(plan => (
-                        <View key={plan.id} style={[styles.card, !plan.is_active && styles.inactiveCard]}>
+                        <BlurView
+                            key={plan.id}
+                            intensity={theme === 'dark' ? 60 : 80}
+                            tint={theme === 'dark' ? 'dark' : 'light'}
+                            style={[
+                                styles.card,
+                                theme === 'dark' ? styles.cardDark : styles.cardLight,
+                                !plan.is_active && styles.inactiveCard
+                            ]}
+                        >
                             <View style={styles.cardHeader}>
                                 <View>
                                     <Text style={styles.planName}>{plan.name} {plan.is_active ? '' : '(Inactive)'}</Text>
@@ -155,14 +165,18 @@ export default function ManagePlansScreen() {
                                     <Text style={styles.editButtonText}>Edit</Text>
                                 </TouchableOpacity>
                             </View>
-                        </View>
+                        </BlurView>
                     ))}
                 </ScrollView>
             </View>
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                    <BlurView
+                        tint={theme === 'dark' ? 'dark' : 'light'}
+                        intensity={theme === 'dark' ? 80 : 100}
+                        style={[styles.modalContent, theme === 'dark' ? styles.cardDark : styles.cardLight]}
+                    >
                         <Text style={[styles.modalTitle, { color: colors.text }]}>{editingPlan.id ? 'Edit Plan' : 'New Plan'}</Text>
                         <ScrollView>
                             <AppTextInput label="Name" value={editingPlan.name} onChangeText={t => setEditingPlan({ ...editingPlan, name: t })} />
@@ -181,7 +195,7 @@ export default function ManagePlansScreen() {
                             <AppButton title="Cancel" variant="outline" onPress={() => setModalVisible(false)} style={{ flex: 1, marginRight: 8 }} />
                             <AppButton title="Save" onPress={handleSavePlan} style={{ flex: 1 }} />
                         </View>
-                    </View>
+                    </BlurView>
                 </View>
             </Modal>
         </SuperAdminGuard>
@@ -210,12 +224,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     header: { fontSize: 24, fontWeight: 'bold', color: colors.text, letterSpacing: -0.5 },
     headerSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
     card: {
-        backgroundColor: colors.card + 'E0',
+        overflow: 'hidden',
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 24,
         marginBottom: 16,
-
-        ...Layout.shadows.small
+    },
+    cardLight: {
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        borderColor: 'rgba(255,255,255,0.8)',
+        borderWidth: 1,
+    },
+    cardDark: {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
     },
     inactiveCard: { opacity: 0.6 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
@@ -227,7 +249,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     editButton: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.card + '40', borderRadius: 8 },
     editButtonText: { fontWeight: '600', color: colors.text },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-    modalContent: { borderRadius: 16, padding: 20, maxHeight: '80%', ...Layout.shadows.large },
+    modalContent: { borderRadius: 24, padding: 24, maxHeight: '80%', overflow: 'hidden' },
     modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     row: { flexDirection: 'row' },
     modalActions: { flexDirection: 'row', marginTop: 20 }
