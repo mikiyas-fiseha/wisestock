@@ -1,20 +1,23 @@
 
+import { AppHeader } from '@/components/AppHeader';
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { User } from '@/constants/MockData';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 export default function TeamScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { user, company } = useAuth();
     const { showFeedback } = useFeedback();
@@ -69,7 +72,7 @@ export default function TeamScreen() {
         if (loading) return;
 
         if (!inviteEmail || !inviteName || !invitePassword) {
-            showFeedback('error', 'Error', 'Please enter email, name, and temporary password');
+            showFeedback('error', t('common.error'), t('auth.fill_all_fields'));
             return;
         }
 
@@ -134,7 +137,7 @@ export default function TeamScreen() {
                     throw profileError;
                 }
 
-                showFeedback('success', 'Success', 'User created successfully');
+                showFeedback('success', t('common.success'), t('common.saved'));
                 setShowInviteModal(false);
                 setInviteEmail('');
                 setInviteName('');
@@ -145,7 +148,7 @@ export default function TeamScreen() {
             }
 
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message || 'Failed to invite user');
+            showFeedback('error', t('common.error'), e.message || t('common.error'));
         } finally {
             setLoading(false);
         }
@@ -153,7 +156,8 @@ export default function TeamScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <AppHeader title={t('settings.team_management')} showBack={true} hideThemeToggle={true} />
             <FlatList
                 data={teamMembers}
                 keyExtractor={(item) => item.id}
@@ -168,7 +172,7 @@ export default function TeamScreen() {
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.headerText}>
-                            {teamMembers.length} / 5 Active Users (MVP Limit)
+                            {t('settings.active_users_limit', { count: teamMembers.length, limit: 5 })}
                         </Text>
                     </View>
                 }
@@ -176,22 +180,22 @@ export default function TeamScreen() {
 
             {user?.role === 'Admin' && (
                 <View style={styles.fabContainer}>
-                    <AppButton title="+ Invite User" onPress={() => setShowInviteModal(true)} />
+                    <AppButton title={"+ " + t('settings.invite_user')} onPress={() => setShowInviteModal(true)} />
                 </View>
             )}
 
             {/* Invite Modal */}
             <Modal visible={showInviteModal} animationType="slide" presentationStyle="pageSheet">
-                <View style={styles.modalContainer}>
-                    <Text style={styles.modalTitle}>Invite Team Member</Text>
+                <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+                    <Text style={styles.modalTitle}>{t('settings.invite_team_member')}</Text>
                     <AppTextInput
-                        label="Name"
+                        label={t('customers.name')}
                         placeholder="e.g. Jane Doe"
                         value={inviteName}
                         onChangeText={setInviteName}
                     />
                     <AppTextInput
-                        label="Email"
+                        label={t('auth.email')}
                         placeholder="colleague@company.com"
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -199,14 +203,14 @@ export default function TeamScreen() {
                         onChangeText={setInviteEmail}
                     />
                     <AppTextInput
-                        label="Temporary Password"
+                        label={t('settings.temp_password')}
                         placeholder="Secret123!"
                         secureTextEntry
                         value={invitePassword}
                         onChangeText={setInvitePassword}
                     />
 
-                    <Text style={styles.label}>Role</Text>
+                    <Text style={styles.label}>{t('settings.role')}</Text>
                     <View style={styles.roleContainer}>
                         {(['Admin', 'Manager', 'Sales'] as const).map((r) => (
                             <TouchableOpacity
@@ -220,8 +224,8 @@ export default function TeamScreen() {
                     </View>
 
                     <View style={styles.footer}>
-                        <AppButton title="Send Invitation" onPress={handleInvite} loading={loading} />
-                        <AppButton title="Cancel" variant="outline" onPress={() => setShowInviteModal(false)} />
+                        <AppButton title={t('settings.send_invitation')} onPress={handleInvite} loading={loading} />
+                        <AppButton title={t('common.cancel')} variant="outline" onPress={() => setShowInviteModal(false)} />
                     </View>
                 </View>
             </Modal>
@@ -236,7 +240,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     header: {
         padding: 16,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: colors.card,
     },
     headerText: {
         fontSize: 14,
@@ -259,6 +263,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 24,
         textAlign: 'center',
+        color: colors.text,
     },
     label: {
         fontSize: 14,
@@ -274,7 +279,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     roleButton: {
         flex: 1,
         paddingVertical: 10,
-
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
         borderRadius: 8,
         alignItems: 'center',
     },

@@ -1,11 +1,13 @@
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { formatCompactCurrency, formatCurrency } from '@/lib/formatters';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Platform,
@@ -18,6 +20,7 @@ import {
 
 // ─── Pure-RN mini bar chart ───────────────────────────────────────────────────
 function MiniBarChart({ data, maxVal, color, textColor }: { data: { label: string; value: number }[]; maxVal?: number; color?: string; textColor?: string }) {
+    const { t } = useTranslation();
     const max = maxVal ?? Math.max(...data.map(d => d.value), 1);
     return (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 4 }}>
@@ -27,7 +30,7 @@ function MiniBarChart({ data, maxVal, color, textColor }: { data: { label: strin
                 return (
                     <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
                         <Text style={{ fontSize: 9, color: textColor, marginBottom: 2 }} numberOfLines={1}>
-                            {d.value > 0 ? `$${d.value >= 1000 ? (d.value / 1000).toFixed(1) + 'k' : d.value.toFixed(0)}` : ''}
+                            {d.value > 0 ? formatCompactCurrency(d.value) : ''}
                         </Text>
                         <View style={{ height: barH, width: '80%', borderRadius: 4, backgroundColor: color, opacity: 0.85 + 0.15 * (i / data.length) }} />
                         <Text style={{ fontSize: 9, color: textColor, marginTop: 4 }} numberOfLines={1}>{d.label}</Text>
@@ -37,12 +40,10 @@ function MiniBarChart({ data, maxVal, color, textColor }: { data: { label: strin
         </View>
     );
 }
-
 // ─── Donut (payment breakdown) ────────────────────────────────────────────────
 const PAY_COLORS: Record<string, string> = {
     cash: '#10B981', credit: '#F59E0B', bank: '#3B82F6', mobile_money: '#8B5CF6', card: '#0EA5E9',
 };
-
 function DonutSegment({ pct, color, index }: { pct: number; color: string; index: number }) {
     return (
         <View style={{ flex: pct, height: 16, backgroundColor: color, borderRadius: index === 0 ? 8 : 0 }} />
@@ -50,6 +51,7 @@ function DonutSegment({ pct, color, index }: { pct: number; color: string; index
 }
 
 function PaymentDonut({ items, textColor, textSecondaryColor }: { items: { label: string; pct: number; color: string; amount: number }[]; textColor?: string; textSecondaryColor?: string }) {
+    const { t } = useTranslation();
     return (
         <View>
             <View style={{ flexDirection: 'row', height: 16, borderRadius: 8, overflow: 'hidden', gap: 2, marginBottom: 14 }}>
@@ -66,7 +68,7 @@ function PaymentDonut({ items, textColor, textSecondaryColor }: { items: { label
                         </View>
                         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                             <Text style={{ fontSize: 12, color: textSecondaryColor }}>{item.pct.toFixed(0)}%</Text>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: textColor }}>${item.amount.toFixed(2)}</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: textColor }}>{formatCurrency(item.amount)}</Text>
                         </View>
                     </View>
                 ))}
@@ -77,6 +79,7 @@ function PaymentDonut({ items, textColor, textSecondaryColor }: { items: { label
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 function KpiTile({ label, value, change, icon, color, cardColor, textColor, textSecondaryColor }: { label: string; value: string; change?: string; icon: string; color: string; cardColor: string; textColor: string; textSecondaryColor: string }) {
+    const { t } = useTranslation();
     return (
         <View style={[kS.tile, { backgroundColor: cardColor }]}>
             <View style={[kS.iconBox, { backgroundColor: color + '20' }]}>
@@ -84,7 +87,7 @@ function KpiTile({ label, value, change, icon, color, cardColor, textColor, text
             </View>
             <Text style={[kS.value, { color: textColor }]}>{value}</Text>
             <Text style={[kS.label, { color: textSecondaryColor }]}>{label}</Text>
-            {change ? <Text style={[kS.change, { color: change.startsWith('+') ? '#10B981' : '#EF4444' }]}>{change} vs last period</Text> : null}
+            {change ? <Text style={[kS.change, { color: change.startsWith('+') ? '#10B981' : '#EF4444' }]}>{change} {t('sales.last_period')}</Text> : null}
         </View>
     );
 }
@@ -99,6 +102,7 @@ const kS = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SalesAnalyticsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const aS = React.useMemo(() => createStyles(colors), [colors]);
     const { company, branch, isAdmin } = useAuth();
     const router = useRouter();
@@ -195,7 +199,7 @@ export default function SalesAnalyticsScreen() {
         const payEntries = Object.entries(payTotals);
         const totalPay = payEntries.reduce((s, [, v]) => s + v, 0);
         const paymentBreakdown = payEntries.map(([m, v]) => ({
-            label: m === 'mobile_money' ? 'Mobile' : m.charAt(0).toUpperCase() + m.slice(1),
+            label: m === 'mobile_money' || m === 'mobile' ? t('sales.mobile') || 'Mobile' : t(`sales.${m}`),
             color: PAY_COLORS[m] || '#94A3B8',
             amount: v,
             pct: totalPay > 0 ? (v / totalPay) * 100 : 0,
@@ -216,8 +220,8 @@ export default function SalesAnalyticsScreen() {
                 <TouchableOpacity style={aS.backBtn} onPress={() => router.back()}>
                     <FontAwesome name="arrow-left" size={16} color="#fff" />
                 </TouchableOpacity>
-                <Text style={aS.headerTitle}>Sales Analytics</Text>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Text style={aS.headerTitle}>{t('sales.analytics')}</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                     {(['7d', '30d', '90d'] as const).map(r => (
                         <TouchableOpacity
                             key={r}
@@ -236,35 +240,35 @@ export default function SalesAnalyticsScreen() {
                 <ScrollView contentContainerStyle={aS.content}>
                     {/* KPI Row */}
                     <View style={aS.kpiRow}>
-                        <KpiTile label="Revenue" value={`$${totalRevenue >= 1000 ? (totalRevenue / 1000).toFixed(1) + 'k' : totalRevenue.toFixed(2)}`} icon="dollar" color={colors.primary} cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
-                        <KpiTile label="Orders" value={`${totalCount}`} icon="shopping-cart" color="#7C3AED" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
+                        <KpiTile label={t('common.revenue')} value={formatCompactCurrency(totalRevenue)} icon="dollar" color={colors.primary} cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
+                        <KpiTile label={t('sales.orders')} value={`${totalCount}`} icon="shopping-cart" color="#7C3AED" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
                     </View>
                     <View style={[aS.kpiRow, { marginTop: 10 }]}>
-                        {isAdmin && <KpiTile label="Gross Profit" value={`$${totalProfit.toFixed(2)}`} icon="line-chart" color="#059669" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />}
-                        <KpiTile label="Avg Order" value={`$${avgOrder.toFixed(2)}`} icon="tag" color="#D97706" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
+                        {isAdmin && <KpiTile label={t('inventory.gross_profit')} value={formatCurrency(totalProfit)} icon="line-chart" color="#059669" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />}
+                        <KpiTile label={t('sales.avg_order')} value={formatCurrency(avgOrder)} icon="tag" color="#D97706" cardColor={(colors.card + 'E0')} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
                     </View>
 
                     {/* Revenue Chart */}
                     <View style={aS.card}>
-                        <Text style={aS.cardTitle}>Revenue Over Time</Text>
+                        <Text style={aS.cardTitle}>{t('sales.revenue_over_time')}</Text>
                         <MiniBarChart data={dailyBars} maxVal={maxBar} color={colors.primary} textColor={colors.textSecondary} />
                     </View>
 
                     {/* Payment Breakdown */}
                     <View style={aS.card}>
-                        <Text style={aS.cardTitle}>Payment Methods</Text>
+                        <Text style={aS.cardTitle}>{t('sales.payment_method')}</Text>
                         {paymentBreakdown.length > 0 ? (
                             <PaymentDonut items={paymentBreakdown} textColor={colors.text} textSecondaryColor={colors.textSecondary} />
                         ) : (
-                            <Text style={aS.emptyText}>No payment data</Text>
+                            <Text style={aS.emptyText}>{t('sales.no_payment_data')}</Text>
                         )}
                     </View>
 
                     {/* Top Products */}
                     <View style={aS.card}>
-                        <Text style={aS.cardTitle}>Top Products by Revenue</Text>
+                        <Text style={aS.cardTitle}>{t('sales.top_products')}</Text>
                         {topProducts.length === 0 ? (
-                            <Text style={aS.emptyText}>No product data</Text>
+                            <Text style={aS.emptyText}>{t('sales.no_product_data')}</Text>
                         ) : (
                             <View style={{ gap: 12 }}>
                                 {topProducts.map((p, i) => {
@@ -274,8 +278,8 @@ export default function SalesAnalyticsScreen() {
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                                                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, flex: 1 }} numberOfLines={1}>{p.name}</Text>
                                                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                                                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty} sold</Text>
-                                                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>${p.revenue.toFixed(2)}</Text>
+                                                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty} {t('common.sold')}</Text>
+                                                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{formatCurrency(p.revenue)}</Text>
                                                 </View>
                                             </View>
                                             <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
@@ -292,8 +296,8 @@ export default function SalesAnalyticsScreen() {
                     {salesData.length === 0 && (
                         <View style={[aS.card, aS.center, { paddingVertical: 40, borderStyle: 'dotted' }]}>
                             <Text style={{ fontSize: 36, marginBottom: 12 }}>📊</Text>
-                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 }}>No Data Yet</Text>
-                            <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>Start recording sales to see analytics appear here.</Text>
+                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 }}>{t('sales.no_data')}</Text>
+                            <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>{t('sales.no_data_msg')}</Text>
                         </View>
                     )}
                 </ScrollView>
@@ -307,7 +311,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 16, paddingHorizontal: 16 },
     backBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
     headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: '#fff' },
-    rangeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
+    rangeChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
     rangeChipActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
     rangeChipText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
     rangeChipTextActive: { color: '#fff' },

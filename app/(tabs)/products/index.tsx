@@ -5,10 +5,11 @@ import { AppButton } from '@/components/ui/AppButton';
 import { Gradients, Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { supabase } from '@/lib/supabase';
+import { useProducts } from '@/hooks/useProducts';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 export interface Product {
@@ -26,103 +27,43 @@ export interface Product {
 
 export default function ProductsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { session, company, branch, isAdmin } = useAuth();
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
     const statusBarPadding = 0;
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { stockStatus } = useLocalSearchParams<{ stockStatus?: string }>();
+    const [filters, setFilters] = useState<Record<string, string>>(stockStatus ? { stockStatus } : {});
     const [searchQuery, setSearchQuery] = useState('');
-    const [filters, setFilters] = useState<Record<string, string>>({});
+
+    React.useEffect(() => {
+        if (stockStatus) {
+            setFilters(prev => ({ ...prev, stockStatus }));
+        }
+    }, [stockStatus]);
+
+    const {
+        data: products = [],
+        isLoading: loading,
+        refetch: fetchProducts
+    } = useProducts({
+        search: searchQuery,
+        status: filters.status,
+        stockStatus: filters.stockStatus
+    });
 
     // Adjust stock modal
     const [adjustModalVisible, setAdjustModalVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-    const fetchProducts = async (search = searchQuery, currentFilters = filters) => {
-        try {
-            setLoading(true);
-            let selectQuery = '*, categories(name)';
-
-            // Try to get stock from stock table
-            let query = supabase
-                .from('products')
-                .select(selectQuery)
-                .eq('company_id', company?.id)
-                .order('name');
-
-            if (search) {
-                query = query.or(`name.ilike.%${search}%,primary_sku.ilike.%${search}%`);
-            }
-
-            if (currentFilters.status) {
-                query = query.eq('status', currentFilters.status);
-            }
-
-            const { data, error } = await query;
-
-            if (error) {
-                console.error('Error fetching products:', error);
-            } else {
-                let result: any[] = data || [];
-
-                // Fetch stock quantities from branch_products
-                const productIds = result.map((p: any) => p.id);
-                if (productIds.length > 0) {
-                    let bpQuery = supabase
-                        .from('branch_products')
-                        .select('product_id, stock')
-                        .in('product_id', productIds);
-                    if (branch?.id) bpQuery = bpQuery.eq('branch_id', branch.id);
-                    const { data: bpData } = await bpQuery;
-
-                    const stockMap = new Map();
-                    bpData?.forEach((bp: any) => {
-                        const existing = stockMap.get(bp.product_id) || 0;
-                        stockMap.set(bp.product_id, existing + Number(bp.stock));
-                    });
-
-                    result = result.map((p: any) => ({
-                        ...p,
-                        stock: stockMap.get(p.id) ?? 0,
-                        unit: p.unit || 'pcs',
-                    }));
-                }
-
-                // Client-side filters
-                if (currentFilters.stockStatus) {
-                    if (currentFilters.stockStatus === 'in_stock') {
-                        result = result.filter(p => p.stock > 10);
-                    } else if (currentFilters.stockStatus === 'low_stock') {
-                        result = result.filter(p => p.stock <= 10 && p.stock > 0);
-                    } else if (currentFilters.stockStatus === 'out_of_stock') {
-                        result = result.filter(p => p.stock === 0);
-                    }
-                }
-
-                setProducts(result);
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            if (company?.id) fetchProducts();
-        }, [company?.id, branch?.id])
-    );
-
     const handleSearch = (text: string) => {
         setSearchQuery(text);
-        fetchProducts(text, filters);
     };
 
     const handleFilter = (newFilters: Record<string, string>) => {
         setFilters(newFilters);
-        fetchProducts(searchQuery, newFilters);
     };
 
     const handleAddProduct = () => {
@@ -132,26 +73,26 @@ export default function ProductsScreen() {
     const filterGroups = [
         {
             key: 'stockStatus',
-            title: 'Stock Status',
+            title: t('inventory.stock_status'),
             options: [
-                { label: 'In Stock', value: 'in_stock' },
-                { label: 'Low Stock', value: 'low_stock' },
-                { label: 'Out of Stock', value: 'out_of_stock' }
+                { label: t('inventory.in_stock'), value: 'in_stock' },
+                { label: t('inventory.low_stock'), value: 'low_stock' },
+                { label: t('inventory.out_of_stock'), value: 'out_of_stock' }
             ]
         },
         {
             key: 'status',
-            title: 'Product Status',
+            title: t('common.status'),
             options: [
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' }
+                { label: t('common.active'), value: 'active' },
+                { label: t('common.inactive'), value: 'inactive' }
             ]
         }
     ];
 
     const handleScan = (data: string) => {
         setSearchQuery(data);
-        fetchProducts(data, filters);
+        fetchProducts();
     };
 
     const handleAdjustStock = (product: Product) => {
@@ -162,11 +103,11 @@ export default function ProductsScreen() {
     // Web Table Header
     const TableHeader = () => (
         <View style={styles.tableHeader}>
-            <Text style={[styles.thText, { flex: 3 }]}>Product</Text>
-            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>Cost</Text>
-            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>Sale Price</Text>
-            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>Stock</Text>
-            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>Profit</Text>
+            <Text style={[styles.thText, { flex: 3 }]}>{t('inventory.products')}</Text>
+            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>{t('products.cost')}</Text>
+            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>{t('inventory.sale_price')}</Text>
+            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>{t('inventory.stock')}</Text>
+            <Text style={[styles.thText, styles.thRight, { flex: 1.2 }]}>{t('products.profit')}</Text>
             <View style={{ width: 60 }} />
         </View>
     );
@@ -180,8 +121,8 @@ export default function ProductsScreen() {
                 end={{ x: 1, y: 1 }}
             />
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Products</Text>
-                <Text style={styles.headerSubtitle}>{products.length} items found</Text>
+                <Text style={styles.headerTitle}>{t('products.product_list')}</Text>
+                <Text style={styles.headerSubtitle}>{products.length} {t('products.items_found')}</Text>
             </View>
 
             <SearchFilterHeader
@@ -190,7 +131,7 @@ export default function ProductsScreen() {
                 onScan={handleScan}
                 filterGroups={filterGroups}
                 activeFilters={filters}
-                placeholder="Search name or SKU..."
+                placeholder={t('products.search_placeholder')}
             />
 
             {loading ? (
@@ -206,7 +147,7 @@ export default function ProductsScreen() {
                         data={products}
                         keyExtractor={(item) => item.id}
                         contentContainerStyle={[styles.listContent, isWeb && styles.listContentWeb]}
-                        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => fetchProducts(searchQuery, filters)} />}
+                        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => fetchProducts()} />}
                         renderItem={({ item }) => (
                             <ProductListItem
                                 name={item.name}
@@ -214,7 +155,7 @@ export default function ProductsScreen() {
                                 price={item.sale_price}
                                 costPrice={item.cost_price}
                                 stock={item.stock}
-                                unit={item.unit || 'pcs'}
+                                unit={item.unit ? t(`common.${item.unit}`) : t('common.pcs')}
                                 imageUrl={item.image_url}
                                 category={item.categories?.name}
                                 onPress={() => router.push({ pathname: '/(tabs)/products/[id]', params: { id: item.id } })}
@@ -226,11 +167,11 @@ export default function ProductsScreen() {
                                 <View style={styles.emptyIconCircle}>
                                     <Text style={{ fontSize: 32 }}>📦</Text>
                                 </View>
-                                <Text style={styles.emptyText}>No products found</Text>
-                                <Text style={styles.emptySubtext}>Try adjusting your search or filters.</Text>
+                                <Text style={styles.emptyText}>{t('products.empty_products')}</Text>
+                                <Text style={styles.emptySubtext}>{t('products.adjust_search')}</Text>
                                 {isAdmin && (
                                     <AppButton
-                                        title="+ Add Product"
+                                        title={t('products.add_product')}
                                         onPress={handleAddProduct}
                                         style={{ marginTop: 20 }}
                                     />
@@ -243,7 +184,7 @@ export default function ProductsScreen() {
 
             {isAdmin && (
                 <View style={styles.fabContainer}>
-                    <AppButton title="+ New Item" onPress={handleAddProduct} style={styles.fab} />
+                    <AppButton title={t('products.new_item')} onPress={handleAddProduct} style={styles.fab} />
                 </View>
             )}
 
@@ -273,17 +214,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     header: {
         paddingHorizontal: Layout.spacing.lg,
+        paddingTop: Layout.spacing.lg,
         paddingBottom: Layout.spacing.sm,
         backgroundColor: 'transparent',
     },
     headerTitle: {
-        fontSize: 28,
-        fontWeight: '800',
+        fontSize: 20,
+        fontWeight: '700',
         color: colors.text,
-        letterSpacing: -0.5,
+        letterSpacing: -0.3,
     },
     headerSubtitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: colors.textSecondary,
         marginTop: 2,
     },

@@ -23,6 +23,7 @@ interface ReportLayoutProps {
     exportFilename?: string;
     chartContent?: React.ReactNode;
     reportSections?: ExportSection[];
+    showExport?: boolean;
 }
 
 export function ReportLayout({
@@ -37,6 +38,7 @@ export function ReportLayout({
     exportFilename = 'report',
     chartContent,
     reportSections,
+    showExport = true,
 }: ReportLayoutProps) {
     const { colors, theme } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -45,9 +47,9 @@ export function ReportLayout({
 
     const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [period, setPeriod] = useState<DatePeriod>('month');
+    const [period, setPeriod] = useState<DatePeriod>('week');
     const [customRange, setCustomRange] = useState<DateRange>({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        start: new Date(new Date().setDate(new Date().getDate() - 7)),
         end: new Date()
     });
 
@@ -66,13 +68,16 @@ export function ReportLayout({
     };
 
     const handleExport = async (format: 'csv' | 'pdf') => {
+        const dateStr = `${customRange.start.toISOString().split('T')[0]}_to_${customRange.end.toISOString().split('T')[0]}`;
+        const finalFilename = `${exportFilename}_${dateStr}`;
+
         if (format === 'csv') {
             if (!exportData || exportData.length === 0) return;
-            await exportToCSV(exportData, `${exportFilename}_${new Date().getTime()}.csv`);
+            await exportToCSV(exportData, `${finalFilename}.csv`);
         } else {
             const pdfData = reportSections || exportData;
             if (!pdfData || !pdfData.length) return;
-            await exportToPDF(pdfData, title, `${exportFilename}_${new Date().getTime()}.pdf`);
+            await exportToPDF(pdfData, title, `${finalFilename}.pdf`);
         }
     };
 
@@ -87,7 +92,7 @@ export function ReportLayout({
 
             <ResponsiveContainer>
                 {/* Unified Custom Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Platform.OS !== 'web' ? 8 : 20 }]}>
                     <View style={styles.headerTopRow}>
                         <View style={styles.headerLeft}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -118,38 +123,40 @@ export function ReportLayout({
                                     </View>
                                 )}
 
-                                <View style={styles.exportContainer}>
-                                    {Platform.OS === 'web' || isExportOpen ? (
-                                        <View style={styles.exportGroup}>
-                                            <TouchableOpacity
-                                                onPress={() => { handleExport('csv'); setIsExportOpen(false); }}
-                                                style={[styles.exportBtnIcon, { backgroundColor: '#107C41' }]}
-                                            >
-                                                <FontAwesome name="file-excel-o" size={12} color="#fff" />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                onPress={() => { handleExport('pdf'); setIsExportOpen(false); }}
-                                                style={[styles.exportBtnIcon, { backgroundColor: colors.danger }]}
-                                            >
-                                                <FontAwesome name="file-pdf-o" size={12} color="#fff" />
-                                            </TouchableOpacity>
-                                            {Platform.OS !== 'web' && (
-                                                <TouchableOpacity onPress={() => setIsExportOpen(false)} style={styles.closeExport}>
-                                                    <FontAwesome name="times" size={14} color={colors.textSecondary} />
+                                {showExport && (
+                                    <View style={styles.exportContainer}>
+                                        {Platform.OS === 'web' || isExportOpen ? (
+                                            <View style={styles.exportGroup}>
+                                                <TouchableOpacity
+                                                    onPress={() => { handleExport('csv'); setIsExportOpen(false); }}
+                                                    style={[styles.exportBtnIcon, { backgroundColor: '#107C41' }]}
+                                                >
+                                                    <FontAwesome name="file-excel-o" size={12} color="#fff" />
                                                 </TouchableOpacity>
-                                            )}
-                                        </View>
-                                    ) : (
-                                        <TouchableOpacity
-                                            onPress={() => setIsExportOpen(true)}
-                                            style={styles.downloadIconBtn}
-                                        >
-                                            <View style={styles.downloadCircle}>
-                                                <FontAwesome name="cloud-download" size={16} color={colors.primary} />
+                                                <TouchableOpacity
+                                                    onPress={() => { handleExport('pdf'); setIsExportOpen(false); }}
+                                                    style={[styles.exportBtnIcon, { backgroundColor: colors.danger }]}
+                                                >
+                                                    <FontAwesome name="file-pdf-o" size={12} color="#fff" />
+                                                </TouchableOpacity>
+                                                {Platform.OS !== 'web' && (
+                                                    <TouchableOpacity onPress={() => setIsExportOpen(false)} style={styles.closeExport}>
+                                                        <FontAwesome name="times" size={14} color={colors.textSecondary} />
+                                                    </TouchableOpacity>
+                                                )}
                                             </View>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
+                                        ) : (
+                                            <TouchableOpacity
+                                                onPress={() => setIsExportOpen(true)}
+                                                style={styles.downloadIconBtn}
+                                            >
+                                                <View style={styles.downloadCircle}>
+                                                    <FontAwesome name="cloud-download" size={16} color={colors.primary} />
+                                                </View>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                )}
                             </View>
                         </View>
                     </View>
@@ -189,7 +196,6 @@ export function ReportLayout({
 
 const createStyles = (colors: any) => StyleSheet.create({
     header: {
-        paddingTop: Platform.OS !== 'web' ? 44 : 20,
         paddingHorizontal: Layout.spacing.lg,
         paddingBottom: 12,
         backgroundColor: (colors.card),
@@ -200,7 +206,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 12,
+        marginBottom: 4,
     },
     headerBottomRow: {
         marginTop: 4,

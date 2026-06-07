@@ -4,6 +4,76 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
+const createStyles = (colors: any) => StyleSheet.create({
+    container: {
+        marginBottom: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        gap: 6,
+    },
+    headerTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    alertCard: {
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        borderLeftWidth: 4,
+    },
+    alertContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    iconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    alertMessage: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: 2,
+    },
+    alertDesc: {
+        fontSize: 12,
+        color: colors.textSecondary,
+    },
+    warning: {
+        backgroundColor: `${colors.warning}15`,
+        borderLeftColor: colors.warning,
+    },
+    warningIcon: {
+        backgroundColor: colors.warning,
+    },
+    danger: {
+        backgroundColor: `${colors.danger}15`,
+        borderLeftColor: colors.danger,
+    },
+    dangerIcon: {
+        backgroundColor: colors.danger,
+    },
+    info: {
+        backgroundColor: `${colors.primary}15`,
+        borderLeftColor: colors.primary,
+    },
+    infoIcon: {
+        backgroundColor: colors.primary,
+    },
+    dismissBtn: {
+        padding: 4,
+        marginLeft: 4,
+    },
+});
+
 interface Alert {
     id: string;
     type: 'warning' | 'danger' | 'info';
@@ -97,72 +167,3 @@ export function SmartAlerts({ stats, style }: SmartAlertsProps) {
     );
 };
 
-const createStyles = (colors: any) => StyleSheet.create({
-    container: {
-        marginBottom: 20,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-        gap: 6,
-    },
-    headerTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: colors.text,
-    },
-    alertCard: {
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 8,
-        borderLeftWidth: 4,
-    },
-    alertContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    iconContainer: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    alertMessage: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 2,
-    },
-    alertDesc: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    warning: {
-        backgroundColor: `${colors.warning}15`,
-        borderLeftColor: colors.warning,
-    },
-    warningIcon: {
-        backgroundColor: colors.warning,
-    },
-    danger: {
-        backgroundColor: `${colors.danger}15`,
-        borderLeftColor: colors.danger,
-    },
-    dangerIcon: {
-        backgroundColor: colors.danger,
-    },
-    info: {
-        backgroundColor: `${colors.primary}15`,
-        borderLeftColor: colors.primary,
-    },
-    infoIcon: {
-        backgroundColor: colors.primary,
-    },
-    dismissBtn: {
-        padding: 4,
-        marginLeft: 4,
-    },
-});

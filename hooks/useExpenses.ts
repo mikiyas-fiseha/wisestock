@@ -1,7 +1,8 @@
-
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
 
 export interface ExpenseCategory {
     id: string;
@@ -55,9 +56,10 @@ export const useExpenses = (filters?: ExpenseFilters) => {
 
             let query = supabase
                 .from('expenses')
-                .select('*, branches(name), expense_categories(name)')
+                .select('id, date, amount, description, payment_method, reference, category_id, branch_id, created_by, created_at, attachment_url, is_recurring, recurring_frequency, branches(name), expense_categories(name)')
                 .eq('company_id', company.id)
-                .order('date', { ascending: false });
+                .order('date', { ascending: false })
+                .limit(300);
 
             if (filters?.start) {
                 query = query.gte('date', filters.start.toISOString());
@@ -92,10 +94,9 @@ export const useExpenses = (filters?: ExpenseFilters) => {
             if (error) throw error;
 
             // Map to ensure joins are objects and not arrays (Supabase quirk)
-            const mapped = (data || []).map(ex => ({
+            const mapped = (data || []).map((ex: any) => ({
                 ...ex,
                 branches: Array.isArray(ex.branches) ? ex.branches[0] : ex.branches,
-                profiles: Array.isArray(ex.profiles) ? ex.profiles[0] : ex.profiles,
                 expense_categories: Array.isArray(ex.expense_categories) ? ex.expense_categories[0] : ex.expense_categories,
             }));
 
@@ -230,6 +231,18 @@ export const useAddExpense = () => {
                 .single();
 
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'created_expense',
+                entityType: 'expense',
+                entityId: data.id,
+                entityLabel: data.description || 'Expense',
+                details: { amount: data.amount, category_id: data.category_id }
+            });
+
             return data;
         },
         onSuccess: () => {
@@ -313,7 +326,7 @@ export const useProcessRecurringExpenses = () => {
 
 export const useAddExpenseCategory = () => {
     const queryClient = useQueryClient();
-    const { company } = useAuth();
+    const { company, user } = useAuth();
 
     return useMutation({
         mutationFn: async (name: string) => {
@@ -324,6 +337,17 @@ export const useAddExpenseCategory = () => {
                 .select()
                 .single();
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'created_expense_category',
+                entityType: 'expense_category',
+                entityId: data.id,
+                entityLabel: data.name,
+            });
+
             return data;
         },
         onSuccess: () => {
@@ -402,10 +426,22 @@ export const useExpenseReports = (filters?: ExpenseFilters) => {
 
 export const useDeleteExpense = () => {
     const queryClient = useQueryClient();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
+            if (!company?.id) throw new Error('No company ID');
             const { error } = await supabase.from('expenses').delete().eq('id', id);
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'deleted_expense',
+                entityType: 'expense',
+                entityId: id,
+                entityLabel: 'Expense Deleted',
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['expenses'] });

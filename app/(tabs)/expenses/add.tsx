@@ -15,6 +15,7 @@ import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function AddExpenseScreen() {
@@ -22,7 +23,8 @@ export default function AddExpenseScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { showFeedback } = useFeedback();
-    const { isAdmin, isSuperAdmin, branch: currentBranch } = useAuth();
+    const { company, isAdmin, isSuperAdmin, branch, allBranches } = useAuth();
+    const { t, i18n } = useTranslation();
 
     const addExpense = useAddExpense();
     const { data: categories } = useExpenseCategories();
@@ -31,7 +33,7 @@ export default function AddExpenseScreen() {
     // Form State
     const [amount, setAmount] = useState('');
     const [categoryId, setCategoryId] = useState('');
-    const [branchId, setBranchId] = useState(currentBranch?.id || '');
+    const [branchId, setBranchId] = useState(branch?.id || '');
     const [date, setDate] = useState(new Date());
     const [paymentMethod, setPaymentMethod] = useState('Cash');
     const [reference, setReference] = useState('');
@@ -102,7 +104,8 @@ export default function AddExpenseScreen() {
                         onChangeText={setAmount}
                         placeholder="0.00"
                         keyboardType="numeric"
-                        prefix="$"
+                        prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
+                        suffix={i18n.language === 'am' ? 'ብር' : undefined}
                         style={{ fontSize: 24, fontWeight: 'bold', color: colors.danger }}
                     />
                 </View>

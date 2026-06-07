@@ -6,17 +6,19 @@ import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBranches } from '@/hooks/useBranches';
 import { useCollectPayment, useCustomerDetail, useCustomerHistory } from '@/hooks/useSupabaseQuery';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { formatCurrency } from '@/lib/formatters';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '@/lib/supabase';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 export default function CustomerDetailsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -40,7 +42,7 @@ export default function CustomerDetailsScreen() {
             try {
                 receiptUrl = await uploadImageToCloudinary(data.receiptUri);
             } catch (e: any) {
-                showFeedback('error', 'Upload Failed', e.message);
+                showFeedback('error', t('common.error'), e.message);
                 setIsUploading(false);
                 return;
             }
@@ -56,33 +58,33 @@ export default function CustomerDetailsScreen() {
         }, {
             onSuccess: async () => {
                 setPaymentModalVisible(false);
-                showFeedback('success', 'Success', "Payment recorded");
+                showFeedback('success', t('common.success'), t('common.saved'));
                 refetchCustomer();
                 setIsUploading(false);
             },
             onError: (err) => {
-                showFeedback('error', 'Error', err.message);
+                showFeedback('error', t('common.error'), err.message);
                 setIsUploading(false);
             }
         });
     };
 
     if (isLoadingCustomer) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
-    if (!customer) return <View style={styles.center}><Text style={{ color: colors.text }}>Customer not found</Text></View>;
+    if (!customer) return <View style={styles.center}><Text style={{ color: colors.text }}>{t('inventory.product_not_found')}</Text></View>;
 
     const renderHeader = () => (
         <View>
             <View style={styles.card}>
                 <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Current Balance</Text>
+                        <Text style={styles.statLabel}>{t('customers.current_balance')}</Text>
                         <Text style={[styles.statValue, { fontSize: 20, color: customer.current_balance > 0 ? colors.danger : colors.success }]}>
-                            ${customer.current_balance.toFixed(2)}
+                            {formatCurrency(customer.current_balance)}
                         </Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Credit Limit</Text>
-                        <Text style={styles.statValue}>${customer.credit_limit?.toFixed(2) || '0.00'}</Text>
+                        <Text style={styles.statLabel}>{t('customers.credit_limit')}</Text>
+                        <Text style={styles.statValue}>{formatCurrency(customer.credit_limit || 0)}</Text>
                     </View>
                 </View>
 
@@ -90,17 +92,17 @@ export default function CustomerDetailsScreen() {
 
                 <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Total Purchases</Text>
-                        <Text style={styles.statValue}>${customer.totalPurchases?.toFixed(2) || '0.00'}</Text>
+                        <Text style={styles.statLabel}>{t('customers.total_purchases')}</Text>
+                        <Text style={styles.statValue}>{formatCurrency(customer.totalPurchases || 0)}</Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Orders Count</Text>
+                        <Text style={styles.statLabel}>{t('customers.orders_count')}</Text>
                         <Text style={styles.statValue}>{customer.ordersCount || 0}</Text>
                     </View>
                 </View>
 
                 <AppButton
-                    title="Edit Customer Details"
+                    title={t('customers.edit_details')}
                     variant="outline"
                     onPress={() => router.push({ pathname: '/(tabs)/customers/add', params: { id: customer.id } })}
                     style={{ marginTop: 16, height: 40 }}
@@ -114,13 +116,13 @@ export default function CustomerDetailsScreen() {
                         style={[styles.tab, activeTab === 'sales' && styles.activeTab]}
                         onPress={() => setActiveTab('sales')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>Sales History</Text>
+                        <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>{t('customers.sales_history')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'payments' && styles.activeTab]}
                         onPress={() => setActiveTab('payments')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'payments' && styles.activeTabText]}>Payments</Text>
+                        <Text style={[styles.tabText, activeTab === 'payments' && styles.activeTabText]}>{t('customers.payments')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -131,7 +133,7 @@ export default function CustomerDetailsScreen() {
                                 style={[styles.filterChip, selectedBranch === 'all' && styles.activeFilterChip]}
                                 onPress={() => setSelectedBranch('all')}
                             >
-                                <Text style={[styles.filterText, selectedBranch === 'all' && styles.activeFilterText]}>All Branches</Text>
+                                <Text style={[styles.filterText, selectedBranch === 'all' && styles.activeFilterText]}>{t('customers.all_branches')}</Text>
                             </TouchableOpacity>
                             {branches?.map(b => (
                                 <TouchableOpacity
@@ -169,12 +171,12 @@ export default function CustomerDetailsScreen() {
                                 <Text style={styles.name} numberOfLines={1}>{customer.name}</Text>
                                 {customer.customer_type === 'wholesale' && (
                                     <View style={styles.wholesaleBadge}>
-                                        <Text style={styles.wholesaleText}>WHOLESALE</Text>
+                                        <Text style={styles.wholesaleText}>{t('customers.wholesale_badge')}</Text>
                                     </View>
                                 )}
                             </View>
                             <Text style={styles.info} numberOfLines={1}>
-                                {customer.phone || 'No Phone'} • {customer.email || 'No Email'}
+                                {customer.phone || t('customers.no_phone')} • {customer.email || t('customers.no_email')}
                             </Text>
                         </View>
                     </View>
@@ -188,7 +190,7 @@ export default function CustomerDetailsScreen() {
                                 styles.balanceText,
                                 { color: (customer.current_balance || 0) > 0 ? colors.danger : colors.success }
                             ]}>
-                                ${(customer.current_balance || 0).toFixed(2)}
+                                {formatCurrency(customer.current_balance || 0)}
                             </Text>
                         </View>
                         {(customer.current_balance || 0) > 0 && (
@@ -197,7 +199,7 @@ export default function CustomerDetailsScreen() {
                                 style={styles.collectBtnSmall}
                             >
                                 <FontAwesome name="money" size={10} color="#fff" />
-                                <Text style={styles.collectBtnTextSmall}>Collect</Text>
+                                <Text style={styles.collectBtnTextSmall}>{t('customers.collect')}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -217,7 +219,7 @@ export default function CustomerDetailsScreen() {
                                     <View style={styles.historyHeader}>
                                         <View>
                                             <Text style={styles.historyInv}>INV-{item.id.split('-')[0].toUpperCase()}</Text>
-                                            <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString()} • {item.branches?.name || 'Local'}</Text>
+                                            <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString()} • {item.branches?.name || t('common.local')}</Text>
                                         </View>
                                         <View style={[
                                             styles.statusBadge,
@@ -227,17 +229,17 @@ export default function CustomerDetailsScreen() {
                                                 styles.statusBadgeText,
                                                 { color: item.status === 'completed' ? colors.success : (item.status === 'credit' ? colors.warning : colors.danger) }
                                             ]}>
-                                                {(item.status || 'completed').toUpperCase()}
+                                                {t(`common.${item.status || 'completed'}`).toUpperCase()}
                                             </Text>
                                         </View>
                                     </View>
                                     <View style={styles.historyDetails}>
-                                        <Text style={styles.historyTotal}>${Number(item.total_amount || item.total || 0).toFixed(2)}</Text>
+                                        <Text style={styles.historyTotal}>{formatCurrency(Number(item.total_amount || item.total || 0))}</Text>
                                         <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.historyPaid}>Paid: ${Number(item.paid_amount || 0).toFixed(2)}</Text>
+                                            <Text style={styles.historyPaid}>{t('customers.paid')}: {formatCurrency(Number(item.paid_amount || 0))}</Text>
                                             {Number(item.balance_due || 0) > 0 && (
                                                 <Text style={[styles.historyMeta, { color: colors.danger, fontWeight: 'bold' }]}>
-                                                    Due: ${Number(item.balance_due).toFixed(2)}
+                                                    {t('customers.due')}: {formatCurrency(Number(item.balance_due))}
                                                 </Text>
                                             )}
                                         </View>
@@ -248,18 +250,18 @@ export default function CustomerDetailsScreen() {
                                     <View style={styles.historyHeader}>
                                         <View>
                                             <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                                            <Text style={styles.paymentMethod}>{item.method?.toUpperCase() || 'CASH'}</Text>
+                                            <Text style={styles.paymentMethod}>{t(`common.${item.method || 'cash'}`).toUpperCase()}</Text>
                                         </View>
-                                        <Text style={[styles.historyTotal, { color: colors.success }]}>+${Number(item.amount).toFixed(2)}</Text>
+                                        <Text style={[styles.historyTotal, { color: colors.success }]}>+{formatCurrency(Number(item.amount))}</Text>
                                     </View>
                                     <View style={styles.historyDetails}>
-                                        <Text style={styles.paymentNote}>{item.notes || 'No description'}</Text>
-                                        <Text style={styles.historyMeta}>By {item.profiles?.full_name || 'System'}</Text>
+                                        <Text style={styles.paymentNote}>{item.notes || t('common.not_available')}</Text>
+                                        <Text style={styles.historyMeta}>{t('customers.by')} {item.profiles?.full_name || t('common.system')}</Text>
                                     </View>
                                 </View>
                             )
                         )}
-                        ListEmptyComponent={<Text style={{ padding: 32, color: colors.textSecondary, textAlign: 'center' }}>No records found.</Text>}
+                        ListEmptyComponent={<Text style={{ padding: 32, color: colors.textSecondary, textAlign: 'center' }}>{t('customers.no_records')}</Text>}
                     />
                 )}
 
@@ -280,7 +282,7 @@ export default function CustomerDetailsScreen() {
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    header: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     name: { fontSize: 20, fontWeight: 'bold', color: colors.text },
     info: { color: colors.textSecondary, marginTop: 2, fontSize: 13 },
     card: { margin: 16, padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16 },

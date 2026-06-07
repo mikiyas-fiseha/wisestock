@@ -5,27 +5,35 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useProductBranchBreakdown } from '@/hooks/useInventory';
 import { useInventoryLogs } from '@/hooks/useInventoryLogs';
-import { supabase } from '@/lib/supabase';
+import { useProductDetail } from '@/hooks/useProductDetail';
+import { formatCurrency } from '@/lib/formatters';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 export default function ProductDetailsScreen() {
     const { colors, theme } = useTheme();
+    const { t, i18n } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { session, company, branch, isAdmin } = useAuth();
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
-    const [product, setProduct] = useState<any>(null);
-    const [variants, setVariants] = useState<any[]>([]);
-    const [stockQty, setStockQty] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [adjustModalVisible, setAdjustModalVisible] = useState(false);
-    const [transferModalVisible, setTransferModalVisible] = useState(false);
+
+    const {
+        data: productData,
+        isLoading: productLoading,
+        refetch: fetchProductDetails
+    } = useProductDetail(id as string);
+
+    const product = productData;
+    const variants = productData?.variants || [];
+    const stockQty = productData?.stockQty || 0;
+    const loading = productLoading;
 
     const { data: branchBreakdown = [] } = useProductBranchBreakdown(id as string);
 
@@ -34,47 +42,12 @@ export default function ProductDetailsScreen() {
     const pageSize = isWeb ? 10 : 5;
     const { data: historyData, isLoading: historyLoading } = useInventoryLogs(id as string, historyPage, pageSize);
 
-    useEffect(() => {
-        fetchProductDetails();
-    }, [id]);
-
-    const fetchProductDetails = async () => {
-        try {
-            const { data: prodData, error: prodError } = await supabase
-                .from('products')
-                .select('*, categories(name)')
-                .eq('id', id)
-                .single();
-
-            if (prodError) throw prodError;
-            setProduct(prodData);
-
-            // Get stock from branch_products
-            let bpQuery = supabase
-                .from('branch_products')
-                .select('stock')
-                .eq('product_id', id as string);
-            if (branch?.id) bpQuery = bpQuery.eq('branch_id', branch.id);
-            const { data: bpData } = await bpQuery;
-
-            const totalStock = bpData?.reduce((sum: number, bp: any) => sum + Number(bp.stock), 0) || 0;
-            setStockQty(totalStock);
-
-            // Get variants
-            const { data: varData } = await supabase
-                .from('product_variants')
-                .select('*')
-                .eq('product_id', id);
-            setVariants(varData || []);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Modals
+    const [adjustModalVisible, setAdjustModalVisible] = useState(false);
+    const [transferModalVisible, setTransferModalVisible] = useState(false);
 
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
-    if (!product) return <View style={styles.center}><Text style={{ color: colors.text }}>Product not found</Text></View>;
+    if (!product) return <View style={styles.center}><Text style={{ color: colors.text }}>{t('inventory.product_not_found')}</Text></View>;
 
     const unit = product.unit || 'pcs';
     const profit = (product.sale_price || 0) - (product.cost_price || 0);
@@ -84,36 +57,43 @@ export default function ProductDetailsScreen() {
 
     const getTypeBadge = (type: string) => {
         const map: Record<string, { bg: string; color: string; label: string }> = {
-            purchase: { bg: colors.success + '20', color: colors.success, label: 'Purchase' },
-            sale: { bg: colors.primary + '20', color: colors.primary, label: 'Sale' },
-            adjustment: { bg: colors.warning + '20', color: colors.warning, label: 'Adjustment' },
-            return: { bg: '#F5F3FF', color: '#7C3AED', label: 'Return' },
-            transfer_out: { bg: colors.danger + '20', color: colors.danger, label: 'Transfer Out' },
-            transfer_in: { bg: colors.success + '20', color: colors.success, label: 'Transfer In' },
+            purchase: { bg: colors.success + '20', color: colors.success, label: t('common.purchase') },
+            sale: { bg: colors.primary + '20', color: colors.primary, label: t('common.sale') },
+            adjustment: { bg: colors.warning + '20', color: colors.warning, label: t('common.adjustment') },
+            return: { bg: '#F5F3FF', color: '#7C3AED', label: t('common.return') },
+            transfer_out: { bg: colors.danger + '20', color: colors.danger, label: t('common.transfer_out') },
+            transfer_in: { bg: colors.success + '20', color: colors.success, label: t('common.transfer_in') },
         };
         return map[type] || { bg: colors.background, color: colors.textSecondary, label: type };
     };
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
+        return d.toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
     };
 
     const formatTime = (dateStr: string) => {
         const d = new Date(dateStr);
-        return d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleTimeString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     // ─── Stock History Table (Web) ───
     const StockHistoryTable = () => (
         <View style={styles.historyTable}>
             <View style={styles.historyHeader}>
-                <Text style={[styles.historyTh, { flex: 1.5 }]}>Date</Text>
-                <Text style={[styles.historyTh, { flex: 1 }]}>Type</Text>
-                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>Change</Text>
-                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>Previous</Text>
-                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>New</Text>
-                <Text style={[styles.historyTh, { flex: 1.5, textAlign: 'right' }]}>Reference</Text>
+                <Text style={[styles.historyTh, { flex: 1.5 }]}>{t('common.date')}</Text>
+                <Text style={[styles.historyTh, { flex: 1 }]}>{t('inventory.type')}</Text>
+                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>{t('common.change')}</Text>
+                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>{t('inventory.before')}</Text>
+                <Text style={[styles.historyTh, styles.historyThRight, { flex: 1 }]}>{t('inventory.after')}</Text>
+                <Text style={[styles.historyTh, { flex: 1.5, textAlign: 'right' }]}>{t('common.reference')}</Text>
             </View>
             {historyData?.data.map((log: any) => {
                 const badge = getTypeBadge(log.type);
@@ -131,15 +111,15 @@ export default function ProductDetailsScreen() {
                         <Text style={[styles.historyChange, styles.historyThRight, { flex: 1, color: log.quantity > 0 ? colors.success : colors.danger }]}>
                             {log.quantity > 0 ? '+' : ''}{log.quantity} {unit}
                         </Text>
-                        <Text style={[styles.historyCell, styles.historyThRight, { flex: 1 }]}>{log.previous_stock ?? '—'}</Text>
-                        <Text style={[styles.historyCell, styles.historyThRight, { flex: 1 }]}>{log.new_stock ?? '—'}</Text>
-                        <Text style={[styles.historyRef, { flex: 1.5, textAlign: 'right' }]} numberOfLines={1}>{log.notes || log.reference_type || '—'}</Text>
+                        <Text style={[styles.historyCell, styles.historyThRight, { flex: 1 }]}>{log.previous_stock ?? t('common.not_available')}</Text>
+                        <Text style={[styles.historyCell, styles.historyThRight, { flex: 1 }]}>{log.new_stock ?? t('common.not_available')}</Text>
+                        <Text style={[styles.historyRef, { flex: 1.5, textAlign: 'right' }]} numberOfLines={1}>{log.notes || t(`common.${log.reference_type}`) || t('common.not_available')}</Text>
                     </View>
                 );
             })}
             {(!historyData?.data || historyData.data.length === 0) && (
                 <View style={styles.historyEmpty}>
-                    <Text style={styles.historyEmptyText}>No stock history yet</Text>
+                    <Text style={styles.historyEmptyText}>{t('inventory.no_stock_history')}</Text>
                 </View>
             )}
         </View>
@@ -160,18 +140,18 @@ export default function ProductDetailsScreen() {
                         </View>
                         <View style={styles.historyCardBody}>
                             <View style={styles.historyCardStat}>
-                                <Text style={styles.historyCardLabel}>Change</Text>
+                                <Text style={styles.historyCardLabel}>{t('common.change')}</Text>
                                 <Text style={[styles.historyCardValue, { color: log.quantity > 0 ? colors.success : colors.danger }]}>
                                     {log.quantity > 0 ? '+' : ''}{log.quantity} {unit}
                                 </Text>
                             </View>
                             <View style={styles.historyCardStat}>
-                                <Text style={styles.historyCardLabel}>Before</Text>
-                                <Text style={styles.historyCardValue}>{log.previous_stock ?? '—'}</Text>
+                                <Text style={styles.historyCardLabel}>{t('inventory.before')}</Text>
+                                <Text style={styles.historyCardValue}>{log.previous_stock ?? t('common.not_available')}</Text>
                             </View>
                             <View style={styles.historyCardStat}>
-                                <Text style={styles.historyCardLabel}>After</Text>
-                                <Text style={styles.historyCardValue}>{log.new_stock ?? '—'}</Text>
+                                <Text style={styles.historyCardLabel}>{t('inventory.after')}</Text>
+                                <Text style={styles.historyCardValue}>{log.new_stock ?? t('common.not_available')}</Text>
                             </View>
                         </View>
                         {log.notes && <Text style={styles.historyCardNote} numberOfLines={1}>{log.notes}</Text>}
@@ -180,7 +160,7 @@ export default function ProductDetailsScreen() {
             })}
             {(!historyData?.data || historyData.data.length === 0) && (
                 <View style={styles.historyEmpty}>
-                    <Text style={styles.historyEmptyText}>No stock history yet</Text>
+                    <Text style={styles.historyEmptyText}>{t('inventory.no_stock_history')}</Text>
                 </View>
             )}
         </View>
@@ -197,7 +177,7 @@ export default function ProductDetailsScreen() {
                 >
                     <FontAwesome name="chevron-left" size={12} color={historyPage === 0 ? colors.textSecondary : colors.primary} />
                 </TouchableOpacity>
-                <Text style={styles.pageText}>Page {historyPage + 1} of {totalPages}</Text>
+                <Text style={styles.pageText}>{t('common.page_of', { current: historyPage + 1, total: totalPages })}</Text>
                 <TouchableOpacity
                     onPress={() => setHistoryPage(Math.min(totalPages - 1, historyPage + 1))}
                     disabled={historyPage >= totalPages - 1}
@@ -231,10 +211,10 @@ export default function ProductDetailsScreen() {
                         <View style={styles.headerContent}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.headerName}>{product.name}</Text>
-                                <Text style={styles.headerSku}>{product.primary_sku || 'No SKU'}</Text>
+                                <Text style={styles.headerSku}>{product.primary_sku || t('inventory.no_sku')}</Text>
                             </View>
                             <View style={[styles.stockPill, isOutOfStock ? styles.stockPillRed : (isLowStock ? styles.stockPillYellow : styles.stockPillGreen)]}>
-                                <Text style={styles.stockPillText}>{stockQty} {unit}</Text>
+                                <Text style={styles.stockPillText}>{stockQty} {unit ? t(`common.${unit}`) : t('common.pcs')}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -249,22 +229,22 @@ export default function ProductDetailsScreen() {
                     <View style={[styles.infoCard, isWeb && { flex: 1 }]}>
                         <View style={styles.infoCardHeader}>
                             <FontAwesome name="dollar" size={14} color={colors.primary} />
-                            <Text style={styles.infoCardTitle}>Pricing</Text>
+                            <Text style={styles.infoCardTitle}>{t('inventory.pricing')}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Cost Price</Text>
-                            <Text style={styles.infoValue}>${(product.cost_price || 0).toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.infoDivider} />
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Sale Price</Text>
-                            <Text style={[styles.infoValue, { color: colors.primary }]}>${(product.sale_price || 0).toFixed(2)}</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.cost_price')}</Text>
+                            <Text style={styles.infoValue}>{formatCurrency(product.cost_price)}</Text>
                         </View>
                         <View style={styles.infoDivider} />
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Profit</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.sale_price')}</Text>
+                            <Text style={[styles.infoValue, { color: colors.primary }]}>{formatCurrency(product.sale_price)}</Text>
+                        </View>
+                        <View style={styles.infoDivider} />
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>{t('inventory.profit')}</Text>
                             <Text style={[styles.infoValue, { color: profit >= 0 ? colors.success : colors.danger, fontWeight: '800' }]}>
-                                ${profit.toFixed(2)}
+                                {formatCurrency(profit)}
                             </Text>
                         </View>
                     </View>
@@ -273,25 +253,25 @@ export default function ProductDetailsScreen() {
                     <View style={[styles.infoCard, isWeb && { flex: 1 }]}>
                         <View style={styles.infoCardHeader}>
                             <FontAwesome name="archive" size={14} color="#7C3AED" />
-                            <Text style={styles.infoCardTitle}>Inventory</Text>
+                            <Text style={styles.infoCardTitle}>{t('common.inventory')}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Current Stock</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.stock_list')}</Text>
                             <Text style={[styles.infoValue, isOutOfStock && { color: colors.danger }, isLowStock && { color: colors.warning }]}>
-                                {stockQty} {unit}
+                                {stockQty} {unit ? t(`common.${unit}`) : t('common.pcs')}
                             </Text>
                         </View>
                         <View style={styles.infoDivider} />
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Unit</Text>
-                            <Text style={styles.infoValue}>{unit}</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.unit')}</Text>
+                            <Text style={styles.infoValue}>{t(`common.${unit}`)}</Text>
                         </View>
                         <View style={styles.infoDivider} />
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Status</Text>
+                            <Text style={styles.infoLabel}>{t('common.status')}</Text>
                             <View style={[styles.statusBadge, product.status === 'active' ? styles.statusActive : styles.statusInactive]}>
                                 <Text style={[styles.statusText, { color: product.status === 'active' ? colors.success : colors.danger }]}>
-                                    {product.status?.toUpperCase()}
+                                    {t(`common.${product.status || 'inactive'}`).toUpperCase()}
                                 </Text>
                             </View>
                         </View>
@@ -300,30 +280,45 @@ export default function ProductDetailsScreen() {
                                 <View style={styles.infoDivider} />
                                 <TouchableOpacity style={styles.adjustStockBtn} onPress={() => setAdjustModalVisible(true)}>
                                     <FontAwesome name="exchange" size={13} color="#fff" />
-                                    <Text style={styles.adjustStockBtnText}>Adjust Stock</Text>
+                                    <Text style={styles.adjustStockBtnText}>{t('inventory.adjust_stock')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.adjustStockBtn, { backgroundColor: '#6366F1', marginTop: 8 }]}
                                     onPress={() => setTransferModalVisible(true)}
                                 >
                                     <FontAwesome name="truck" size={13} color="#fff" />
-                                    <Text style={styles.adjustStockBtnText}>Transfer Stock</Text>
+                                    <Text style={styles.adjustStockBtnText}>{t('inventory.transfer_stock')}</Text>
                                 </TouchableOpacity>
                             </>
                         )}
                     </View>
                 </View>
 
+                {/* ─── Custom Attributes ─── */}
+                {product.attributes && Object.keys(product.attributes).length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>{t('inventory.attributes')}</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                            {Object.entries(product.attributes).map(([key, val]) => (
+                                <View key={key} style={{ backgroundColor: colors.primary + '15', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', gap: 4 }}>
+                                    <Text style={{ fontSize: 12, color: colors.textSecondary, fontWeight: '500' }}>{key}:</Text>
+                                    <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>{String(val)}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
                 {/* ─── Branch Stock Breakdown ─── */}
                 {branchBreakdown.length > 1 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Stock by Branch</Text>
+                        <Text style={styles.sectionTitle}>{t('inventory.stock_by_branch')}</Text>
                         {branchBreakdown.map((b, i) => {
                             const cfg = b.status === 'out'
-                                ? { bg: colors.danger + '20', color: colors.danger, label: 'OUT' }
+                                ? { bg: colors.danger + '20', color: colors.danger, label: t('common.stock_out') }
                                 : b.status === 'low'
-                                    ? { bg: colors.warning + '20', color: colors.warning, label: 'LOW' }
-                                    : { bg: colors.success + '20', color: colors.success, label: 'OK' };
+                                    ? { bg: colors.warning + '20', color: colors.warning, label: t('common.stock_low') }
+                                    : { bg: colors.success + '20', color: colors.success, label: t('common.stock_ok') };
                             return (
                                 <View key={b.branch_id} style={[styles.branchRow, i % 2 === 0 && { backgroundColor: Object.keys(colors.background).length ? colors.background : '#FAFBFC' }]}>
                                     <View style={styles.branchLeft}>
@@ -334,8 +329,8 @@ export default function ProductDetailsScreen() {
                                         <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
                                             <Text style={[styles.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
                                         </View>
-                                        <Text style={styles.branchStock}>{b.stock} {unit}</Text>
-                                        <Text style={styles.branchMin}>Min: {b.min_stock_level}</Text>
+                                        <Text style={styles.branchStock}>{b.stock} {unit ? t(`common.${unit}`) : t('common.pcs')}</Text>
+                                        <Text style={styles.branchMin}>{t('common.min')}: {b.min_stock_level}</Text>
                                     </View>
                                 </View>
                             );
@@ -346,8 +341,8 @@ export default function ProductDetailsScreen() {
                 {/* Variants Section */}
                 {variants.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Variants ({variants.length})</Text>
-                        {variants.map(v => (
+                        <Text style={styles.sectionTitle}>{t('inventory.variants')} ({variants.length})</Text>
+                        {variants.map((v: any) => (
                             <View key={v.id} style={styles.variantCard}>
                                 <View>
                                     <Text style={styles.variantName}>{v.sku}</Text>
@@ -356,8 +351,8 @@ export default function ProductDetailsScreen() {
                                     </Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={styles.variantPrice}>${v.price_override?.toFixed(2)}</Text>
-                                    <Text style={[styles.variantStock, v.stock < 5 && { color: colors.danger }]}>{v.stock} {unit}</Text>
+                                    <Text style={styles.variantPrice}>{formatCurrency(v.price_override)}</Text>
+                                    <Text style={[styles.variantStock, v.stock < 5 && { color: colors.danger }]}>{v.stock} {t(`common.${unit}`)}</Text>
                                 </View>
                             </View>
                         ))}
@@ -367,7 +362,7 @@ export default function ProductDetailsScreen() {
                 {/* ─── Stock History ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionTitle}>Stock History</Text>
+                        <Text style={styles.sectionTitle}>{t('inventory.stock_history')}</Text>
                         {historyLoading && <ActivityIndicator size="small" color={colors.primary} />}
                     </View>
                     {isWeb ? <StockHistoryTable /> : <StockHistoryCards />}
@@ -383,7 +378,7 @@ export default function ProductDetailsScreen() {
                     activeOpacity={0.8}
                 >
                     <FontAwesome name="pencil" size={18} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.fabText}>Edit</Text>
+                    <Text style={styles.fabText}>{t('common.edit')}</Text>
                 </TouchableOpacity>
             )}
 

@@ -7,6 +7,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     FlatList,
@@ -23,30 +24,35 @@ const isWeb = Platform.OS === 'web';
 // ─── Movement type config ─────────────────────────────────────────────────────
 type MovementType = 'all' | 'purchase' | 'sale' | 'adjustment' | 'transfer_in' | 'transfer_out' | 'customer_return' | 'supplier_return';
 
-function getMovementTypes(colors: any) {
+function getMovementTypes(colors: any, t: any) {
     return [
-        { key: 'all', label: 'All', icon: 'list', color: colors.textSecondary, bg: colors.border },
-        { key: 'purchase', label: 'Purchase', icon: 'shopping-bag', color: colors.success, bg: colors.success + '15' },
-        { key: 'sale', label: 'Sale', icon: 'shopping-cart', color: colors.primary, bg: colors.primary + '15' },
-        { key: 'adjustment', label: 'Adjust', icon: 'pencil', color: colors.warning, bg: colors.warning + '15' },
-        { key: 'transfer_in', label: 'Transfer In', icon: 'arrow-down', color: colors.secondary || '#8B5CF6', bg: (colors.secondary || '#8B5CF6') + '15' },
-        { key: 'transfer_out', label: 'Transfer Out', icon: 'arrow-up', color: '#EC4899', bg: '#EC489915' },
-        { key: 'customer_return', label: 'Cust Return', icon: 'undo', color: '#06B6D4', bg: '#06B6D415' },
-        { key: 'supplier_return', label: 'Sup Return', icon: 'reply', color: '#F97316', bg: '#F9731615' },
+        { key: 'all', label: t('common.all'), icon: 'list', color: colors.textSecondary, bg: colors.border },
+        { key: 'purchase', label: t('common.purchase'), icon: 'shopping-bag', color: colors.success, bg: colors.success + '15' },
+        { key: 'sale', label: t('common.sale'), icon: 'shopping-cart', color: colors.primary, bg: colors.primary + '15' },
+        { key: 'adjustment', label: t('common.adjustment'), icon: 'pencil', color: colors.warning, bg: colors.warning + '15' },
+        { key: 'transfer_in', label: t('common.transfer_in'), icon: 'arrow-down', color: colors.secondary || '#8B5CF6', bg: (colors.secondary || '#8B5CF6') + '15' },
+        { key: 'transfer_out', label: t('common.transfer_out'), icon: 'arrow-up', color: '#EC4899', bg: '#EC489915' },
+        { key: 'customer_return', label: t('common.return'), icon: 'undo', color: '#06B6D4', bg: '#06B6D415' },
+        { key: 'supplier_return', label: t('common.return'), icon: 'reply', color: '#F97316', bg: '#F9731615' },
     ] as const;
 }
 
 const getTypeConfig = (types: any, type: string) =>
     types.find((t: any) => t.key === type) ?? types[0];
 
-function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(iso: string, i18n: any) {
+    return new Date(iso).toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
 }
 
 function MovementCard({ item }: { item: any }) {
     const { colors, theme } = useTheme();
+    const { t, i18n } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const types = getMovementTypes(colors);
+    const types = getMovementTypes(colors, t);
     const cfg = getTypeConfig(types, item.type);
     const isPositive = item.quantity > 0;
 
@@ -66,10 +72,10 @@ function MovementCard({ item }: { item: any }) {
                     <View style={[styles.typePill, { backgroundColor: cfg.bg }]}>
                         <Text style={[styles.typePillText, { color: cfg.color }]}>{cfg.label}</Text>
                     </View>
-                    <Text style={styles.metaText}>{item.branch_name || 'All Branches'}</Text>
+                    <Text style={styles.metaText}>{item.branch_name || t('inventory.all_branches')}</Text>
                 </View>
                 {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
-                <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+                <Text style={styles.dateText}>{formatDate(item.created_at, i18n)}</Text>
             </View>
         </View>
     );
@@ -77,8 +83,9 @@ function MovementCard({ item }: { item: any }) {
 
 function WebMovementRow({ item, index }: { item: any, index: number }) {
     const { colors } = useTheme();
+    const { t, i18n } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const types = getMovementTypes(colors);
+    const types = getMovementTypes(colors, t);
     const cfg = getTypeConfig(types, item.type);
     const isPositive = item.quantity > 0;
 
@@ -104,7 +111,7 @@ function WebMovementRow({ item, index }: { item: any, index: number }) {
                 {item.previous_stock} → {item.new_stock}
             </Text>
             <Text style={[styles.tdText, { flex: 2 }]} numberOfLines={1}>{item.notes || '—'}</Text>
-            <Text style={[styles.tdText, { flex: 2, color: colors.textSecondary }]}>{formatDate(item.created_at)}</Text>
+            <Text style={[styles.tdText, { flex: 2, color: colors.textSecondary }]}>{formatDate(item.created_at, i18n)}</Text>
         </View>
     );
 }
@@ -112,11 +119,12 @@ function WebMovementRow({ item, index }: { item: any, index: number }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function MovementsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { branch } = useAuth();
     const params = useLocalSearchParams<{ productId?: string }>();
-    const types = getMovementTypes(colors);
+    const types = getMovementTypes(colors, t);
     const MOVEMENT_TYPES = types;
     const [activeType, setActiveType] = useState<MovementType>('all');
     const [page, setPage] = useState(0);
@@ -135,9 +143,9 @@ export default function MovementsScreen() {
     const totalCount = result?.count || 0;
 
     const SUB_TABS = [
-        { key: 'stock', label: 'Stock', icon: 'archive' },
-        { key: 'movements', label: 'Movements', icon: 'exchange' },
-        { key: 'summary', label: 'Summary', icon: 'bar-chart' },
+        { key: 'stock', label: t('inventory.stock'), icon: 'archive' },
+        { key: 'movements', label: t('inventory.movements'), icon: 'exchange' },
+        { key: 'summary', label: t('inventory.summary'), icon: 'bar-chart' },
     ] as const;
 
     return (
@@ -150,10 +158,10 @@ export default function MovementsScreen() {
                         <FontAwesome name="chevron-left" size={14} color={colors.primary} />
                     </Pressable>
                     <View>
-                        <Text style={styles.screenTitle}>Movements</Text>
+                        <Text style={styles.screenTitle}>{t('inventory.movements')}</Text>
                         <Text style={styles.screenSubtitle}>
-                            {totalCount} records
-                            {branch ? ` · ${branch.name}` : ' · All Branches'}
+                            {totalCount} {t('inventory.records')}
+                            {branch ? ` · ${branch.name}` : ` · ${t('inventory.all_branches')}`}
                         </Text>
                     </View>
                 </View>
@@ -219,19 +227,19 @@ export default function MovementsScreen() {
             ) : movements.length === 0 ? (
                 <View style={styles.center}>
                     <FontAwesome name="exchange" size={48} color={colors.border} />
-                    <Text style={styles.emptyTitle}>No movements</Text>
-                    <Text style={styles.emptySubtitle}>No stock changes recorded yet</Text>
+                    <Text style={styles.emptyTitle}>{t('inventory.no_movements')}</Text>
+                    <Text style={styles.emptySubtitle}>{t('inventory.no_stock_changes')}</Text>
                 </View>
             ) : isWeb ? (
                 <ScrollView style={{ flex: 1 }}>
                     <View style={styles.thead}>
-                        <Text style={[styles.th, { flex: 2 }]}>Type</Text>
-                        <Text style={[styles.th, { flex: 3 }]}>Product</Text>
-                        <Text style={[styles.th, { flex: 2 }]}>Branch</Text>
-                        <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Qty</Text>
-                        <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Stock</Text>
-                        <Text style={[styles.th, { flex: 2 }]}>Note</Text>
-                        <Text style={[styles.th, { flex: 2 }]}>Date</Text>
+                        <Text style={[styles.th, { flex: 2 }]}>{t('inventory.type')}</Text>
+                        <Text style={[styles.th, { flex: 3 }]}>{t('common.products')}</Text>
+                        <Text style={[styles.th, { flex: 2 }]}>{t('branch')}</Text>
+                        <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('reports.qty')}</Text>
+                        <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('inventory.stock')}</Text>
+                        <Text style={[styles.th, { flex: 2 }]}>{t('inventory.note')}</Text>
+                        <Text style={[styles.th, { flex: 2 }]}>{t('inventory.date')}</Text>
                     </View>
                     {movements.map((m, i) => <WebMovementRow key={m.id} item={m} index={i} />)}
 
@@ -242,17 +250,17 @@ export default function MovementsScreen() {
                             onPress={() => setPage(p => Math.max(0, p - 1))}
                             disabled={page === 0}
                         >
-                            <Text style={styles.pageBtnText}>← Prev</Text>
+                            <Text style={styles.pageBtnText}>← {t('common.prev')}</Text>
                         </Pressable>
                         <Text style={styles.pageInfo}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}
+                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} {t('of')} {totalCount}
                         </Text>
                         <Pressable
                             style={[styles.pageBtn, (page + 1) * PAGE_SIZE >= totalCount && styles.pageBtnDis]}
                             onPress={() => setPage(p => p + 1)}
                             disabled={(page + 1) * PAGE_SIZE >= totalCount}
                         >
-                            <Text style={styles.pageBtnText}>Next →</Text>
+                            <Text style={styles.pageBtnText}>{t('common.next')} →</Text>
                         </Pressable>
                     </View>
                 </ScrollView>

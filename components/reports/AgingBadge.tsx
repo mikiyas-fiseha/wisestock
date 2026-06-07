@@ -1,5 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface AgingBadgeProps {
@@ -8,18 +9,18 @@ interface AgingBadgeProps {
 
 export const AgingBadge: React.FC<AgingBadgeProps> = ({ days }) => {
     const { colors } = useTheme();
-
-    let label = 'Current';
+    const { t } = useTranslation();
+    let label = t('reports.current');
     let badgeColor = colors.success;
 
     if (days > 60) {
-        label = '60+ Days';
+        label = `60+ ${t('reports.days')}`;
         badgeColor = colors.danger;
     } else if (days > 30) {
-        label = '31–60 Days';
+        label = `31–60 ${t('reports.days')}`;
         badgeColor = colors.warning;
     } else if (days > 0) {
-        label = '0–30 Days';
+        label = `0–30 ${t('reports.days')}`;
         badgeColor = colors.success; // Or maybe a softer success/primary
     }
 

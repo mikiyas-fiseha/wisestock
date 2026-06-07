@@ -1,6 +1,9 @@
 
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export interface ReportColumn {
@@ -17,15 +20,22 @@ interface ReportTableProps {
     columns: ReportColumn[];
     totals?: Record<string, number>; // Key match column key
     onRowPress?: (item: any) => void;
+    emptyMessage?: string;
 }
 
-export function ReportTable({ data, columns, totals }: ReportTableProps) {
+export function ReportTable({ data, columns, totals, emptyMessage }: ReportTableProps) {
     const { colors } = useTheme();
+    const { company } = useAuth();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+
     if (!data || data.length === 0) {
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No data available for this report.</Text>
+                <View style={styles.emptyIconContainer}>
+                    <FontAwesome name="inbox" size={32} color={colors.textSecondary + '40'} />
+                </View>
+                <Text style={styles.emptyText}>{emptyMessage || t('common.no_data') || 'No data available for this report.'}</Text>
             </View>
         );
     }
@@ -38,7 +48,8 @@ export function ReportTable({ data, columns, totals }: ReportTableProps) {
         }
 
         if (col.isCurrency && typeof value === 'number') {
-            value = `$${value.toFixed(2)}`;
+            const currency = company?.currency || '$';
+            value = `${currency}${value.toFixed(2)}`;
         }
 
         return (
@@ -89,7 +100,7 @@ export function ReportTable({ data, columns, totals }: ReportTableProps) {
                             {columns.map((col, index) => (
                                 <View key={col.key} style={[styles.cell, { width: col.width || 100 }]}>
                                     {index === 0 && !totals[col.key] ? (
-                                        <Text style={styles.totalLabel}>TOTAL</Text>
+                                        <Text style={styles.totalLabel}>{t('common.total').toUpperCase()}</Text>
                                     ) : (
                                         renderCell(col, {}, true)
                                     )}
@@ -148,10 +159,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     emptyContainer: {
         padding: 40,
         alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyIconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: colors.border + '20',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
     },
     emptyText: {
         color: colors.textSecondary,
-        fontStyle: 'italic',
+        fontSize: 14,
+        fontWeight: '500',
+        textAlign: 'center',
+        maxWidth: 200,
     },
     totalRow: {
         flexDirection: 'row',

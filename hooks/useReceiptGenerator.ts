@@ -12,6 +12,14 @@ interface ReceiptData {
     date: string;
     customerName?: string;
     items: { name: string; quantity: number; price: number; total: number }[];
+    tin?: string;
+    vatNo?: string;
+    address?: string;
+    city?: string;
+    phone?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    customerTin?: string;
     subtotal: number;
     taxAmount?: number;
     discountAmount?: number;
@@ -77,7 +85,12 @@ export const useReceiptGenerator = () => {
                     <div class="header">
                         <div class="company-info">
                             <h1>${data.companyName}</h1>
-                            <p>Official VAT Invoice</p>
+                            ${data.address ? `<p>${data.address}${data.city ? `, ${data.city}` : ''}</p>` : ''}
+                            ${data.phone ? `<p>Phone: ${data.phone}</p>` : ''}
+                            <div style="margin-top: 10px; font-size: 9pt; color: #64748b;">
+                                ${data.tin ? `<span style="margin-right: 15px;">TIN: <b>${data.tin}</b></span>` : ''}
+                                ${data.vatNo ? `<span>VAT: <b>${data.vatNo}</b></span>` : ''}
+                            </div>
                         </div>
                         <div class="invoice-meta">
                             <div class="invoice-title">Invoice</div>
@@ -86,10 +99,12 @@ export const useReceiptGenerator = () => {
                         </div>
                     </div>
 
-                    <div class="bill-to">
                         <div class="info-group">
-                            <label>Customer</label>
+                            <label>Customer Details</label>
                             <p>${data.customerName || 'Walk-in Guest'}</p>
+                            ${data.customerPhone ? `<p style="font-size: 9pt; font-weight: 400; color: #64748b;">Phone: ${data.customerPhone}</p>` : ''}
+                            ${data.customerAddress ? `<p style="font-size: 9pt; font-weight: 400; color: #64748b;">Address: ${data.customerAddress}</p>` : ''}
+                            ${data.customerTin ? `<p style="font-size: 9pt; font-weight: 400; color: #64748b;">TIN: ${data.customerTin}</p>` : ''}
                         </div>
                         <div class="info-group">
                             <label>Date Issued</label>
@@ -159,7 +174,7 @@ export const useReceiptGenerator = () => {
 
                     <div class="footer">
                         <p>Thank you for choosing <b>${data.companyName}</b>. We appreciate your business!</p>
-                        <p style="font-size: 8pt; margin-top: 10px;">Generated from StockManager ERP</p>
+                        <p style="font-size: 8pt; margin-top: 10px;">Generated from ብልህStock ERP</p>
                     </div>
                 </div>
             </body>

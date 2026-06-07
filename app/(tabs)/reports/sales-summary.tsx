@@ -2,15 +2,20 @@ import { ReportChart } from '@/components/reports/ReportChart';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportColumn, ReportTable } from '@/components/reports/ReportTable';
 
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { DateRange, useAdvancedReports } from '@/hooks/useAdvancedReports';
+import i18n from '@/lib/i18n';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
 export default function SalesSummaryReport() {
     const { colors } = useTheme();
+    const { company } = useAuth();
+    const { t } = useTranslation();
     const [range, setRange] = useState<DateRange>({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        start: new Date(new Date().setDate(new Date().getDate() - 7)),
         end: new Date()
     });
 
@@ -20,10 +25,10 @@ export default function SalesSummaryReport() {
 
     // Columns Definition
     const columns: ReportColumn[] = [
-        { key: 'date', title: 'Date', width: 100 },
-        { key: 'count', title: 'Orders', width: 80, align: 'center' },
-        { key: 'revenue', title: 'Sales', width: 100, align: 'right', isCurrency: true },
-        { key: 'profit', title: 'Profit', width: 100, align: 'right', isCurrency: true },
+        { key: 'date', title: t('inventory.date'), width: 100 },
+        { key: 'count', title: t('reports.orders'), width: 80, align: 'center' },
+        { key: 'revenue', title: t('reports.revenue'), width: 100, align: 'right', isCurrency: true },
+        { key: 'profit', title: t('reports.gross_profit'), width: 100, align: 'right', isCurrency: true },
     ];
 
     // Totals Calculation
@@ -37,10 +42,10 @@ export default function SalesSummaryReport() {
 
     // Export Data Prep
     const exportData = dailySales.map(d => ({
-        Date: d.date,
-        Orders: d.count,
-        Revenue: d.revenue,
-        Profit: d.profit
+        [t('inventory.date')]: d.date,
+        [t('reports.orders')]: d.count,
+        [t('reports.revenue')]: d.revenue,
+        [t('reports.gross_profit')]: d.profit
     }));
 
     // Chart Data
@@ -52,15 +57,21 @@ export default function SalesSummaryReport() {
 
     return (
         <ReportLayout
-            title="Sales Summary"
-            subtitle="Breakdown by Date"
+            title={t('reports.sales_summary')}
+            subtitle={t('reports.breakdown_by_date')}
             onDateRangeChange={setRange}
             isLoading={isLoading}
             exportData={exportData}
             exportFilename="sales_summary"
             chartContent={
                 <View>
-                    <ReportChart type="line" data={chartData} yAxisLabelPrefix="$" color={colors.primary} />
+                    <ReportChart
+                        type="line"
+                        data={chartData}
+                        yAxisLabelPrefix={i18n.language === 'en' ? (company?.currency || '$') : ''}
+                        yAxisLabelSuffix={i18n.language === 'am' ? ' ብር' : ''}
+                        color={colors.primary}
+                    />
                 </View>
             }
         >

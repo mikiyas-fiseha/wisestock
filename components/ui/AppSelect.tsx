@@ -4,6 +4,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
+    Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -42,6 +44,53 @@ export function AppSelect({ label, options, selectedValue, onValueChange, placeh
         setIsOpen(false);
     };
 
+    const renderDropdownContent = (isModal = false) => (
+        <View style={[
+            styles.dropdown,
+            {
+                borderColor: colors.border,
+            },
+            isModal && styles.modalDropdown
+        ]}>
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : ['#FFFFFF', '#F8FAFC']}
+                style={StyleSheet.absoluteFill}
+            />
+            <ScrollView
+                style={{ maxHeight: isModal ? 400 : 135 }}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="always"
+                showsVerticalScrollIndicator={true}
+            >
+                {isModal && <View style={styles.modalHandle} />}
+                {options.map((option) => (
+                    <TouchableOpacity
+                        key={option.value}
+                        style={[
+                            styles.option,
+                            selectedValue === option.value && { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)' }
+                        ]}
+                        onPress={() => handleSelect(option.value)}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[
+                            styles.optionText,
+                            { color: option.color || colors.text },
+                            selectedValue === option.value && { fontWeight: '700', color: colors.primary }
+                        ]}>
+                            {option.label}
+                        </Text>
+                        {selectedValue === option.value && (
+                            <FontAwesome name="check" size={12} color={colors.primary} />
+                        )}
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+    );
+
+    const isMobile = Platform.OS !== 'web';
+
     return (
         <View style={[styles.container, containerStyle, { zIndex: isOpen ? 9999 : 1 }]}>
             {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
@@ -65,54 +114,33 @@ export function AppSelect({ label, options, selectedValue, onValueChange, placeh
                     <FontAwesome name={isOpen ? "chevron-up" : "chevron-down"} size={12} color={colors.textSecondary} />
                 </Pressable>
 
-                {isOpen && (
+                {isOpen && !isMobile && (
                     <View style={styles.dropdownPositioner}>
                         {/* Semi-transparent backdrop to close */}
                         <Pressable
                             onPress={() => setIsOpen(false)}
                             style={styles.fullBackdrop}
                         />
-
-                        <View style={[
-                            styles.dropdown,
-                            {
-                                borderColor: colors.border,
-                            }
-                        ]}>
-                            <LinearGradient
-                                colors={theme === 'dark' ? Gradients.authDark : ['#FFFFFF', '#F8FAFC']}
-                                style={StyleSheet.absoluteFill}
-                            />
-                            <ScrollView
-                                style={{ maxHeight: 200 }}
-                                nestedScrollEnabled
-                                keyboardShouldPersistTaps="handled"
-                            >
-                                {options.map((option) => (
-                                    <TouchableOpacity
-                                        key={option.value}
-                                        style={[
-                                            styles.option,
-                                            selectedValue === option.value && { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)' }
-                                        ]}
-                                        onPress={() => handleSelect(option.value)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Text style={[
-                                            styles.optionText,
-                                            { color: option.color || colors.text },
-                                            selectedValue === option.value && { fontWeight: '700', color: colors.primary }
-                                        ]}>
-                                            {option.label}
-                                        </Text>
-                                        {selectedValue === option.value && (
-                                            <FontAwesome name="check" size={12} color={colors.primary} />
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
+                        {renderDropdownContent()}
                     </View>
+                )}
+
+                {isOpen && isMobile && (
+                    <Modal
+                        visible={isOpen}
+                        transparent={true}
+                        animationType="fade"
+                        onRequestClose={() => setIsOpen(false)}
+                    >
+                        <Pressable
+                            style={styles.modalOverlay}
+                            onPress={() => setIsOpen(false)}
+                        >
+                            <View style={styles.modalContent}>
+                                {renderDropdownContent(true)}
+                            </View>
+                        </Pressable>
+                    </Modal>
                 )}
             </View>
 
@@ -162,6 +190,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 10000,
+        elevation: 10,
     },
     fullBackdrop: {
         position: 'absolute',
@@ -191,5 +220,31 @@ const styles = StyleSheet.create({
     },
     optionText: {
         fontSize: 15,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: 'transparent',
+    },
+    modalDropdown: {
+        maxHeight: 450,
+        borderRadius: 32,
+        overflow: 'hidden',
+    },
+    modalHandle: {
+        width: 40,
+        height: 5,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        borderRadius: 3,
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 8,
     }
 });

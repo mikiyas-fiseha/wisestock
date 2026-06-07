@@ -1,20 +1,25 @@
 import { DateRange, ReportLayout } from '@/components/reports/ReportLayout';
 import { Layout } from '@/constants/Colors';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
+import { formatCurrency } from '@/lib/formatters';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function FinancialsReportScreen() {
     const { colors } = useTheme();
+    const { t } = useTranslation();
+    const { company } = useAuth();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [range, setRange] = useState<DateRange>({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        start: new Date(new Date().setDate(new Date().getDate() - 7)),
         end: new Date()
     });
     const { data, isLoading } = useAdvancedReports(range);
 
-    const fmt = (val: number | null | undefined) => `$${(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    const fmt = (val: number | null | undefined) => formatCurrency(val || 0);
 
     const renderRow = (label: string, value: number, isHeader = false, isSubtotal = false, isFinal = false) => (
         <View style={[
@@ -51,39 +56,39 @@ export default function FinancialsReportScreen() {
 
         return [
             {
-                title: 'Revenue & Gross Profit',
+                title: t('reports.revenue') + ' & ' + t('reports.gross_profit'),
                 type: 'summary' as const,
                 data: [
-                    { label: 'Operating Revenue', value: s.revenue },
-                    { label: 'Cost of Goods Sold (COGS)', value: -s.cogs },
-                    { label: 'Gross Profit', value: s.grossProfit }
+                    { label: t('reports.operating_revenue'), value: s.revenue },
+                    { label: t('reports.cogs'), value: -s.cogs },
+                    { label: t('reports.gross_profit'), value: s.grossProfit }
                 ],
                 accentColor: colors.primary
             },
             {
-                title: 'Operating Expenses',
+                title: t('reports.operating_expenses'),
                 type: 'summary' as const,
                 data: [
                     ...expenseItems,
-                    { label: 'Total Operating Expenses', value: -s.expenses }
+                    { label: t('reports.total_operating_expenses'), value: -s.expenses }
                 ],
                 accentColor: colors.danger
             },
             {
-                title: 'Net Performance',
+                title: t('reports.net_performance') || "Net Performance",
                 type: 'summary' as const,
                 data: [
-                    { label: 'Net Income / Profit', value: s.netProfit },
-                    { label: 'Profit Margin', value: Number(s.profitMargin.toFixed(2)), isPercentage: true }
+                    { label: t('reports.net_income'), value: s.netProfit },
+                    { label: t('reports.profit_margin'), value: Number(s.profitMargin.toFixed(2)), isPercentage: true }
                 ],
                 accentColor: colors.success || '#10b981'
             },
             {
-                title: 'Balance Sheet Highlights',
+                title: t('reports.balance_sheet_highlights'),
                 type: 'summary' as const,
                 data: [
-                    { label: 'Inventory Value', value: s.stockValue },
-                    { label: 'Accounts Receivable', value: s.totalReceivables }
+                    { label: t('reports.inventory_value'), value: s.stockValue },
+                    { label: t('reports.accounts_receivable'), value: s.totalReceivables }
                 ],
                 accentColor: colors.secondary || '#6366f1'
             }
@@ -93,25 +98,25 @@ export default function FinancialsReportScreen() {
     const exportData = React.useMemo(() => {
         if (!s) return [];
         return [
-            { Category: 'Operating Revenue', Amount: s.revenue },
-            { Category: 'Cost of Goods Sold (COGS)', Amount: -s.cogs },
-            { Category: 'Gross Profit', Amount: s.grossProfit },
+            { Category: t('reports.operating_revenue'), Amount: s.revenue },
+            { Category: t('reports.cogs'), Amount: -s.cogs },
+            { Category: t('reports.gross_profit'), Amount: s.grossProfit },
             ...(data?.expenses?.byCategory?.map((c: any) => ({
-                Category: `Expense: ${c.category}`,
+                Category: `${t('common.expense')}: ${c.category}`,
                 Amount: -c.amount
             })) || []),
-            { Category: 'Total Expenses', Amount: -s.expenses },
-            { Category: 'Net Profit', Amount: s.netProfit },
-            { Category: 'Profit Margin (%)', Amount: s.profitMargin.toFixed(2) },
-            { Category: 'Inventory Value', Amount: s.stockValue },
-            { Category: 'Accounts Receivable', Amount: s.totalReceivables }
+            { Category: t('reports.total_operating_expenses'), Amount: -s.expenses },
+            { Category: t('reports.net_income'), Amount: s.netProfit },
+            { Category: t('reports.profit_margin') + ' (%)', Amount: s.profitMargin.toFixed(2) },
+            { Category: t('reports.inventory_value'), Amount: s.stockValue },
+            { Category: t('reports.accounts_receivable'), Amount: s.totalReceivables }
         ];
     }, [s, data?.expenses?.byCategory]);
 
     return (
         <ReportLayout
-            title="Profit & Loss"
-            subtitle="Income statement for selected period"
+            title={t('reports.profit_loss')}
+            subtitle={t('reports.statement_subtitle') || "Income statement for selected period"}
             onDateRangeChange={setRange}
             isLoading={isLoading}
             exportData={exportData}
@@ -120,28 +125,28 @@ export default function FinancialsReportScreen() {
         >
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
                 <View style={styles.plContainer}>
-                    <Text style={styles.plTitle}>Income Statement</Text>
+                    <Text style={styles.plTitle}>{t('reports.income_statement')}</Text>
                     <Text style={styles.plSubtitle}>{range.start.toLocaleDateString()} - {range.end.toLocaleDateString()}</Text>
 
                     <View style={styles.plSection}>
-                        {renderRow("Operating Revenue", s?.revenue || 0, true)}
-                        {renderRow("Sales Revenue", s?.revenue || 0)}
-                        {renderRow("Cost of Goods Sold (COGS)", -(s?.cogs || 0))}
-                        {renderRow("Gross Profit", s?.grossProfit || 0, false, true)}
+                        {renderRow(t('reports.operating_revenue'), s?.revenue || 0, true)}
+                        {renderRow(t('reports.sales_revenue'), s?.revenue || 0)}
+                        {renderRow(t('reports.cogs'), -(s?.cogs || 0))}
+                        {renderRow(t('reports.gross_profit'), s?.grossProfit || 0, false, true)}
                     </View>
 
                     <View style={styles.plSection}>
-                        {renderRow("Operating Expenses", -(s?.expenses || 0), true)}
+                        {renderRow(t('reports.operating_expenses'), -(s?.expenses || 0), true)}
                         {data?.expenses?.byCategory?.map((c: any) =>
                             renderRow(c.category, -c.amount)
                         )}
-                        {renderRow("Total Operating Expenses", -(s?.expenses || 0), false, true)}
+                        {renderRow(t('reports.total_operating_expenses'), -(s?.expenses || 0), false, true)}
                     </View>
 
                     <View style={styles.finalSection}>
-                        {renderRow("Net Income / Profit", s?.netProfit || 0, false, false, true)}
+                        {renderRow(t('reports.net_income'), s?.netProfit || 0, false, false, true)}
                         <View style={styles.marginInfo}>
-                            <Text style={styles.marginLabel}>Profit Margin:</Text>
+                            <Text style={styles.marginLabel}>{t('reports.profit_margin')}:</Text>
                             <Text style={styles.marginValue}>{(s?.profitMargin || 0).toFixed(2)}%</Text>
                         </View>
                     </View>
@@ -149,14 +154,14 @@ export default function FinancialsReportScreen() {
 
                 {/* Assets Summary */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Balance Sheet Highlights (Current Assets)</Text>
+                    <Text style={styles.sectionTitle}>{t('reports.balance_sheet_highlights')} {t('reports.current_assets')}</Text>
                     <View style={styles.miniGrid}>
                         <View style={styles.miniItem}>
-                            <Text style={styles.miniLabel}>Inventory Value</Text>
+                            <Text style={styles.miniLabel}>{t('reports.inventory_value')}</Text>
                             <Text style={styles.miniValue}>{fmt(s?.stockValue || 0)}</Text>
                         </View>
                         <View style={styles.miniItem}>
-                            <Text style={styles.miniLabel}>Accounts Receivable</Text>
+                            <Text style={styles.miniLabel}>{t('reports.accounts_receivable')}</Text>
                             <Text style={styles.miniValue}>{fmt(s?.totalReceivables || 0)}</Text>
                         </View>
                     </View>

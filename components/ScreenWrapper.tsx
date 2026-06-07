@@ -9,13 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * is statusBarHeight + ~56px (standard header). On iOS it uses the safe area top.
  * On Web nothing is added since web uses a sidebar, not a floating header.
  */
-export function ScreenWrapper({ children, style }: { children: React.ReactNode; style?: any }) {
+export function ScreenWrapper({ children, style, skipHeaderOffset }: { children: React.ReactNode; style?: any; skipHeaderOffset?: boolean }) {
     const insets = useSafeAreaInsets();
     const isWeb = Platform.OS === 'web';
 
     // The floating header = safe area top + header bar (~56dp on Android, ~44dp on iOS)
     const HEADER_BAR_HEIGHT = Platform.OS === 'ios' ? 44 : 56;
-    const topPadding = isWeb ? 0 : (insets.top + HEADER_BAR_HEIGHT);
+    const topPadding = isWeb ? 0 : (skipHeaderOffset ? 0 : (insets.top + HEADER_BAR_HEIGHT));
     const bottomPadding = isWeb ? 0 : 90;
 
     return (

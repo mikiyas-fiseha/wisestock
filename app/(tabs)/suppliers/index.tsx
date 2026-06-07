@@ -4,14 +4,17 @@ import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
 import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import { formatCurrency } from '@/lib/formatters';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SuppliersScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { suppliers, isLoading, error, isDeleting } = useSuppliers();
@@ -41,13 +44,13 @@ export default function SuppliersScreen() {
             <ResponsiveContainer>
                 {/* Header Section */}
                 <View style={[styles.header, { paddingTop: headerTopPadding }]}>
-                    <Text style={styles.title}>Suppliers</Text>
+                    <Text style={styles.title}>{t('suppliers.supplier_list')}</Text>
                     <TouchableOpacity
                         style={styles.addButton}
                         onPress={() => router.push('/(tabs)/suppliers/add')}
                     >
                         <FontAwesome name="plus" size={16} color="#fff" />
-                        <Text style={styles.addButtonText}>Add Supplier</Text>
+                        <Text style={styles.addButtonText}>{t('suppliers.add_supplier')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -56,7 +59,7 @@ export default function SuppliersScreen() {
                     <FontAwesome name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search by name or contact..."
+                        placeholder={t('suppliers.search_placeholder')}
                         placeholderTextColor={colors.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -73,8 +76,8 @@ export default function SuppliersScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <FontAwesome name="truck" size={60} color={colors.textSecondary} />
-                            <Text style={styles.emptyText}>No suppliers found</Text>
-                            <Text style={styles.emptySubText}>Add your first supplier to start tracking purchases.</Text>
+                            <Text style={styles.emptyText}>{t('suppliers.no_suppliers')}</Text>
+                            <Text style={styles.emptySubText}>{t('suppliers.empty_subtitle')}</Text>
                         </View>
                     }
                     renderItem={({ item }) => (
@@ -92,7 +95,7 @@ export default function SuppliersScreen() {
                                         styles.balanceText,
                                         { color: (item.current_balance || 0) > 0 ? colors.danger : colors.success }
                                     ]}>
-                                        {(item.current_balance || 0) > 0 ? `Owe: $${item.current_balance?.toFixed(2)}` : 'Paid'}
+                                        {(item.current_balance || 0) > 0 ? `${t('suppliers.owe')}: ${formatCurrency(item.current_balance)}` : t('suppliers.paid')}
                                     </Text>
                                 </View>
                             </View>
@@ -100,13 +103,13 @@ export default function SuppliersScreen() {
                             <View style={styles.cardDetails}>
                                 {item.contact_person && (
                                     <View style={styles.detailRow}>
-                                        <FontAwesome name="user" size={14} color="#666" style={styles.detailIcon} />
+                                        <FontAwesome name="user" size={14} color={colors.textSecondary} style={styles.detailIcon} />
                                         <Text style={styles.detailText}>{item.contact_person}</Text>
                                     </View>
                                 )}
                                 {item.phone && (
                                     <View style={styles.detailRow}>
-                                        <FontAwesome name="phone" size={14} color="#666" style={styles.detailIcon} />
+                                        <FontAwesome name="phone" size={14} color={colors.textSecondary} style={styles.detailIcon} />
                                         <Text style={styles.detailText}>{item.phone}</Text>
                                     </View>
                                 )}
@@ -134,14 +137,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
         backgroundColor: 'transparent',
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '700',
         color: colors.text,
+        letterSpacing: -0.3,
     },
     addButton: {
         flexDirection: 'row',
@@ -234,7 +238,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     emptySubText: {
         fontSize: 14,
-        color: '#999',
+        color: colors.textSecondary,
         marginTop: 8,
     }
 });

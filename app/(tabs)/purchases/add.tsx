@@ -1,3 +1,4 @@
+import { QuickAddSupplierModal } from '@/components/suppliers/QuickAddSupplierModal';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppSelect } from '@/components/ui/AppSelect';
 import { AppTextInput } from '@/components/ui/AppTextInput';
@@ -8,12 +9,14 @@ import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { formatCurrency } from '@/lib/formatters';
 import { pickImage } from '@/lib/imagePicker';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     FlatList,
     Modal,
@@ -24,10 +27,8 @@ import {
     Text,
     TouchableOpacity,
     useWindowDimensions,
-    View,
-    ActivityIndicator
+    View
 } from 'react-native';
-import { QuickAddSupplierModal } from '@/components/suppliers/QuickAddSupplierModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PurchaseLineItem {
@@ -35,11 +36,16 @@ interface PurchaseLineItem {
     product_name: string;
     quantity: string;
     unit_cost: string;
+    variant_id?: string | null;
+    variant_name?: string | null;
+    variants?: { id: string; sku: string; price_override: number; stock: number; attributes?: Record<string, string> }[];
 }
 
 export default function AddPurchaseScreen() {
     const { colors, theme } = useTheme();
     const insets = useSafeAreaInsets();
+    const isWeb = Platform.OS === 'web';
+    const isMobile = Platform.OS !== 'web';
     const styles = React.useMemo(() => createStyles(colors, insets, theme), [colors, insets, theme]);
     const router = useRouter();
     const { company, allBranches } = useAuth();
@@ -47,7 +53,7 @@ export default function AddPurchaseScreen() {
     const { suppliers } = useSuppliers();
     const { createPurchase, isCreating } = usePurchases();
     const { width } = useWindowDimensions();
-    const isWeb = Platform.OS === 'web' && width >= 768;
+    const { t, i18n } = useTranslation();
 
     // Form State
     const [branchId, setBranchId] = useState('');
@@ -99,19 +105,18 @@ export default function AddPurchaseScreen() {
     const searchProducts = async (query: string) => {
         setProductSearch(query);
         if (!company?.id) return;
-        
+
         setSearchLoading(true);
         try {
             let queryBuilder = supabase
                 .from('products')
-                .select('id, name, primary_sku, cost_price, unit')
+                .select('id, name, primary_sku, cost_price, unit, product_variants(id, sku, price_override, stock, attributes)')
                 .eq('company_id', company.id)
                 .limit(20);
 
             if (query.trim()) {
                 queryBuilder = queryBuilder.ilike('name', `%${query}%`);
             } else {
-                // If no query, just show the most recent products
                 queryBuilder = queryBuilder.order('created_at', { ascending: false }).limit(10);
             }
 
@@ -124,17 +129,21 @@ export default function AddPurchaseScreen() {
     };
 
     const addLineItem = (product: any) => {
-        // Don't add duplicates
-        if (lineItems.find(li => li.product_id === product.id)) {
-            showFeedback('warning', 'Already Added', 'This product is already in the list');
+        // Prevent duplicate base products (but allow same product with different variants)
+        if (lineItems.find(li => li.product_id === product.id && !li.variant_id)) {
+            showFeedback('warning', t('common.warning'), t('purchases.already_added'));
             setShowProductModal(false);
             return;
         }
+        const variants = product.product_variants || [];
         setLineItems(prev => [...prev, {
             product_id: product.id,
             product_name: product.name,
             quantity: '1',
             unit_cost: (product.cost_price || 0).toString(),
+            variant_id: variants.length > 0 ? variants[0].id : null,
+            variant_name: variants.length > 0 ? `${product.name} — ${variants[0].sku}` : null,
+            variants: variants,
         }]);
         setShowProductModal(false);
         setProductSearch('');
@@ -154,19 +163,19 @@ export default function AddPurchaseScreen() {
     const handleSubmit = async () => {
         if (isCreating || isUploading) return;
 
-        if (!branchId) { showFeedback('error', 'Error', 'Please select a branch'); return; }
-        if (!supplierId) { showFeedback('error', 'Error', 'Please select a supplier'); return; }
-        if (lineItems.length === 0) { showFeedback('error', 'Error', 'Please add at least one product'); return; }
+        if (!branchId) { showFeedback('error', t('common.error'), t('purchases.select_branch')); return; }
+        if (!supplierId) { showFeedback('error', t('common.error'), t('purchases.select_supplier')); return; }
+        if (lineItems.length === 0) { showFeedback('error', t('common.error'), t('purchases.add_at_least_one')); return; }
 
         const hasInvalidItems = lineItems.some(li => !parseFloat(li.quantity) || !parseFloat(li.unit_cost));
         if (hasInvalidItems) {
-            showFeedback('error', 'Error', 'All items must have quantity and cost');
+            showFeedback('error', t('common.error'), t('purchases.invalid_items'));
             return;
         }
 
         const parsedAmountPaid = parseFloat(amountPaid) || 0;
         if (parsedAmountPaid > totalAmount) {
-            showFeedback('error', 'Error', 'Amount paid cannot exceed total amount');
+            showFeedback('error', t('common.error'), t('purchases.amount_exceeds'));
             return;
         }
 
@@ -195,24 +204,27 @@ export default function AddPurchaseScreen() {
                 notes: notes || '',
                 items: lineItems.map(li => ({
                     product_id: li.product_id,
+                    variant_id: li.variant_id || null,
                     quantity: parseFloat(li.quantity),
                     unit_cost: parseFloat(li.unit_cost),
                 })),
                 receipt_url: receiptUrl
             });
 
-            showFeedback('success', 'Success', 'Purchase recorded successfully');
+            showFeedback('success', t('common.success'), t('purchases.purchase_success'));
             setIsUploading(false);
             router.back();
         } catch (err: any) {
             setIsUploading(false);
-            showFeedback('error', 'Error', err.message || 'Failed to create purchase');
+            showFeedback('error', t('common.error'), err.message || t('purchases.purchase_error'));
         }
     };
 
     const calculatedAmountPaid = parseFloat(amountPaid) || 0;
     const remainingAmount = Math.max(0, totalAmount - calculatedAmountPaid);
-    const paymentStatus = calculatedAmountPaid >= totalAmount ? 'Full' : 'Credit';
+    const paymentStatus = calculatedAmountPaid >= totalAmount ? t('purchases.paid') : t('purchases.partial');
+
+
 
     return (
         <View style={styles.container}>
@@ -228,38 +240,43 @@ export default function AddPurchaseScreen() {
                     <Pressable onPress={() => router.back()} style={styles.backBtn}>
                         <FontAwesome name="arrow-left" size={18} color={theme === 'dark' ? '#fff' : '#1E293B'} />
                     </Pressable>
-                    <Text style={styles.headerTitle}>New Purchase</Text>
+                    <Text style={styles.headerTitle}>{t('purchases.new_purchase')}</Text>
                 </View>
             </View>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, isWeb && styles.contentWeb]} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
                 {/* Branch & Supplier */}
                 <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Purchase Details</Text>
+                    <Text style={styles.sectionTitle}>{t('purchases.purchase_details')}</Text>
 
                     <AppSelect
-                        label="Branch *"
+                        label={`${t('inventory.branch')} *`}
                         options={allBranches?.filter((b: any) => b.status === 'active').map((b: any) => ({
                             label: b.name,
                             value: b.id
                         })) || []}
                         selectedValue={branchId}
                         onValueChange={setBranchId}
-                        placeholder="Select Branch..."
+                        placeholder={t('common.select_branch')}
                         containerStyle={{ zIndex: 100 }}
                     />
 
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginBottom: 16, zIndex: 90 }}>
                         <View style={{ flex: 1, marginBottom: 0 }}>
                             <AppSelect
-                                label="Supplier *"
+                                label={`${t('purchases.supplier')} *`}
                                 options={suppliers?.map((s: any) => ({
                                     label: s.name,
                                     value: s.id
                                 })) || []}
                                 selectedValue={supplierId}
                                 onValueChange={setSupplierId}
-                                placeholder="Select Supplier..."
+                                placeholder={t('common.select_supplier')}
                                 containerStyle={{ marginBottom: 0 }}
                             />
                         </View>
@@ -271,21 +288,21 @@ export default function AddPurchaseScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.row}>
-                        <View style={styles.half}>
+                    <View style={[styles.row, { flexWrap: 'wrap' }]}>
+                        <View style={[styles.half, isMobile && { minWidth: '100%' }]}>
                             <AppTextInput
-                                label="Purchase Date"
+                                label={t('purchases.purchase_date')}
                                 value={purchaseDate}
                                 onChangeText={setPurchaseDate}
                                 placeholder="YYYY-MM-DD"
                             />
                         </View>
-                        <View style={styles.half}>
+                        <View style={[styles.half, isMobile && { minWidth: '100%' }]}>
                             <AppTextInput
-                                label="Invoice Number"
+                                label={t('purchases.invoice_number')}
                                 value={invoiceNumber}
                                 onChangeText={setInvoiceNumber}
-                                placeholder="Auto-generated if empty"
+                                placeholder={t('purchases.invoice_placeholder')}
                             />
                         </View>
                     </View>
@@ -294,9 +311,9 @@ export default function AddPurchaseScreen() {
                 {/* Products */}
                 <View style={styles.card}>
                     <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionTitle}>Products</Text>
+                        <Text style={styles.sectionTitle}>{t('inventory.products')}</Text>
                         <AppButton
-                            title="+ Add Product"
+                            title={`+ ${t('purchases.add_product')}`}
                             onPress={() => {
                                 setShowProductModal(true);
                                 searchProducts(''); // Load initial products
@@ -309,21 +326,58 @@ export default function AddPurchaseScreen() {
                     {lineItems.length === 0 ? (
                         <View style={styles.emptyItems}>
                             <FontAwesome name="cube" size={24} color={colors.textSecondary} />
-                            <Text style={styles.emptyItemsText}>No products added yet</Text>
+                            <Text style={styles.emptyItemsText}>{t('purchases.no_products')}</Text>
                         </View>
                     ) : (
                         lineItems.map((item, index) => (
-                            <View key={item.product_id} style={styles.lineItem}>
+                            <View key={`${item.product_id}-${index}`} style={styles.lineItem}>
                                 <View style={styles.lineItemHeader}>
-                                    <Text style={styles.lineItemName} numberOfLines={1}>{item.product_name}</Text>
+                                    <Text style={styles.lineItemName} numberOfLines={1}>
+                                        {item.variant_id && item.variants && item.variants.length > 0
+                                            ? `${item.product_name} — ${item.variants.find(v => v.id === item.variant_id)?.sku || ''}`
+                                            : item.product_name}
+                                    </Text>
                                     <Pressable onPress={() => removeLineItem(index)} hitSlop={8}>
                                         <FontAwesome name="times-circle" size={18} color="#EF4444" />
                                     </Pressable>
                                 </View>
+
+                                {/* Variant Picker — shown only if product has variants */}
+                                {item.variants && item.variants.length > 0 && (
+                                    <View style={{ marginBottom: 10 }}>
+                                        <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase' }}>Variant</Text>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                            {item.variants.map(v => (
+                                                <TouchableOpacity
+                                                    key={v.id}
+                                                    onPress={() => setLineItems(prev => prev.map((li, i) =>
+                                                        i === index ? { ...li, variant_id: v.id, unit_cost: v.price_override > 0 ? v.price_override.toString() : li.unit_cost } : li
+                                                    ))}
+                                                    style={{
+                                                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+                                                        borderWidth: 1.5,
+                                                        borderColor: item.variant_id === v.id ? colors.primary : colors.border,
+                                                        backgroundColor: item.variant_id === v.id ? colors.primary + '20' : 'transparent',
+                                                    }}
+                                                >
+                                                    <Text style={{ fontSize: 12, fontWeight: '700', color: item.variant_id === v.id ? colors.primary : colors.textSecondary }}>
+                                                        {v.sku}
+                                                    </Text>
+                                                    {Object.entries(v.attributes || {}).length > 0 && (
+                                                        <Text style={{ fontSize: 10, color: item.variant_id === v.id ? colors.primary : colors.textSecondary, marginTop: 2 }}>
+                                                            {Object.entries(v.attributes || {}).map(([k, val]) => `${val}`).join(' · ')}
+                                                        </Text>
+                                                    )}
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+
                                 <View style={styles.lineItemFields}>
                                     <View style={{ flex: 1 }}>
                                         <AppTextInput
-                                            label="Qty"
+                                            label={t('inventory.qty')}
                                             value={item.quantity}
                                             onChangeText={(v) => updateLineItem(index, 'quantity', v)}
                                             keyboardType="numeric"
@@ -332,18 +386,19 @@ export default function AddPurchaseScreen() {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <AppTextInput
-                                            label="Unit Cost"
+                                            label={t('purchases.unit_cost')}
                                             value={item.unit_cost}
                                             onChangeText={(v) => updateLineItem(index, 'unit_cost', v)}
                                             keyboardType="numeric"
-                                            prefix="$"
+                                            prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
+                                            suffix={i18n.language === 'am' ? 'ብር' : undefined}
                                             containerStyle={{ marginBottom: 0 }}
                                         />
                                     </View>
                                     <View style={styles.lineTotal}>
-                                        <Text style={styles.lineTotalLabel}>Total</Text>
+                                        <Text style={styles.lineTotalLabel}>{t('common.total')}</Text>
                                         <Text style={styles.lineTotalValue}>
-                                            ${((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)).toFixed(2)}
+                                            {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0))}
                                         </Text>
                                     </View>
                                 </View>
@@ -354,23 +409,23 @@ export default function AddPurchaseScreen() {
                     {/* Grand Total */}
                     {lineItems.length > 0 && (
                         <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Total Amount</Text>
-                            <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+                            <Text style={styles.totalLabel}>{t('purchases.total_amount')}</Text>
+                            <Text style={styles.totalValue}>{formatCurrency(totalAmount)}</Text>
                         </View>
                     )}
                 </View>
 
                 {/* Payment */}
                 <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Payment</Text>
+                    <Text style={styles.sectionTitle}>{t('purchases.payment')}</Text>
                     <View style={[styles.row, { zIndex: 10 }]}>
                         <View style={[styles.half, { zIndex: 10 }]}>
                             <AppSelect
-                                label="Payment Method"
+                                label={t('purchases.payment_method')}
                                 options={[
-                                    { label: 'Cash', value: 'cash' },
-                                    { label: 'Bank Transfer', value: 'bank' },
-                                    { label: 'Credit', value: 'credit' }
+                                    { label: t('common.cash'), value: 'cash' },
+                                    { label: t('common.bank'), value: 'bank' },
+                                    { label: t('common.credit'), value: 'credit' }
                                 ]}
                                 selectedValue={paymentMethod}
                                 onValueChange={setPaymentMethod}
@@ -378,7 +433,7 @@ export default function AddPurchaseScreen() {
                         </View>
                         <View style={styles.half}>
                             <AppTextInput
-                                label="Amount Paid"
+                                label={t('purchases.amount_paid')}
                                 value={amountPaid}
                                 onChangeText={(text) => {
                                     if (text === '') {
@@ -393,25 +448,26 @@ export default function AddPurchaseScreen() {
                                     }
                                 }}
                                 keyboardType="numeric"
-                                prefix="$"
+                                prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
+                                suffix={i18n.language === 'am' ? 'ብር' : undefined}
                                 editable={paymentMethod !== 'credit'}
                             />
                         </View>
                     </View>
                     <View style={[styles.row, { marginTop: 16, marginBottom: 16 }]}>
                         <View style={styles.half}>
-                            <Text style={styles.label}>Payment Status</Text>
-                            <View style={[styles.pickerWrapper, { backgroundColor: paymentStatus === 'Full' ? `${colors.success}15` : `${colors.warning}15`, paddingHorizontal: 16 }]}>
-                                <Text style={{ color: paymentStatus === 'Full' ? colors.success : colors.warning, fontWeight: '700' }}>
+                            <Text style={styles.label}>{t('purchases.payment_status')}</Text>
+                            <View style={[styles.pickerWrapper, { backgroundColor: paymentStatus === t('purchases.paid') ? `${colors.success}15` : `${colors.warning}15`, paddingHorizontal: 16 }]}>
+                                <Text style={{ color: paymentStatus === t('purchases.paid') ? colors.success : colors.warning, fontWeight: '700' }}>
                                     {paymentStatus}
                                 </Text>
                             </View>
                         </View>
                         <View style={styles.half}>
-                            <Text style={styles.label}>Remaining Balance</Text>
+                            <Text style={styles.label}>{t('purchases.remaining_balance')}</Text>
                             <View style={[styles.pickerWrapper, { paddingHorizontal: 16 }]}>
                                 <Text style={{ color: colors.text, fontWeight: '700' }}>
-                                    ${remainingAmount.toFixed(2)}
+                                    {formatCurrency(remainingAmount)}
                                 </Text>
                             </View>
                         </View>
@@ -427,7 +483,7 @@ export default function AddPurchaseScreen() {
                         }}
                     >
                         <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
-                        <Text style={{ color: colors.text, flex: 1 }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                        <Text style={{ color: colors.text, flex: 1 }}>{receiptUri ? t('purchases.receipt_attached') : t('purchases.attach_receipt')}</Text>
                         {receiptUri && (
                             <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
                                 <FontAwesome name="times-circle" size={18} color={colors.danger} />
@@ -436,12 +492,12 @@ export default function AddPurchaseScreen() {
                     </TouchableOpacity>
 
                     <AppTextInput
-                        label="Notes"
+                        label={t('common.notes')}
                         value={notes}
                         onChangeText={setNotes}
                         multiline
                         numberOfLines={2}
-                        placeholder="Optional notes about this purchase"
+                        placeholder={t('purchases.notes_placeholder')}
                         style={{ height: 60 }}
                     />
                 </View>
@@ -452,13 +508,13 @@ export default function AddPurchaseScreen() {
             {/* Sticky Footer */}
             <View style={styles.footer}>
                 <View style={styles.footerTotal}>
-                    <Text style={styles.footerTotalLabel}>Total</Text>
-                    <Text style={styles.footerTotalValue}>${totalAmount.toFixed(2)}</Text>
+                    <Text style={styles.footerTotalLabel}>{t('common.total')}</Text>
+                    <Text style={styles.footerTotalValue}>{formatCurrency(totalAmount)}</Text>
                 </View>
                 <AppButton
-                    title="Confirm Purchase"
+                    title={t('purchases.confirm_purchase')}
                     onPress={handleSubmit}
-                    loading={isCreating}
+                    loading={isCreating || isUploading}
                     style={{ flex: 1 }}
                 />
             </View>
@@ -474,14 +530,14 @@ export default function AddPurchaseScreen() {
                             end={{ x: 1, y: 1 }}
                         />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Product</Text>
+                            <Text style={styles.modalTitle}>{t('purchases.add_product')}</Text>
                             <Pressable onPress={() => { setShowProductModal(false); setProductSearch(''); setProductResults([]); }}>
                                 <FontAwesome name="times" size={20} color={colors.textSecondary} />
                             </Pressable>
                         </View>
 
                         <AppTextInput
-                            placeholder="Search products..."
+                            placeholder={t('inventory.search_products')}
                             value={productSearch}
                             onChangeText={searchProducts}
                             autoFocus
@@ -501,14 +557,14 @@ export default function AddPurchaseScreen() {
                                         <Text style={styles.productResultName}>{item.name}</Text>
                                         <Text style={styles.productResultSku}>{item.primary_sku} · {item.unit}</Text>
                                     </View>
-                                    <Text style={styles.productResultCost}>${(item.cost_price || 0).toFixed(2)}</Text>
+                                    <Text style={styles.productResultCost}>{formatCurrency(item.cost_price || 0)}</Text>
                                 </TouchableOpacity>
                             )}
                             ListEmptyComponent={
                                 searchLoading ? (
-                                    <Text style={styles.noResults}>Searching...</Text>
+                                    <Text style={styles.noResults}>{t('common.loading')}</Text>
                                 ) : (
-                                    <Text style={styles.noResults}>No products found</Text>
+                                    <Text style={styles.noResults}>{t('purchases.no_products')}</Text>
                                 )
                             }
                         />
@@ -537,12 +593,12 @@ const createStyles = (colors: any, insets: any, theme: string) => StyleSheet.cre
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
-        paddingTop: 16,
+        paddingTop: 8,
         backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.02)',
         borderBottomWidth: 1,
         borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
     },
-    headerWeb: { paddingTop: 20 },
+    headerWeb: { paddingTop: 12 },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     backBtn: { padding: 8 },
     headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text },

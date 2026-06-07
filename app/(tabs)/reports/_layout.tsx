@@ -9,6 +9,9 @@ export default function ReportsLayout() {
             <Stack.Screen name="expenses" />
             <Stack.Screen name="financials" />
             <Stack.Screen name="customers" />
+            <Stack.Screen name="purchases" />
+            <Stack.Screen name="returns" />
+            <Stack.Screen name="branches" />
             <Stack.Screen name="debts" />
             <Stack.Screen name="payables" />
         </Stack>

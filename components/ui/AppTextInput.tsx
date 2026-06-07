@@ -8,11 +8,12 @@ interface AppTextInputProps extends TextInputProps {
     label?: string;
     error?: string;
     prefix?: string;
+    suffix?: string;
     icon?: keyof typeof FontAwesome.glyphMap;
     containerStyle?: any;
 }
 
-export function AppTextInput({ label, error, style, prefix, icon, containerStyle, ...props }: AppTextInputProps) {
+export function AppTextInput({ label, error, style, prefix, suffix, icon, containerStyle, ...props }: AppTextInputProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const isMultiline = props.multiline;
@@ -35,6 +36,7 @@ export function AppTextInput({ label, error, style, prefix, icon, containerStyle
                     textAlignVertical={isMultiline ? 'top' : 'center'}
                     {...props}
                 />
+                {suffix && <Text style={[styles.suffix, isMultiline && { marginTop: 4 }]}>{suffix}</Text>}
             </View>
             {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
@@ -76,7 +78,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     prefix: {
         fontSize: 16,
         color: colors.textSecondary,
-        marginRight: 4,
+        marginLeft: 12,
+        marginRight: -4,
+    },
+    suffix: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        marginRight: 12,
+        marginLeft: -4,
     },
     inputError: {
         borderColor: colors.danger,

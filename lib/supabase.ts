@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, processLock } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 
 const supabaseUrl = 'https://brovmhwffsjfwvfzfgjg.supabase.co';
@@ -27,11 +27,19 @@ const ExpoStorage = {
     },
 };
 
+const isBrowser = typeof window !== 'undefined';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         storage: ExpoStorage,
-        autoRefreshToken: true,
-        persistSession: true,
+        // Disable session persistence and token refresh during SSR (static build).
+        // In Node.js there is no real session, so these only produce lock-timeout
+        // warnings in the build log. They are fully enabled in the browser.
+        autoRefreshToken: isBrowser,
+        persistSession: isBrowser,
         detectSessionInUrl: false,
+        // Use processLock (pure Promise chains) instead of navigatorLock
+        // (Web Locks API + AbortController) — safe in browser, SSR, and React Native.
+        lock: processLock,
     },
 });

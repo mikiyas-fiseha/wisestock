@@ -4,21 +4,28 @@ import { Platform } from 'react-native';
 export const uploadImageToCloudinary = async (uri: string): Promise<string> => {
     try {
         // Compress and resize image
-        const manipResult = await ImageManipulator.manipulateAsync(
-            uri,
-            [{ resize: { width: 1000 } }], // Resize width to max 1000px, keeping aspect ratio
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
+        let finalUri = uri;
+        try {
+            const manipResult = await ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 1000 } }], // Resize width to max 1000px, keeping aspect ratio
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            finalUri = manipResult.uri;
+        } catch (manipError) {
+            console.warn('Image manipulation failed, falling back to original image:', manipError);
+            // If manipulation fails, we just use the original URI
+        }
 
         const data = new FormData();
         
         if (Platform.OS === 'web') {
-            const res = await fetch(manipResult.uri);
+            const res = await fetch(finalUri);
             const blob = await res.blob();
             data.append('file', blob, 'receipt.jpg');
         } else {
             data.append('file', {
-                uri: manipResult.uri,
+                uri: finalUri,
                 type: 'image/jpeg',
                 name: 'receipt.jpg',
             } as any);

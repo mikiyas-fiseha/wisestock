@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -132,18 +133,31 @@ export interface CreatePurchaseReturnInput {
 /** Create a sale (customer) return — calls process_return RPC */
 export function useCreateSaleReturn() {
     const queryClient = useQueryClient();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async (input: CreateSaleReturnInput) => {
             const { data, error } = await supabase.rpc('process_return', {
-                p_sale_id:       input.saleId,
-                p_items:         input.items,
+                p_sale_id: input.saleId,
+                p_items: input.items,
                 p_refund_method: input.refundMethod,
                 p_refund_amount: input.refundAmount,
-                p_reason:        input.reason ?? null,
-                p_notes:         input.notes ?? null,
-                p_branch_id:     input.branchId ?? null,
+                p_reason: input.reason ?? null,
+                p_notes: input.notes ?? null,
+                p_branch_id: input.branchId ?? null,
             });
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company?.id || 'unknown',
+                action: 'created_return',
+                entityType: 'return',
+                entityId: data,
+                entityLabel: `Return for Sale`,
+                details: { amount: input.refundAmount, method: input.refundMethod }
+            });
+
             return data;
         },
         onSuccess: (_data, variables) => {
@@ -162,18 +176,31 @@ export function useCreateSaleReturn() {
 /** Create a purchase (supplier) return — calls process_purchase_return RPC */
 export function useCreatePurchaseReturn() {
     const queryClient = useQueryClient();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async (input: CreatePurchaseReturnInput) => {
             const { data, error } = await supabase.rpc('process_purchase_return', {
-                p_purchase_id:   input.purchaseId,
-                p_items:         input.items,
+                p_purchase_id: input.purchaseId,
+                p_items: input.items,
                 p_refund_method: input.refundMethod,
                 p_refund_amount: input.refundAmount,
-                p_reason:        input.reason ?? null,
-                p_notes:         input.notes ?? null,
-                p_branch_id:     input.branchId ?? null,
+                p_reason: input.reason ?? null,
+                p_notes: input.notes ?? null,
+                p_branch_id: input.branchId ?? null,
             });
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company?.id || 'unknown',
+                action: 'created_return',
+                entityType: 'return',
+                entityId: data,
+                entityLabel: `Return for Purchase`,
+                details: { amount: input.refundAmount, method: input.refundMethod }
+            });
+
             return data;
         },
         onSuccess: (_data, variables) => {

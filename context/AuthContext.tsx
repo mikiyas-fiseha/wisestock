@@ -2,7 +2,6 @@
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session } from '@supabase/supabase-js';
-import { useRouter, useSegments } from 'expo-router';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react';
 
 // Re-exporting types for app compatibility
@@ -25,10 +24,12 @@ export interface Company {
     tin?: string;
     vatNo?: string;
     vatRegDate?: string;
+    woreda?: string;
     address?: string;
     city?: string;
     subCity?: string;
-    woreda?: string;
+    defaultTaxRate?: number;
+    currency?: string;
 }
 
 export interface Branch {
@@ -39,6 +40,8 @@ export interface Branch {
     phone?: string;
     status?: string;
 }
+
+export type SubStatus = 'active' | 'on_trial' | 'expired' | 'pending_approval' | 'pending_payment' | 'cancelled' | null;
 
 interface AuthContextType {
     session: Session | null;
@@ -60,6 +63,13 @@ interface AuthContextType {
     isManager: boolean;
     isSales: boolean;
     isSuperAdmin: boolean;
+    refreshProfile: () => Promise<void>;
+    // Subscription — pre-fetched alongside profile to avoid SubscriptionGuard flash
+    subStatus: SubStatus;
+    subLoading: boolean;
+    subReceiptUrl: string | null;
+    subAmount: number | null;
+    recheckSubscription: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,8 +83,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const [branch, setBranchState] = useState<Branch | null>(null);
     const [allBranches, setAllBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const router = useRouter();
-    const segments = useSegments();
+    // Subscription state — cached here so SubscriptionGuard has it instantly
+    const [subStatus, setSubStatus] = useState<SubStatus>(null);
+    const [subLoading, setSubLoading] = useState(true);
+    const [subReceiptUrl, setSubReceiptUrl] = useState<string | null>(null);
+    const [subAmount, setSubAmount] = useState<number | null>(null);
 
     // Computed
     const isAdmin = user?.role === 'Admin';
@@ -102,48 +115,100 @@ export function AuthProvider({ children }: PropsWithChildren) {
         switchBranch(b);
     }, [switchBranch]);
 
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session) fetchProfile(session.user.id);
-            else setIsLoading(false);
-        }).catch(err => {
-            console.error("Auth initialization error:", err);
-            setIsLoading(false);
-        });
+    // Use a ref to track the last fetched user ID to avoid redundant fetches
+    const lastFetchedUserId = React.useRef<string | null>(null);
+    const isFetchingProfile = React.useRef(false);
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    useEffect(() => {
+        // Initial session check + hanging prevention
+        let mounted = true;
+        
+        // Safety timeout: If auth takes more than 10 seconds, force hide splash
+        // This ensures the app doesn't stay stuck on the logo if the network is broken
+        // or a Supabase promise hangs indefinitely.
+        const safetyTimeout = setTimeout(() => {
+            if (mounted && (isLoading || subLoading)) {
+                console.warn('Auth initialization timed out, forcing loading to false');
+                setIsLoading(false);
+                setSubLoading(false);
+            }
+        }, 10000);
+
+        const initAuth = async () => {
+            try {
+                // Explicitly get session first to avoid waiting for event listener
+                const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+                if (!mounted) return;
+
+                if (initialSession) {
+                    setSession(initialSession);
+                    if (initialSession.user.id) {
+                        if (lastFetchedUserId.current !== initialSession.user.id) {
+                            lastFetchedUserId.current = initialSession.user.id;
+                            await fetchProfile(initialSession.user.id);
+                        }
+                    } else {
+                        setIsLoading(false);
+                        setSubLoading(false);
+                    }
+                } else if (error) {
+                    console.error('Session get error:', error);
+                    setIsLoading(false);
+                    setSubLoading(false);
+                } else {
+                    // No session
+                    setIsLoading(false);
+                    setSubLoading(false);
+                }
+            } catch (e) {
+                console.error('Auth initialization error:', e);
+                if (mounted) {
+                    setIsLoading(false);
+                    setSubLoading(false);
+                }
+            }
+        };
+
+        initAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!mounted) return;
+            
             setSession(session);
-            if (session) fetchProfile(session.user.id);
-            else {
+
+            if (session?.user.id) {
+                if (lastFetchedUserId.current !== session.user.id) {
+                    lastFetchedUserId.current = session.user.id;
+                    await fetchProfile(session.user.id);
+                } else {
+                    // Already have this user's data, skip fetch but ensure loading is false
+                    // only if we are not currently fetching the profile in the background.
+                    if (!isFetchingProfile.current) {
+                        setIsLoading(false);
+                        setSubLoading(false);
+                    }
+                }
+            } else {
+                lastFetchedUserId.current = null;
                 setUser(null);
                 setCompany(null);
                 setBranchState(null);
                 setAllBranches([]);
+                setSubStatus(null);
+                setSubReceiptUrl(null);
+                setSubAmount(null);
+                setSubLoading(false);
                 setIsLoading(false);
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            clearTimeout(safetyTimeout);
+            subscription.unsubscribe();
+        };
     }, []);
 
-    // Navigation Protection
-    useEffect(() => {
-        if (isLoading) return;
-
-        const inTabsGroup = segments[0] === '(tabs)';
-        const inAuthRoute = segments[0] === 'login' || segments[0] === 'register';
-
-        if (!session && inTabsGroup) {
-            router.replace('/login');
-        } else if (session && (inAuthRoute || segments[0] === undefined)) {
-            if (isSuperAdmin) {
-                router.replace('/(super-admin)/superadminDasboarde');
-            } else {
-                router.replace('/(tabs)/dashboard');
-            }
-        }
-    }, [session, segments, isLoading]);
 
     const updateCompanyProfile = async (updates: Partial<Company>) => {
         if (!company?.id) return { error: { message: "No company found" } };
@@ -159,6 +224,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             if (updates.subCity !== undefined) dbUpdates.sub_city = updates.subCity;
             if (updates.woreda !== undefined) dbUpdates.woreda = updates.woreda;
             if (updates.address !== undefined) dbUpdates.address = updates.address;
+            if (updates.defaultTaxRate !== undefined) dbUpdates.default_tax_rate = updates.defaultTaxRate;
+            if (updates.currency !== undefined) dbUpdates.currency = updates.currency;
 
             const { error } = await supabase
                 .from('companies')
@@ -175,26 +242,71 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
     };
 
-    const fetchProfile = async (userId: string) => {
+    const fetchSubscription = async (companyId: string) => {
+        setSubLoading(true);
         try {
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select(`*, companies(*)`)
-                .eq('id', userId)
+            const { data, error } = await supabase
+                .from('subscriptions')
+                .select('status, end_date, receipt_url, plan_id, subscription_plans(price)')
+                .eq('company_id', companyId)
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .single();
 
-            const { data: superAdmin } = await supabase
-                .from('super_admins')
-                .select('id')
-                .eq('id', userId)
-                .single();
+            if (error) {
+                if (error.code === 'PGRST116') setSubStatus(null); // no subscription row
+                // else leave previous state — network error
+            } else {
+                const now = new Date();
+                const expiry = data.end_date ? new Date(data.end_date) : null;
+                const resolvedStatus: SubStatus = (expiry && expiry < now) ? 'expired' : (data.status as SubStatus);
+                setSubStatus(resolvedStatus);
+                setSubReceiptUrl(data.receipt_url || null);
+                if (data.subscription_plans) setSubAmount((data.subscription_plans as any).price);
+            }
+        } catch (e) {
+            // ignore — leave existing state
+        } finally {
+            setSubLoading(false);
+        }
+    };
 
-            if (error) throw error;
+    const recheckSubscription = async () => {
+        if (company?.id) await fetchSubscription(company.id);
+    };
+
+    const fetchProfile = async (userId: string) => {
+        isFetchingProfile.current = true;
+        try {
+            // Run ALL 3 queries in parallel — profile+company, super_admin check, AND branches
+            // This eliminates the sequential waterfall that was causing slow startup
+            const [profileRes, adminRes] = await Promise.all([
+                supabase.from('profiles').select(`*, companies(*)`).eq('id', userId).single(),
+                supabase.from('super_admins').select('id').eq('id', userId).single(),
+            ]);
+
+            const profile = profileRes.data;
+            const profileError = profileRes.error;
+            const superAdmin = adminRes.data;
+
+            if (profileError) throw profileError;
 
             if (profile && profile.companies) {
                 const userRole = profile.role;
                 const userIsSuperAdmin = !!superAdmin;
                 const userIsAdmin = userRole === 'Admin' || userIsSuperAdmin;
+
+                // Run branches fetch + AsyncStorage + subscription all in parallel
+                const [branchesRes, savedBranchId] = await Promise.all([
+                    supabase
+                        .from('branches')
+                        .select('*')
+                        .eq('company_id', profile.companies.id)
+                        .eq('status', 'active')
+                        .order('is_main', { ascending: false })
+                        .order('name'),
+                    AsyncStorage.getItem(BRANCH_STORAGE_KEY).catch(() => null),
+                ]);
 
                 setUser({
                     id: profile.id,
@@ -218,18 +330,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
                     subCity: profile.companies.sub_city,
                     woreda: profile.companies.woreda,
                     address: profile.companies.address,
+                    defaultTaxRate: profile.companies.default_tax_rate,
+                    currency: profile.companies.currency || '$',
                 });
 
-                // Fetch all branches for this company
-                const { data: branchesData } = await supabase
-                    .from('branches')
-                    .select('*')
-                    .eq('company_id', profile.companies.id)
-                    .eq('status', 'active')
-                    .order('is_main', { ascending: false })
-                    .order('name');
-
-                const mappedBranches: Branch[] = (branchesData || []).map((b: any) => ({
+                const mappedBranches: Branch[] = (branchesRes.data || []).map((b: any) => ({
                     id: b.id,
                     name: b.name,
                     isMain: b.is_main || false,
@@ -241,35 +346,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
                 setAllBranches(mappedBranches);
 
                 // Determine which branch to select
-                let savedBranchId: string | null = null;
-                try {
-                    savedBranchId = await AsyncStorage.getItem(BRANCH_STORAGE_KEY);
-                } catch (e) { /* ignore */ }
-
                 if (userIsAdmin && savedBranchId === 'all') {
-                    // Admin had "All Branches" selected
                     setBranchState(null);
                 } else if (savedBranchId && savedBranchId !== 'all') {
-                    // Previously selected branch
                     const savedBranch = mappedBranches.find(b => b.id === savedBranchId);
                     if (savedBranch) {
                         setBranchState(savedBranch);
                     } else {
-                        // Saved branch no longer valid, fall back
                         setBranchState(mappedBranches.find(b => b.id === profile.branch_id) || mappedBranches[0] || null);
                     }
                 } else if (profile.branch_id) {
-                    // User has assigned branch
                     const assignedBranch = mappedBranches.find(b => b.id === profile.branch_id);
                     setBranchState(assignedBranch || mappedBranches[0] || null);
                 } else {
-                    // Default to main branch or first branch
                     setBranchState(mappedBranches.find(b => b.isMain) || mappedBranches[0] || null);
                 }
+
+                // Fetch subscription — wait for it to complete so that both profile and subscription are fully loaded
+                await fetchSubscription(profile.companies.id);
+            } else {
+                // No company — subscription is not applicable
+                setSubLoading(false);
             }
         } catch (e) {
             console.error('Error fetching profile:', e);
+            setSubLoading(false);
         } finally {
+            isFetchingProfile.current = false;
             setIsLoading(false);
         }
     };
@@ -344,6 +447,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             login, logout, register, updateCompanyProfile,
             isLoading,
             isAdmin, isManager, isSales, isSuperAdmin,
+            refreshProfile: () => user?.id ? fetchProfile(user.id) : Promise.resolve(),
+            subStatus, subLoading, subReceiptUrl, subAmount, recheckSubscription,
         }}>
             {children}
         </AuthContext.Provider>

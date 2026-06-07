@@ -1,5 +1,6 @@
 import { Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
+import { formatCurrency } from '@/lib/formatters';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -45,7 +46,7 @@ export const CustomerListItem = ({ name, phone, balance, customerType, status, o
                     styles.balance,
                     balance > 0 ? { color: colors.danger } : { color: colors.success }
                 ]}>
-                    ${balance.toFixed(2)}
+                    {formatCurrency(balance)}
                 </Text>
                 <Text style={styles.caption}>Balance</Text>
             </View>

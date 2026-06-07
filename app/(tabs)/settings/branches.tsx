@@ -1,19 +1,22 @@
 
+import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Branch, useBranches } from '@/hooks/useBranches';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 export default function BranchesScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company, isAdmin } = useAuth();
     const { showFeedback } = useFeedback();
@@ -39,9 +42,9 @@ export default function BranchesScreen() {
             setName('');
             setAddress('');
             setPhone('');
-            showFeedback('success', 'Success', 'Branch created');
+            showFeedback('success', t('common.success'), t('settings.branch_created'));
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         }
     };
 
@@ -53,9 +56,9 @@ export default function BranchesScreen() {
             await updateBranch({ id: selectedBranch.id, name, address, phone });
             setEditModalVisible(false);
             setSelectedBranch(null);
-            showFeedback('success', 'Success', 'Branch updated');
+            showFeedback('success', t('common.success'), t('settings.branch_updated'));
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         }
     };
 
@@ -65,20 +68,20 @@ export default function BranchesScreen() {
 
         try {
             await updateBranch({ id: branch.id, status: newStatus } as any);
-            showFeedback('success', 'Status Updated', `${branch.name} is now ${newStatus}`);
+            showFeedback('success', t('common.status'), `${branch.name} ${t('common.is_now')} ${t('common.' + newStatus)}`);
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         }
     };
 
     const handleSetDefault = async (branch: Branch) => {
         Alert.alert(
-            'Set as Default',
-            `Set "${branch.name}" as the main branch? This will unset the current main branch.`,
+            t('settings.set_as_main'),
+            `${t('settings.set_as_main')} "${branch.name}"? ${t('settings.set_as_main_helper')}`,
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Confirm',
+                    text: t('common.confirm'),
                     onPress: async () => {
                         try {
                             // Unset current main
@@ -88,9 +91,9 @@ export default function BranchesScreen() {
                             }
                             // Set new main
                             await updateBranch({ id: branch.id, is_main: true } as any);
-                            showFeedback('success', 'Success', `${branch.name} is now the main branch`);
+                            showFeedback('success', t('common.success'), `${branch.name} ${t('common.is_now')} ${t('settings.main')}`);
                         } catch (e: any) {
-                            showFeedback('error', 'Error', e.message);
+                            showFeedback('error', t('common.error'), e.message);
                         }
                     },
                 },
@@ -100,19 +103,19 @@ export default function BranchesScreen() {
 
     const handleDelete = async (id: string, branchName: string) => {
         Alert.alert(
-            'Delete Branch',
-            `Are you sure you want to delete "${branchName}"? This cannot be undone.`,
+            t('settings.delete_branch'),
+            `${t('settings.delete_branch')} "${branchName}"? ${t('common.cannot_be_undone')}`,
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await deleteBranch(id);
-                            showFeedback('success', 'Success', 'Branch deleted');
+                            showFeedback('success', t('common.success'), t('settings.branch_deleted'));
                         } catch (e: any) {
-                            showFeedback('error', 'Error', e.message);
+                            showFeedback('error', t('common.error'), e.message);
                         }
                     }
                 }
@@ -147,17 +150,17 @@ export default function BranchesScreen() {
                             {item.is_main && (
                                 <View style={styles.mainBadge}>
                                     <FontAwesome name="star" size={10} color="#F59E0B" />
-                                    <Text style={styles.mainBadgeText}>Main</Text>
+                                    <Text style={styles.mainBadgeText}>{t('settings.main')}</Text>
                                 </View>
                             )}
                         </View>
-                        <Text style={styles.branchAddress}>{item.address || 'No address set'}</Text>
+                        <Text style={styles.branchAddress}>{item.address || t('settings.no_address')}</Text>
                         {item.phone && <Text style={styles.branchPhone}>{item.phone}</Text>}
                     </View>
 
                     {/* Status Toggle */}
                     <View style={styles.statusToggle}>
-                        <Text style={styles.statusLabel}>{isActive ? 'Active' : 'Inactive'}</Text>
+                        <Text style={styles.statusLabel}>{isActive ? t('common.active') : t('common.inactive')}</Text>
                         <Switch
                             value={isActive}
                             onValueChange={() => handleToggleStatus(item)}
@@ -172,18 +175,18 @@ export default function BranchesScreen() {
                 <View style={styles.branchActions}>
                     <Pressable style={styles.actionBtn} onPress={() => openEditModal(item)}>
                         <FontAwesome name="pencil" size={12} color="#64748B" />
-                        <Text style={styles.actionBtnText}>Edit</Text>
+                        <Text style={styles.actionBtnText}>{t('common.edit')}</Text>
                     </Pressable>
 
                     {!item.is_main && (
                         <>
                             <Pressable style={styles.actionBtn} onPress={() => handleSetDefault(item)}>
                                 <FontAwesome name="star-o" size={12} color="#F59E0B" />
-                                <Text style={styles.actionBtnText}>Set as Main</Text>
+                                <Text style={styles.actionBtnText}>{t('settings.set_as_main')}</Text>
                             </Pressable>
                             <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => handleDelete(item.id, item.name)}>
                                 <FontAwesome name="trash-o" size={12} color="#DC2626" />
-                                <Text style={styles.actionBtnTextDanger}>Delete</Text>
+                                <Text style={styles.actionBtnTextDanger}>{t('common.delete')}</Text>
                             </Pressable>
                         </>
                     )}
@@ -198,12 +201,12 @@ export default function BranchesScreen() {
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>{title}</Text>
 
-                    <AppTextInput label="Branch Name *" value={name} onChangeText={setName} />
-                    <AppTextInput label="Address" value={address} onChangeText={setAddress} />
-                    <AppTextInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+                    <AppTextInput label={t('settings.branch_name') + " *"} value={name} onChangeText={setName} />
+                    <AppTextInput label={t('customers.address_placeholder')} value={address} onChangeText={setAddress} />
+                    <AppTextInput label={t('common.phone_placeholder')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
                     <View style={styles.modalButtons}>
-                        <AppButton title="Cancel" variant="outline" onPress={onClose} style={{ flex: 1, marginRight: 8 }} />
+                        <AppButton title={t('common.cancel')} variant="outline" onPress={onClose} style={{ flex: 1, marginRight: 8 }} />
                         <AppButton title={submitLabel} loading={loading} onPress={onSubmit} style={{ flex: 1 }} />
                     </View>
                 </View>
@@ -213,14 +216,8 @@ export default function BranchesScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
-            {/* Header */}
-            <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerTitle}>Branches</Text>
-                    <Text style={styles.headerSubtitle}>{branches?.length || 0} locations</Text>
-                </View>
-            </View>
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <AppHeader title={t('settings.branches')} showBack={true} hideThemeToggle={true} />
 
             <FlatList
                 data={branches}
@@ -230,17 +227,17 @@ export default function BranchesScreen() {
                 ListEmptyComponent={
                     <View style={styles.empty}>
                         <FontAwesome name="building" size={36} color="#CBD5E1" />
-                        <Text style={styles.emptyText}>No branches yet</Text>
+                        <Text style={styles.emptyText}>{t('settings.no_branches')}</Text>
                     </View>
                 }
             />
 
             <View style={styles.fab}>
-                <AppButton title="+ Add Branch" onPress={openCreateModal} />
+                <AppButton title={"+ " + t('settings.add_branch')} onPress={openCreateModal} />
             </View>
 
-            {renderModal(createModalVisible, () => setCreateModalVisible(false), handleCreate, isCreating, "New Branch", "Create")}
-            {renderModal(editModalVisible, () => setEditModalVisible(false), handleUpdate, isUpdating, "Edit Branch", "Update")}
+            {renderModal(createModalVisible, () => setCreateModalVisible(false), handleCreate, isCreating, t('settings.new_branch'), t('common.add'))}
+            {renderModal(editModalVisible, () => setEditModalVisible(false), handleUpdate, isUpdating, t('settings.edit_branch'), t('common.edit'))}
         </View>
     );
 }
@@ -375,7 +372,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
 
     // FAB & Modal
-    fab: { padding: 16, borderTopWidth: 1, borderColor: colors.border + '20', backgroundColor: 'transparent' },
+    fab: { padding: 16, borderTopWidth: 1, borderColor: colors.border + '20', backgroundColor: colors.background },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
     modalContent: { backgroundColor: colors.card, borderRadius: 12, padding: 24, borderWidth: 1, borderColor: colors.border + '50' },
     modalTitle: { fontSize: 20, fontWeight: '600', marginBottom: 16, color: colors.text },

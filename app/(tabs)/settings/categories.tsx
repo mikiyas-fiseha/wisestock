@@ -1,16 +1,18 @@
 
+import { AppHeader } from '@/components/AppHeader';
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 interface Category {
     id: string;
@@ -25,6 +27,7 @@ interface Attribute {
 
 export default function CategoriesScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company } = useAuth();
     const { showFeedback } = useFeedback();
@@ -72,9 +75,9 @@ export default function CategoriesScreen() {
             if (error) throw error;
             setCreateModalVisible(false);
             fetchCategories();
-            showFeedback('success', 'Success', 'Category created');
+            showFeedback('success', t('common.success'), t('settings.saved'));
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         } finally {
             setCreating(false);
         }
@@ -124,10 +127,10 @@ export default function CategoriesScreen() {
                 if (error) throw error;
             }
 
-            showFeedback('success', 'Success', 'Configuration saved');
+            showFeedback('success', t('common.success'), t('settings.save_configuration'));
             setEditModalVisible(false);
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         } finally {
             setSavingLinks(false);
         }
@@ -135,42 +138,43 @@ export default function CategoriesScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <AppHeader title={t('settings.categories')} showBack={true} hideThemeToggle={true} />
             <FlatList
                 data={categories}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <ListItem
                         title={item.name}
-                        subtitle="Tap to configure attributes"
+                        subtitle={t('settings.link_attributes_helper')}
                         onPress={() => openEditModal(item)}
                     />
                 )}
             />
 
             <View style={styles.fab}>
-                <AppButton title="+ Add Category" onPress={() => setCreateModalVisible(true)} />
+                <AppButton title={"+ " + t('common.add')} onPress={() => setCreateModalVisible(true)} />
             </View>
 
             {/* Create Modal */}
             <Modal visible={createModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>New Category</Text>
+                        <Text style={styles.modalTitle}>{t('settings.new_category')}</Text>
                         <AppTextInput
-                            label="Name"
+                            label={t('common.name')}
                             value={newCategoryName}
                             onChangeText={setNewCategoryName}
                         />
                         <View style={styles.modalButtons}>
                             <AppButton
-                                title="Cancel"
+                                title={t('common.cancel')}
                                 variant="outline"
                                 onPress={() => setCreateModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <AppButton
-                                title="Create"
+                                title={t('common.add')}
                                 loading={creating}
                                 onPress={createCategory}
                                 style={{ flex: 1 }}
@@ -182,13 +186,11 @@ export default function CategoriesScreen() {
 
             {/* Edit/Link Modal */}
             <Modal visible={editModalVisible} animationType="slide">
-                <View style={styles.container}>
-                    <View style={styles.header}>
-                        <Text style={styles.headerTitle}>Configure {selectedCategory?.name}</Text>
-                    </View>
+                <View style={[styles.container, { backgroundColor: colors.background }]}>
+                    <AppHeader title={`${t('common.edit')} ${selectedCategory?.name}`} showBack={true} onBack={() => setEditModalVisible(false)} hideThemeToggle={true} />
                     <ScrollView contentContainerStyle={styles.content}>
-                        <Text style={styles.sectionTitle}>Linked Attributes</Text>
-                        <Text style={styles.helperText}>Select attributes available for products in this category.</Text>
+                        <Text style={styles.sectionTitle}>{t('settings.linked_attributes')}</Text>
+                        <Text style={styles.helperText}>{t('settings.link_attributes_helper')}</Text>
 
                         {attributes.map(attr => (
                             <View key={attr.id} style={styles.switchRow}>
@@ -203,18 +205,18 @@ export default function CategoriesScreen() {
                                 />
                             </View>
                         ))}
-                        {attributes.length === 0 && <Text style={{ textAlign: 'center', marginTop: 20 }}>No attributes defined. Go to Attributes screen first.</Text>}
+                        {attributes.length === 0 && <Text style={{ textAlign: 'center', marginTop: 20 }}>{t('settings.no_attributes_defined')}</Text>}
 
                     </ScrollView>
                     <View style={styles.footer}>
                         <AppButton
-                            title="Cancel"
+                            title={t('common.cancel')}
                             variant="outline"
                             onPress={() => setEditModalVisible(false)}
                             style={{ marginBottom: 12 }}
                         />
                         <AppButton
-                            title="Save Configuration"
+                            title={t('settings.save_configuration')}
                             loading={savingLinks}
                             onPress={saveLinks}
                         />
@@ -236,8 +238,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     fab: {
         padding: 16,
         borderTopWidth: 1,
-        borderColor: '#eee',
-        backgroundColor: '#fff',
+        borderColor: colors.border,
+        backgroundColor: colors.background,
     },
     modalOverlay: {
         flex: 1,
@@ -246,7 +248,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: 16,
     },
     modalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 12,
         padding: 24,
     },
@@ -254,6 +256,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         marginBottom: 16,
+        color: colors.text,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -262,22 +265,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     header: {
         padding: 16,
         paddingTop: 16,
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderBottomWidth: 1,
-        borderColor: '#eee',
+        borderColor: colors.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
+        color: colors.text,
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
         marginTop: 16,
+        color: colors.text,
     },
     helperText: {
-        color: '#666',
+        color: colors.textSecondary,
         marginBottom: 16,
     },
     switchRow: {
@@ -286,20 +291,21 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderColor: '#f0f0f0',
+        borderColor: colors.border,
     },
     itemTitle: {
         fontSize: 16,
         fontWeight: '500',
+        color: colors.text,
     },
     itemSubtitle: {
-        color: '#999',
+        color: colors.textSecondary,
         fontSize: 12,
     },
     footer: {
         padding: 16,
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderTopWidth: 1,
-        borderColor: '#eee',
+        borderColor: colors.border,
     }
 });

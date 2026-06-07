@@ -1,17 +1,19 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { LanguagePicker } from '@/components/ui/LanguagePicker';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 
 export default function LoginScreen() {
     const { colors, theme } = useTheme();
@@ -22,16 +24,17 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const insets = useSafeAreaInsets();
     const { showFeedback } = useFeedback();
+    const { t } = useTranslation();
 
     const handleLogin = async () => {
         if (!email || !password) {
-            showFeedback('error', 'Error', 'Please enter email and password');
+            showFeedback('error', t('common.error'), t('auth.enter_email_password'));
             return;
         }
 
         const { error } = await login(email, password);
         if (error) {
-            showFeedback('error', 'Login Failed', error.message);
+            showFeedback('error', t('auth.login_failed'), error.message);
         } else {
             router.replace('/(tabs)/dashboard');
         }
@@ -39,6 +42,14 @@ export default function LoginScreen() {
 
     const handleRegister = () => {
         router.push('/register');
+    };
+
+    const scrollRef = React.useRef<ScrollView>(null);
+
+    const scrollToBottom = () => {
+        setTimeout(() => {
+            scrollRef.current?.scrollToEnd({ animated: true });
+        }, 150);
     };
 
     return (
@@ -54,62 +65,73 @@ export default function LoginScreen() {
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.keyboardView}
                 >
-                    <View style={styles.logoContainer}>
-                        <View style={[styles.logoCircle, theme === 'dark' ? styles.logoCircleDark : styles.logoCircleLight]}>
-                            <Text style={[styles.logoText, theme === 'dark' ? styles.logoTextDark : styles.logoTextLight]}>S</Text>
-                        </View>
-                        <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>StockFlow</Text>
+                    <View style={[styles.topActions, { top: insets.top + 8 }]}>
+                        <LanguagePicker />
                     </View>
 
-                    <BlurView
-                        tint={theme === 'dark' ? 'dark' : 'light'}
-                        intensity={theme === 'dark' ? 60 : 80}
-                        style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
+                    <ScrollView
+                        ref={scrollRef}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
                     >
-                        <View style={styles.header}>
-                            <Text style={styles.title}>Welcome Back</Text>
-                            <Text style={styles.subtitle}>Sign in to your account</Text>
+                        <View style={styles.logoContainer}>
+                            <View style={[styles.logoCircle, theme === 'dark' ? styles.logoCircleDark : styles.logoCircleLight]}>
+                                <Text style={[styles.logoText, theme === 'dark' ? styles.logoTextDark : styles.logoTextLight]}>B</Text>
+                            </View>
+                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>ብልህStock</Text>
                         </View>
 
-                        <AppTextInput
-                            label="Email Address"
-                            placeholder="admin@business.com"
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                            style={styles.input}
-                            icon="envelope-o"
-                        />
+                        <BlurView
+                            tint={theme === 'dark' ? 'dark' : 'light'}
+                            intensity={theme === 'dark' ? 60 : 80}
+                            style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
+                        >
+                            <View style={styles.header}>
+                                <Text style={styles.title}>{t('auth.welcome_back')}</Text>
+                                <Text style={styles.subtitle}>{t('auth.sign_in_subtitle')}</Text>
+                            </View>
 
-                        <AppTextInput
-                            label="Password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                            style={styles.input}
-                            icon="lock"
-                        />
+                            <AppTextInput
+                                label={t('auth.email')}
+                                placeholder="admin@business.com"
+                                value={email}
+                                onChangeText={setEmail}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                style={styles.input}
+                                icon="envelope-o"
+                            />
 
-                        <AppButton
-                            title="Sign In"
-                            onPress={handleLogin}
-                            loading={isLoading}
-                            style={styles.button}
-                        />
+                            <AppTextInput
+                                label={t('auth.password')}
+                                placeholder="••••••••"
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                                style={styles.input}
+                                icon="lock"
+                            />
 
-                        <View style={styles.registerContainer}>
-                            <Text style={styles.registerText}>New here? </Text>
-                            <TouchableOpacity onPress={handleRegister}>
-                                <Text style={styles.registerLink}>Create Company Account</Text>
-                            </TouchableOpacity>
+                            <AppButton
+                                title={t('auth.sign_in')}
+                                onPress={handleLogin}
+                                loading={isLoading}
+                                style={styles.button}
+                            />
+
+                            <View style={styles.registerContainer}>
+                                <Text style={styles.registerText}>{t('auth.no_account')}</Text>
+                                <TouchableOpacity onPress={handleRegister}>
+                                    <Text style={styles.registerLink}>{t('auth.create_account')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </BlurView>
+
+                        <View style={styles.footer}>
+                            <Text style={styles.footerText}>Secure Business Management v1.0</Text>
                         </View>
-                    </BlurView>
-
-                    <View style={styles.footer}>
-                        <Text style={styles.footerText}>Secure Business Management v1.0</Text>
-                    </View>
+                    </ScrollView>
                 </KeyboardAvoidingView>
             </LinearGradient>
         </View>
@@ -122,15 +144,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     background: {
         flex: 1,
-        justifyContent: 'center',
     },
     keyboardView: {
         flex: 1,
-        justifyContent: 'center',
-        padding: 24,
         alignSelf: 'center',
         width: '100%',
         maxWidth: 500,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        padding: 24,
+        paddingBottom: 40,
     },
     logoContainer: {
         alignItems: 'center',
@@ -242,5 +267,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     footerText: {
         color: 'rgba(255,255,255,0.6)',
         fontSize: 12,
+    },
+    topActions: {
+        position: 'absolute',
+        right: 20,
+        zIndex: 1000,
     },
 });

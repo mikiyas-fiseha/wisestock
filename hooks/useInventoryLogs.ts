@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -31,7 +32,7 @@ export function useInventoryLogs(productId: string, page: number = 0, pageSize: 
             const to = from + pageSize - 1;
 
             let query = supabase
-                .from('stock_movements')
+                .from('stock_transactions')
                 .select('*', { count: 'exact' })
                 .eq('product_id', productId)
                 .eq('company_id', company.id)
@@ -48,14 +49,13 @@ export function useInventoryLogs(productId: string, page: number = 0, pageSize: 
 
             const mapped = (data || []).map(row => ({
                 ...row,
-                // stock_movements uses qty_change; map to quantity for UI
-                quantity: row.qty_change,
-                // stock_movements uses reason; map to notes for UI
-                notes: row.reason,
-                // stock_movements doesn't store previous/new stock — show dash
+                // stock_transactions has direct quantity and notes
+                quantity: row.quantity,
+                notes: row.notes,
                 previous_stock: row.previous_stock ?? null,
                 new_stock: row.new_stock ?? null,
-                reference_type: row.type,
+                type: row.type,
+                reference_type: row.reference_type,
             }));
 
             return { data: mapped || [], count: count || 0 };
@@ -84,17 +84,29 @@ export function useAdjustStock() {
         }) => {
             if (!company?.id || !user?.id) throw new Error('Missing company or user ID');
 
+            let targetBranchId = branch?.id;
+
+            if (!targetBranchId) {
+                const { data: mainBranch } = await supabase
+                    .from('branches')
+                    .select('id')
+                    .eq('company_id', company.id)
+                    .eq('is_main', true)
+                    .single();
+                targetBranchId = mainBranch?.id;
+            }
+
+            if (!targetBranchId) throw new Error('No branch selected and no main branch found');
+
             // 1. Get current stock for logging purposes (optional but good for history tables)
-            let bpQuery = supabase
+            const { data: bpRow } = await supabase
                 .from('branch_products')
                 .select('stock, branch_id')
-                .eq('product_id', productId);
-            if (branch?.id) bpQuery = bpQuery.eq('branch_id', branch.id);
-            const { data: bpRow, error: bpErr } = await bpQuery.single();
+                .eq('product_id', productId)
+                .eq('branch_id', targetBranchId)
+                .maybeSingle();
 
-            if (bpErr || !bpRow) throw new Error('Could not find stock record');
-
-            const currentQty = Number(bpRow.stock) || 0;
+            const currentQty = Number(bpRow?.stock || 0);
             const change = adjustmentType === 'add' ? quantity : -quantity;
             const newQty = currentQty + change;
 
@@ -108,7 +120,7 @@ export function useAdjustStock() {
             const movementData = {
                 product_id: productId,
                 company_id: company.id,
-                branch_id: bpRow.branch_id || branch?.id || null,
+                branch_id: targetBranchId,
                 type: 'adjustment',
                 qty_change: change,
                 user_id: user.id,
@@ -118,7 +130,7 @@ export function useAdjustStock() {
             const transactionData = {
                 product_id: productId,
                 company_id: company.id,
-                branch_id: bpRow.branch_id || branch?.id || null,
+                branch_id: targetBranchId,
                 type: 'adjustment',
                 quantity: change,
                 previous_stock: currentQty,
@@ -135,6 +147,17 @@ export function useAdjustStock() {
 
             if (moveRes.error) throw moveRes.error;
             if (transRes.error) throw transRes.error;
+
+            await logActivity({
+                userId: user.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'adjusted_stock',
+                entityType: 'inventory',
+                entityId: productId,
+                entityLabel: `Adjusted Stock`,
+                details: { type: adjustmentType, quantity, reason, notes }
+            });
 
             return { previousStock: currentQty, newStock: newQty };
         },

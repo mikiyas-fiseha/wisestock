@@ -3,8 +3,10 @@ import { useTheme } from '@/context/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+
 interface FilterOption {
     label: string;
     value: string;
@@ -35,6 +37,7 @@ export function SearchFilterHeader({
     activeFilters = {}
 }: SearchFilterHeaderProps) {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [searchText, setSearchText] = useState('');
     const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -132,7 +135,7 @@ export function SearchFilterHeader({
                             end={{ x: 1, y: 1 }}
                         />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Filters</Text>
+                            <Text style={styles.modalTitle}>{t('common.filters')}</Text>
                             <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
                                 <FontAwesome name="times" size={20} color={colors.textSecondary} />
                             </TouchableOpacity>
@@ -162,10 +165,10 @@ export function SearchFilterHeader({
 
                         <View style={styles.modalFooter}>
                             <TouchableOpacity style={styles.clearBtn} onPress={handleClearFilters}>
-                                <Text style={styles.clearBtnText}>Clear All</Text>
+                                <Text style={styles.clearBtnText}>{t('common.clear_all')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.applyBtn} onPress={handleApplyFilters}>
-                                <Text style={styles.applyBtnText}>Apply Filters</Text>
+                                <Text style={styles.applyBtnText}>{t('common.apply_filters')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

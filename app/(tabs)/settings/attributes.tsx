@@ -1,16 +1,18 @@
 
+import { AppHeader } from '@/components/AppHeader';
 import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 interface Attribute {
     id: string;
@@ -21,6 +23,7 @@ interface Attribute {
 
 export default function AttributesScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company } = useAuth();
     const { showFeedback } = useFeedback();
@@ -45,7 +48,7 @@ export default function AttributesScreen() {
             setAttributes(data || []);
         } catch (e) {
             console.error(e);
-            showFeedback('error', 'Error', 'Failed to fetch attributes');
+            showFeedback('error', t('common.error'), t('common.error'));
         } finally {
             setLoading(false);
         }
@@ -54,8 +57,8 @@ export default function AttributesScreen() {
     const createAttribute = async () => {
         if (creating) return;
         if (!name.trim() || !code.trim()) return;
-        
-setCreating(true);
+
+        setCreating(true);
         try {
             const { error } = await supabase
                 .from('attributes')
@@ -73,7 +76,7 @@ setCreating(true);
             setModalVisible(false);
             fetchAttributes();
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         } finally {
             setCreating(false);
         }
@@ -81,25 +84,26 @@ setCreating(true);
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <AppHeader title={t('settings.attributes')} showBack={true} hideThemeToggle={true} />
             <FlatList
                 data={attributes}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                    <ListItem title={item.name} subtitle={`Code: ${item.code} | Type: ${item.type}`} />
+                    <ListItem title={item.name} subtitle={`${t('settings.attribute_code')}: ${item.code} | ${t('settings.attribute_type')}: ${item.type}`} />
                 )}
             />
 
             <View style={styles.fab}>
-                <AppButton title="+ Add Attribute" onPress={() => setModalVisible(true)} />
+                <AppButton title={"+ " + t('settings.add_attribute')} onPress={() => setModalVisible(true)} />
             </View>
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>New Attribute</Text>
+                        <Text style={styles.modalTitle}>{t('settings.new_attribute')}</Text>
                         <AppTextInput
-                            label="Name"
+                            label={t('common.name')}
                             value={name}
                             onChangeText={(t) => {
                                 setName(t);
@@ -107,20 +111,20 @@ setCreating(true);
                             }}
                         />
                         <AppTextInput
-                            label="Code"
+                            label={t('settings.attribute_code')}
                             value={code}
                             onChangeText={setCode}
                             placeholder="unique_code"
                         />
                         <View style={styles.modalButtons}>
                             <AppButton
-                                title="Cancel"
+                                title={t('common.cancel')}
                                 variant="outline"
                                 onPress={() => setModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <AppButton
-                                title="Create"
+                                title={t('common.confirm')}
                                 loading={creating}
                                 onPress={createAttribute}
                                 style={{ flex: 1 }}
@@ -141,8 +145,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     fab: {
         padding: 16,
         borderTopWidth: 1,
-        borderColor: '#eee',
-        backgroundColor: '#fff',
+        borderColor: colors.border,
+        backgroundColor: colors.background,
     },
     modalOverlay: {
         flex: 1,
@@ -151,7 +155,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: 16,
     },
     modalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 12,
         padding: 24,
     },
@@ -159,6 +163,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         marginBottom: 16,
+        color: colors.text,
     },
     modalButtons: {
         flexDirection: 'row',

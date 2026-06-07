@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -17,24 +18,26 @@ interface MobileSidebarProps {
     onClose: () => void;
 }
 
-const MENU_ITEMS = [
-    { name: 'Dashboard', icon: 'bar-chart', route: '/(tabs)/dashboard' },
-    { name: 'Products', icon: 'cube', route: '/(tabs)/products' },
-    { name: 'Inventory', icon: 'archive', route: '/(tabs)/inventory' },
-    { name: 'Sales', icon: 'shopping-cart', route: '/(tabs)/sales' },
-    { name: 'Purchases', icon: 'shopping-bag', route: '/(tabs)/purchases' },
-    { name: 'Reports', icon: 'line-chart', route: '/(tabs)/reports' },
-    { name: 'Customers', icon: 'users', route: '/(tabs)/customers' },
-    { name: 'Suppliers', icon: 'truck', route: '/(tabs)/suppliers' },
-    { name: 'Expenses', icon: 'money', route: '/(tabs)/expenses' },
-    { name: 'Settings', icon: 'cog', route: '/(tabs)/settings' },
+const getMenuItems = (t: any) => [
+    { name: t('common.dashboard'), icon: 'bar-chart', route: '/(tabs)/dashboard' },
+    { name: t('common.products'), icon: 'cube', route: '/(tabs)/products' },
+    { name: t('common.inventory'), icon: 'archive', route: '/(tabs)/inventory' },
+    { name: t('common.sales'), icon: 'shopping-cart', route: '/(tabs)/sales' },
+    { name: t('common.purchases'), icon: t('common.purchases') ? 'shopping-bag' : 'shopping-bag', route: '/(tabs)/purchases' },
+    { name: t('common.reports'), icon: 'line-chart', route: '/(tabs)/reports' },
+    { name: t('common.customers'), icon: 'users', route: '/(tabs)/customers' },
+    { name: t('common.suppliers'), icon: 'truck', route: '/(tabs)/suppliers' },
+    { name: t('common.expenses'), icon: 'money', route: '/(tabs)/expenses' },
+    { name: t('common.settings'), icon: 'cog', route: '/(tabs)/settings' },
 ];
 
 export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
     const { colors, theme, setTheme } = useTheme();
     const { logout, user } = useAuth();
     const router = useRouter();
+    const { t } = useTranslation();
     const pathname = usePathname();
+    const menuItems = getMenuItems(t);
     const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
 
     useEffect(() => {
@@ -96,8 +99,8 @@ export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
                                 <Text style={styles.avatarText}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
                             </View>
                             <View>
-                                <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>{user?.name || 'User'}</Text>
-                                <Text style={[styles.userRole, { color: colors.textSecondary }]}>{user?.role || 'Admin'}</Text>
+                                <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>{user?.name || t('common.user')}</Text>
+                                <Text style={[styles.userRole, { color: colors.textSecondary }]}>{t(`common.${(user?.role || 'admin').toLowerCase()}`)}</Text>
                             </View>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -109,7 +112,7 @@ export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
                     </View>
 
                     <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
-                        {MENU_ITEMS.map((item, index) => {
+                        {menuItems.map((item, index) => {
                             const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
                             return (
                                 <TouchableOpacity
@@ -129,12 +132,12 @@ export function MobileSidebar({ visible, onClose }: MobileSidebarProps) {
                     <View style={[styles.footer, { borderTopColor: 'rgba(255,255,255,0.2)' }]}>
                         <TouchableOpacity style={[styles.themeToggle, { backgroundColor: 'rgba(255,255,255,0.1)' }]} onPress={toggleTheme}>
                             <FontAwesome name={theme === 'dark' ? 'moon-o' : 'sun-o'} size={16} color={colors.text} />
-                            <Text style={[styles.themeText, { color: colors.text }]} numberOfLines={1}>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</Text>
+                            <Text style={[styles.themeText, { color: colors.text }]} numberOfLines={1}>{theme === 'dark' ? t('settings.dark') : t('settings.light')}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
                             <FontAwesome name="sign-out" size={16} color="#DC2626" />
-                            <Text style={styles.logoutText}>Log Out</Text>
+                            <Text style={styles.logoutText}>{t('common.logout')}</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>

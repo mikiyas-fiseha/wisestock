@@ -1,5 +1,6 @@
 
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -114,6 +115,16 @@ export function useSuppliers() {
                     .eq('id', id);
 
                 if (error) throw error;
+
+                await logActivity({
+                    userId: user?.id || 'unknown',
+                    userName: user?.name || 'User',
+                    companyId: company?.id || 'unknown',
+                    action: 'deleted_supplier',
+                    entityType: 'supplier',
+                    entityId: id,
+                    entityLabel: 'Supplier Deleted',
+                });
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['suppliers'] });
@@ -138,16 +149,27 @@ export function useSuppliers() {
                 });
 
                 if (error) throw error;
-                
+
                 // If a receipt URL was provided, update the record immediately
                 if (params.receipt_url && paymentId) {
                     const { error: updateError } = await supabase
                         .from('supplier_payments')
                         .update({ receipt_url: params.receipt_url })
                         .eq('id', paymentId);
-                    
+
                     if (updateError) console.error('Error updating receipt_url:', updateError);
                 }
+
+                await logActivity({
+                    userId: user?.id || 'unknown',
+                    userName: user?.name || 'User',
+                    companyId: company.id,
+                    action: 'paid_supplier',
+                    entityType: 'supplier',
+                    entityId: params.supplier_id,
+                    entityLabel: 'Paid Supplier',
+                    details: { amount: params.amount, method: params.method }
+                });
 
                 return paymentId;
             },

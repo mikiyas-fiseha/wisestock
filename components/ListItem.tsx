@@ -1,8 +1,8 @@
 
 
+import { useTheme } from '@/context/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 interface ListItemProps {
     title: string;
@@ -41,7 +41,7 @@ export function ListItem({ title, subtitle, rightText, rightSubtitle, onPress, i
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
         paddingVertical: 16,

@@ -15,7 +15,7 @@ export interface Branch {
 }
 
 export const useBranches = () => {
-    const { company } = useAuth();
+    const { company, refreshProfile } = useAuth();
     const queryClient = useQueryClient();
 
     const fetchBranches = async () => {
@@ -54,6 +54,7 @@ export const useBranches = () => {
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['branches'] });
+                refreshProfile(); // Sync global selector
             },
         }),
         update: useMutation({
@@ -67,6 +68,7 @@ export const useBranches = () => {
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['branches'] });
+                refreshProfile(); // Sync global selector
             },
         }),
         delete: useMutation({
@@ -80,6 +82,7 @@ export const useBranches = () => {
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['branches'] });
+                refreshProfile(); // Sync global selector
             },
         }),
     };

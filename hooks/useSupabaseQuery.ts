@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -42,7 +43,7 @@ export const useSales = (search?: string, filters?: SaleFilters) => {
             if (!company?.id) return [];
             let query = supabase
                 .from('sales')
-                .select('*, customers(name, phone)')
+                .select('*, customers(name, phone, address, tax_id)')
                 .eq('company_id', company.id)
                 .order('created_at', { ascending: false });
 
@@ -135,6 +136,7 @@ export const useProcessSale = () => {
                 payment_method: paymentMethod,
                 amount_paid: paid,
                 total_amount: total,
+                sale_type: 'retail', // Added to disambiguate the RPC function call
                 p_branch_id: branch?.id, // Use branch from context
                 p_subtotal: subtotal || 0,
                 p_tax: tax || 0,
@@ -192,6 +194,7 @@ export const useCustomers = (search?: string, filters?: any) => {
         queryKey: ['customers', company?.id, search, filters],
         queryFn: async () => {
             if (!company?.id) return [];
+
             let query = supabase
                 .from('customers')
                 .select('*, sales!sales_customer_id_fkey(count)')
@@ -199,11 +202,9 @@ export const useCustomers = (search?: string, filters?: any) => {
                 .order('name');
 
             if (search) {
-                // Search by name or phone
                 query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
             }
 
-            // Filters
             if (filters?.balance === 'outstanding') {
                 query = query.gt('current_balance', 0);
             }
@@ -216,17 +217,6 @@ export const useCustomers = (search?: string, filters?: any) => {
                 query = query.eq('status', filters.status);
             }
 
-            // Branch filter: customers who have made purchases in a specific branch
-            if (filters?.branch_id && filters.branch_id !== 'all') {
-                // This requires a subquery or join. Since Supabase doesn't support easy subqueries in .select() for filtering,
-                // we can use a join with sales if we want to be strict, or just filter on the client side if data is small.
-                // However, a better way is to use .rpc or a view if it gets complex.
-                // For now, let's assume branch filtering is for sales history in the profile, 
-                // but if we want it in the list, we might need a more complex query.
-                // Let's stick to the simplest join/filter if possible.
-                // query = query.filter('sales.branch_id', 'eq', filters.branch_id); // This won't work without inner join
-            }
-
             const { data, error } = await query;
             if (error) throw error;
             return data;
@@ -237,7 +227,7 @@ export const useCustomers = (search?: string, filters?: any) => {
 
 export const useAddCustomer = () => {
     const queryClient = useQueryClient();
-    const { company } = useAuth();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async (customerData: any) => {
             if (!company?.id) throw new Error('No company ID');
@@ -247,6 +237,17 @@ export const useAddCustomer = () => {
                 .select()
                 .single();
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'created_customer',
+                entityType: 'customer',
+                entityId: data.id,
+                entityLabel: data.name,
+            });
+
             return data;
         },
         onSuccess: () => {
@@ -257,7 +258,7 @@ export const useAddCustomer = () => {
 
 export const useUpdateCustomer = () => {
     const queryClient = useQueryClient();
-    const { company } = useAuth();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async ({ id, ...updates }: any) => {
             if (!company?.id) throw new Error('No company ID');
@@ -268,6 +269,17 @@ export const useUpdateCustomer = () => {
                 .select()
                 .single();
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'updated_customer',
+                entityType: 'customer',
+                entityId: id,
+                entityLabel: updates.name || data?.name || 'Customer',
+            });
+
             return data;
         },
         onSuccess: () => {
@@ -657,7 +669,7 @@ export const useReportsData = () => {
 
 export const useAddProduct = () => {
     const queryClient = useQueryClient();
-    const { company } = useAuth();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async ({ productData, variants, isVariable, minStockLevel }: any) => {
             if (!company?.id) throw new Error('No company ID');
@@ -673,7 +685,13 @@ export const useAddProduct = () => {
 
             // 2. Insert Variants (if applicable)
             if (isVariable && variants.length > 0) {
+                const generateUUID = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+
                 const variantsToInsert = variants.map((v: any) => ({
+                    id: generateUUID(),
                     product_id: product.id,
                     sku: v.sku,
                     price_override: parseFloat(v.price),
@@ -708,6 +726,17 @@ export const useAddProduct = () => {
                 if (bpError) console.warn('Failed to create branch_products:', bpError);
             }
 
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'created_product',
+                entityType: 'product',
+                entityId: product.id,
+                entityLabel: product.name,
+                details: { sku: productData.primary_sku, price: productData.sale_price }
+            });
+
             return product;
         },
         onSuccess: () => {
@@ -721,7 +750,7 @@ export const useAddProduct = () => {
 
 export const useUpdateProduct = () => {
     const queryClient = useQueryClient();
-    const { company } = useAuth();
+    const { company, user } = useAuth();
     return useMutation({
         mutationFn: async ({ id, productData, variants, isVariable }: any) => {
             if (!company?.id) throw new Error('No company ID');
@@ -747,8 +776,13 @@ export const useUpdateProduct = () => {
                 }
 
                 if (variants.length > 0) {
+                    const generateUUID = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+
                     const variantsToUpsert = variants.map((v: any) => ({
-                        ...(v.id ? { id: v.id } : {}),
+                        id: v.id || generateUUID(),
                         product_id: id,
                         sku: v.sku,
                         price_override: parseFloat(v.price),
@@ -761,6 +795,17 @@ export const useUpdateProduct = () => {
                     if (varError) throw varError;
                 }
             }
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'updated_product',
+                entityType: 'product',
+                entityId: id,
+                entityLabel: productData.name || 'Product',
+                details: { sku: productData.primary_sku, price: productData.sale_price }
+            });
 
             return { id };
         },
@@ -796,6 +841,18 @@ export const useCollectPayment = () => {
             });
 
             if (error) throw error;
+
+            await logActivity({
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                companyId: company.id,
+                action: 'collected_payment',
+                entityType: 'customer',
+                entityId: customerId,
+                entityLabel: `Collected Payment`,
+                details: { amount: paid, method }
+            });
+
             return data;
         },
         onSuccess: (_, variables) => {

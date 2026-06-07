@@ -71,7 +71,7 @@ export function SummaryCard({ title, value, type = 'neutral', icon, change, styl
                                 color={isPositive ? colors.success : colors.danger}
                             />
                             <Text style={[styles.changeText, { color: isPositive ? colors.success : colors.danger }]}>
-                                {Math.abs(change!)}%
+                                {Math.abs(change!).toFixed(1)}%
                             </Text>
                         </View>
                     )}

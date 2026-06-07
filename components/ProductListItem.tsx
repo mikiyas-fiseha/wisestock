@@ -1,6 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 interface ProductListItemProps {
@@ -18,13 +19,15 @@ interface ProductListItemProps {
 
 export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pcs', imageUrl, category, onPress, onAdjustStock }: ProductListItemProps) {
     const { colors } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
     const isLowStock = stock > 0 && stock < 10;
     const isOut = stock <= 0;
     const profit = costPrice ? price - costPrice : 0;
-    const stockLabel = `${stock} ${unit}`;
+    const stockLabel = `${stock} ${unit ? t(`common.${unit}`) : t('common.pcs')}`;
+    const currency = (t('common.currency_symbol') === 'common.currency_symbol' ? '$' : t('common.currency_symbol')) || '$';
 
     // ─── Web Table Row ───
     if (isWeb) {
@@ -49,19 +52,19 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
 
                 {/* Cost */}
                 <View style={styles.webCol}>
-                    <Text style={styles.webCost}>{costPrice != null ? `$${costPrice.toFixed(2)}` : '—'}</Text>
+                    <Text style={styles.webCost}>{costPrice != null ? `${currency}${costPrice.toFixed(2)}` : '—'}</Text>
                 </View>
 
                 {/* Sale Price */}
                 <View style={styles.webCol}>
-                    <Text style={styles.webPrice}>${price.toFixed(2)}</Text>
+                    <Text style={styles.webPrice}>{currency}{price.toFixed(2)}</Text>
                 </View>
 
                 {/* Stock + Unit */}
                 <View style={styles.webCol}>
                     <View style={[styles.stockBadge, isOut ? styles.stockOut : (isLowStock ? styles.stockLow : styles.stockOk)]}>
                         <Text style={[styles.stockBadgeText, isOut ? { color: colors.danger } : (isLowStock ? { color: colors.warning } : { color: colors.success })]}>
-                            {isOut ? 'Out of stock' : stockLabel}
+                            {isOut ? t('inventory.out_of_stock') : stockLabel}
                         </Text>
                     </View>
                 </View>
@@ -69,7 +72,7 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
                 {/* Profit */}
                 <View style={styles.webCol}>
                     <Text style={[styles.webProfit, profit < 0 && { color: colors.danger }]}>
-                        {costPrice != null ? `$${profit.toFixed(2)}` : '—'}
+                        {costPrice != null ? `${currency}${profit.toFixed(2)}` : '—'}
                     </Text>
                 </View>
 
@@ -105,7 +108,7 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
 
             <View style={styles.mobileContent}>
                 <Text style={styles.mobileName} numberOfLines={1}>{name}</Text>
-                <Text style={styles.mobilePrice}>${price.toFixed(2)}</Text>
+                <Text style={styles.mobilePrice}>{currency}{price.toFixed(2)}</Text>
                 <View style={styles.mobileFooter}>
                     <View style={[styles.stockBadgeSmall, isOut ? styles.stockOut : (isLowStock ? styles.stockLow : styles.stockOk)]}>
                         <FontAwesome
@@ -115,7 +118,7 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
                             style={{ marginRight: 3 }}
                         />
                         <Text style={[styles.stockTextSmall, isOut ? { color: colors.danger } : (isLowStock ? { color: colors.warning } : { color: colors.success })]}>
-                            {isOut ? 'Out' : stockLabel}
+                            {isOut ? t('common.out') || 'Out' : stockLabel}
                         </Text>
                     </View>
                     {onAdjustStock && (

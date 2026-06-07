@@ -9,14 +9,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 interface AppHeaderProps {
     title: string;
     showBack?: boolean;
+    onBack?: () => void;
+    showMenu?: boolean;
+    onMenuPress?: () => void;
     rightElement?: React.ReactNode;
+    hideThemeToggle?: boolean;
 }
 
-export const AppHeader = ({ title, showBack, rightElement }: AppHeaderProps) => {
+export const AppHeader = ({ title, showBack, onBack, showMenu, onMenuPress, rightElement, hideThemeToggle }: AppHeaderProps) => {
     const { colors, theme, setTheme } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const router = useRouter();
+
+    const handleBack = () => {
+        if (onBack) {
+            onBack();
+        } else {
+            router.back();
+        }
+    };
 
     const toggleTheme = () => {
         setTheme(theme === 'light' ? 'dark' : 'light');
@@ -26,22 +38,29 @@ export const AppHeader = ({ title, showBack, rightElement }: AppHeaderProps) => 
         <View style={styles.container}>
             <BlurView
                 tint={theme === 'dark' ? 'dark' : 'light'}
-                intensity={80}
+                intensity={50}
                 style={StyleSheet.absoluteFill}
             />
             <View style={styles.content}>
                 <View style={styles.left}>
                     {showBack && (
-                        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                        <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
                             <FontAwesome name="chevron-left" size={16} color={colors.text} />
+                        </TouchableOpacity>
+                    )}
+                    {showMenu && (
+                        <TouchableOpacity onPress={onMenuPress} style={styles.iconButton}>
+                            <FontAwesome name="bars" size={18} color={colors.text} />
                         </TouchableOpacity>
                     )}
                     <Text style={styles.title} numberOfLines={1}>{title}</Text>
                 </View>
                 <View style={styles.right}>
-                    <TouchableOpacity onPress={toggleTheme} style={styles.iconButton}>
-                        <FontAwesome name={theme === 'light' ? 'moon-o' : 'sun-o'} size={18} color={colors.text} />
-                    </TouchableOpacity>
+                    {!hideThemeToggle && (
+                        <TouchableOpacity onPress={toggleTheme} style={styles.iconButton}>
+                            <FontAwesome name={theme === 'light' ? 'moon-o' : 'sun-o'} size={18} color={colors.text} />
+                        </TouchableOpacity>
+                    )}
                     {rightElement}
                 </View>
             </View>

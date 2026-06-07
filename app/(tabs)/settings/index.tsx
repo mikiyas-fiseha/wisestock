@@ -3,16 +3,37 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
     const { theme, systemTheme, colors, setTheme } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { user, company, logout, isSuperAdmin } = useAuth();
+    const { t, i18n } = useTranslation();
+    const [showLanguageModal, setShowLanguageModal] = useState(false);
+
+    const languages = [
+        { code: 'en', label: 'English' },
+        { code: 'am', label: 'አማርኛ (Amharic)' },
+        { code: 'om', label: 'Afaan Oromoo (Oromo)' },
+        { code: 'ti', label: 'ትግርኛ (Tigrinya)' },
+        { code: 'so', label: 'Af-Soomaali (Somali)' },
+    ];
+
+    const currentLanguageLabel = languages.find(l => l.code === i18n.language)?.label || 'English';
+
+    const changeLanguage = async (code: string) => {
+        await i18n.changeLanguage(code);
+        await AsyncStorage.setItem('user-language', code);
+        setShowLanguageModal(false);
+    };
+
     const headerTopPadding = 16;
 
     const renderSettingItem = (title: string, subtitle: string, icon: string, onPress: () => void, rightElement?: React.ReactNode) => (
@@ -42,10 +63,10 @@ export default function SettingsScreen() {
                         <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
                     </View>
                     <View>
-                        <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                        <Text style={styles.userName}>{user?.name || t('common.user')}</Text>
                         <Text style={styles.userEmail}>{user?.email}</Text>
                         <View style={styles.roleBadge}>
-                            <Text style={styles.roleText}>{user?.role || 'Member'}</Text>
+                            <Text style={styles.roleText}>{user?.role || t('common.member')}</Text>
                         </View>
                     </View>
                 </View>
@@ -53,26 +74,11 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>DISPLAY</Text>
-                    <View style={styles.themeOptions}>
-                        {(['light', 'dark', 'system'] as const).map((mode) => (
-                            <TouchableOpacity
-                                key={mode}
-                                style={[styles.themeOption, systemTheme === mode && styles.themeOptionActive]}
-                                onPress={() => setTheme(mode)}
-                            >
-                                <Text style={[styles.themeOptionText, systemTheme === mode && styles.themeOptionTextActive]}>
-                                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
+
 
                 {isSuperAdmin && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionHeader}>ADMINISTRATION</Text>
+                        <Text style={styles.sectionHeader}>{t('common.administration').toUpperCase()}</Text>
                         <TouchableOpacity
                             style={styles.adminCard}
                             onPress={() => router.push('/(super-admin)/superadminDasboarde')}
@@ -86,8 +92,8 @@ export default function SettingsScreen() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <FontAwesome name="shield" size={24} color="white" style={{ marginRight: 12 }} />
                                     <View>
-                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Super Admin Panel</Text>
-                                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Manage platform wide settings</Text>
+                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{t('common.super_admin_panel')}</Text>
+                                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>{t('common.manage_platform')}</Text>
                                     </View>
                                 </View>
                                 <FontAwesome name="arrow-right" size={16} color="white" />
@@ -97,7 +103,19 @@ export default function SettingsScreen() {
                 )}
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>COMPANY</Text>
+                    <Text style={styles.sectionHeader}>{t('common.settings').toUpperCase()}</Text>
+                    <View style={styles.card}>
+                        {renderSettingItem(
+                            t('settings.language'),
+                            currentLanguageLabel,
+                            'globe',
+                            () => setShowLanguageModal(true)
+                        )}
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>{t('settings.company').toUpperCase()}</Text>
                     <View style={styles.card}>
                         <TouchableOpacity
                             style={styles.companyInfo}
@@ -108,52 +126,86 @@ export default function SettingsScreen() {
                                 <FontAwesome name="building" size={24} color={colors.primary} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.companyName}>{company?.name || 'My Company'}</Text>
-                                <Text style={styles.companyMeta}>{company?.city ? `${company.city} • ` : ''}{company?.type || 'Business'}</Text>
+                                <Text style={styles.companyName}>{company?.name || t('common.my_company')}</Text>
+                                <Text style={styles.companyMeta}>{company?.city ? `${company.city} • ` : ''}{company?.type || t('common.business')}</Text>
                             </View>
                             <FontAwesome name="chevron-right" size={14} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <View style={styles.separator} />
-                        {renderSettingItem('Branches', 'Manage store locations', 'code-fork', () => router.push('/(tabs)/settings/branches'))}
+                        {renderSettingItem(t('common.branches'), t('settings.manage_locations'), 'code-fork', () => router.push('/(tabs)/settings/branches'))}
                     </View>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>PRODUCTS & INVENTORY</Text>
+                    <Text style={styles.sectionHeader}>{t('reports.inventory_analysis').toUpperCase()}</Text>
                     <View style={styles.card}>
-                        {renderSettingItem('Categories', 'Manage product categories', 'tags', () => router.push('/(tabs)/settings/categories'))}
+                        {renderSettingItem(t('settings.categories'), t('settings.manage_categories'), 'tags', () => router.push('/(tabs)/settings/categories'))}
                         <View style={styles.separator} />
-                        {renderSettingItem('Attributes', 'Custom fields (Size, Color, etc.)', 'list-alt', () => router.push('/(tabs)/settings/attributes'))}
+                        {renderSettingItem(t('settings.attributes'), t('settings.manage_attributes'), 'list-alt', () => router.push('/(tabs)/settings/attributes'))}
                     </View>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>FINANCIALS</Text>
+                    <Text style={styles.sectionHeader}>{t('reports.financial_analysis').toUpperCase()}</Text>
                     <View style={styles.card}>
-                        {renderSettingItem('Expense Categories', 'Manage types of spending', 'money', () => router.push('/(tabs)/settings/expense-categories'))}
+                        {renderSettingItem(t('reports.expense_analysis'), t('settings.manage_expenses'), 'money', () => router.push('/(tabs)/settings/expense-categories'))}
                     </View>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>TEAM & SECURITY</Text>
+                    <Text style={styles.sectionHeader}>{t('settings.team').toUpperCase()}</Text>
                     <View style={styles.card}>
-                        {renderSettingItem('Team Management', 'Invite users and manage access', 'users', () => router.push('/(tabs)/settings/team'))}
+                        {renderSettingItem(t('settings.team'), t('settings.manage_team'), 'users', () => router.push('/(tabs)/settings/team'))}
                         <View style={styles.separator} />
-                        {renderSettingItem('Change Password', 'Update your login password', 'lock', () => { })}
+                        {renderSettingItem(t('settings.password'), t('settings.update_password'), 'lock', () => { })}
                     </View>
                 </View>
 
                 <View style={styles.section}>
                     <AppButton
-                        title="Log Out"
+                        title={t('common.logout')}
                         onPress={logout}
                         variant="danger"
                         style={styles.logoutButton}
                     />
-                    <Text style={styles.version}>Version 1.0.0 (MVP)</Text>
+                    <Text style={styles.version}>{t('common.version')} 1.0.0 (MVP)</Text>
                 </View>
 
             </ScrollView>
+
+            {/* Language Selection Modal */}
+            <Modal visible={showLanguageModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{t('settings.select_language')}</Text>
+                            <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                                <FontAwesome name="times" size={20} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        {languages.map((l) => (
+                            <TouchableOpacity
+                                key={l.code}
+                                style={[
+                                    styles.langItem,
+                                    i18n.language === l.code && styles.langItemActive
+                                ]}
+                                onPress={() => changeLanguage(l.code)}
+                            >
+                                <Text style={[
+                                    styles.langText,
+                                    i18n.language === l.code && styles.langTextActive
+                                ]}>
+                                    {l.label}
+                                </Text>
+                                {i18n.language === l.code && (
+                                    <FontAwesome name="check" size={16} color={colors.primary} />
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -191,4 +243,31 @@ const createStyles = (colors: any) => StyleSheet.create({
     settingSubtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
     logoutButton: { marginTop: 10 },
     version: { textAlign: 'center', fontSize: 12, color: colors.textSecondary, marginTop: 20 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: {
+        backgroundColor: colors.card,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        padding: 20,
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingHorizontal: 10,
+    },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+    langItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 8,
+    },
+    langItemActive: { backgroundColor: colors.primary + '10' },
+    langText: { fontSize: 16, color: colors.text },
+    langTextActive: { color: colors.primary, fontWeight: 'bold' },
 });

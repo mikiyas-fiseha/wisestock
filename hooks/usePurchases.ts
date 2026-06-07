@@ -1,5 +1,6 @@
 
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,12 +18,10 @@ export function usePurchases() {
 
         let query = supabase
             .from('purchases')
-            .select(`
-                *,
-                supplier:suppliers(name)
-            `)
+            .select('id, purchase_date, invoice_number, total_amount, amount_paid, payment_status, notes, branch_id, supplier_id, created_at, supplier:suppliers(name)')
             .eq('company_id', company.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(200);
 
         if (branch?.id) {
             query = query.eq('branch_id', branch.id);
@@ -38,6 +37,7 @@ export function usePurchases() {
             .from('purchases')
             .select(`
                 *,
+                profiles(*),
                 supplier:suppliers(*),
                 items:purchase_items(
                     *,
@@ -104,23 +104,35 @@ export function usePurchases() {
                 });
 
                 if (error) throw error;
-                
+
                 // If a receipt URL was provided, update the record immediately
                 if (params.receipt_url && purchaseId) {
                     const { error: updateError } = await supabase
                         .from('purchases')
                         .update({ receipt_url: params.receipt_url })
                         .eq('id', purchaseId);
-                    
+
                     if (updateError) console.error('Error updating receipt_url:', updateError);
                 }
+
+                await logActivity({
+                    userId: user.id || 'unknown',
+                    userName: user?.name || 'User',
+                    companyId: company.id,
+                    action: 'created_purchase',
+                    entityType: 'purchase',
+                    entityId: purchaseId,
+                    entityLabel: `Invoice ${params.invoice_number}`,
+                    details: { total_amount: params.total_amount, amount_paid: params.amount_paid }
+                });
 
                 return purchaseId;
             },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['purchases'] });
-                queryClient.invalidateQueries({ queryKey: ['products'] }); // Stock updated
-                queryClient.invalidateQueries({ queryKey: ['suppliers'] }); // Balance updated
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                queryClient.invalidateQueries({ queryKey: ['product-detail'] }); // Refresh stock on product detail screen
+                queryClient.invalidateQueries({ queryKey: ['suppliers'] });
             },
             onError: (error: any) => {
                 Alert.alert('Error', error.message);

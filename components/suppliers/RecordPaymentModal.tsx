@@ -1,13 +1,17 @@
 
 import { AppButton } from '@/components/ui/AppButton';
+import { AppSelect } from '@/components/ui/AppSelect';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import { formatCurrency } from '@/lib/formatters';
 import { pickImage } from '@/lib/imagePicker';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
-import { AppSelect } from '@/components/ui/AppSelect';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 interface RecordPaymentModalProps {
     visible: boolean;
@@ -21,6 +25,8 @@ interface RecordPaymentModalProps {
 
 export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, currentBalance, isLoading, purchases }: RecordPaymentModalProps) {
     const { colors, theme } = useTheme();
+    const { company } = useAuth();
+    const { t, i18n } = useTranslation();
     const { showFeedback } = useFeedback();
     const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const { width } = useWindowDimensions();
@@ -66,7 +72,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
             return;
         }
         if (purchases && purchases.length > 0 && !selectedPurchaseId) {
-            showFeedback('error', 'Selection Required', 'Please select a purchase to pay for.');
+            showFeedback('error', t('suppliers.selection_required'), t('suppliers.select_purchase_error'));
             return;
         }
         onSubmit({
@@ -100,8 +106,8 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.title}>Record Payment</Text>
-                            <Text style={styles.subtitle}>To: {supplierName}</Text>
+                            <Text style={styles.title}>{t('suppliers.record_payment')}</Text>
+                            <Text style={styles.subtitle}>{t('suppliers.to')}: {supplierName}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                             <FontAwesome name="times" size={20} color={colors.textSecondary} />
@@ -110,8 +116,8 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
 
                     {/* Balance Info */}
                     <View style={styles.balanceContainer}>
-                        <Text style={styles.balanceLabel}>Current Debt</Text>
-                        <Text style={styles.balanceValue}>${currentBalance.toFixed(2)}</Text>
+                        <Text style={styles.balanceLabel}>{t('suppliers.current_debt')}</Text>
+                        <Text style={styles.balanceValue}>{formatCurrency(currentBalance)}</Text>
                     </View>
 
                     {/* Form */}
@@ -119,9 +125,8 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                         <View style={styles.form}>
                             {/* Amount */}
                             <View style={[styles.inputGroup, { zIndex: 100 }]}>
-                                <Text style={styles.label}>Amount Paid</Text>
-                                <TextInput
-                                    style={styles.input}
+                                <AppTextInput
+                                    label={t('suppliers.amount_paid')}
                                     placeholder="0.00"
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="numeric"
@@ -140,28 +145,30 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                         }
                                     }}
                                     autoFocus
+                                    prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
+                                    suffix={i18n.language === 'am' ? 'ብር' : undefined}
                                 />
                             </View>
 
                             {purchases && purchases.length > 0 && (
                                 <View style={[styles.inputGroup, { zIndex: 90 }]}>
                                     <AppSelect
-                                        label="Link to Purchase"
+                                        label={t('suppliers.link_to_purchase')}
                                         options={purchases.map(p => ({
-                                            label: `Inv: ${p.invoice_number || 'N/A'} - Due: $${((p.total_amount || 0) - (p.amount_paid || 0)).toFixed(2)}`,
+                                            label: `${t('common.inv')}: ${p.invoice_number || t('common.not_available')} - ${t('common.due')}: ${formatCurrency((p.total_amount || 0) - (p.amount_paid || 0))}`,
                                             value: p.id
                                         }))}
                                         selectedValue={selectedPurchaseId || ''}
                                         onValueChange={(val) => setSelectedPurchaseId(val || null)}
                                         containerStyle={{ marginBottom: 0 }}
-                                        error={!selectedPurchaseId ? 'Required' : undefined}
+                                        error={!selectedPurchaseId ? t('common.required') : undefined}
                                     />
                                 </View>
                             )}
 
                             {/* Method */}
                             <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                                <Text style={styles.label}>Payment Method</Text>
+                                <Text style={styles.label}>{t('sales.payment_method')}</Text>
                                 <View style={styles.methodRow}>
                                     {['cash', 'bank', 'check'].map(m => (
                                         <TouchableOpacity
@@ -170,7 +177,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                             onPress={() => setMethod(m)}
                                         >
                                             <Text style={[styles.methodText, method === m && styles.methodTextActive]}>
-                                                {m.toUpperCase()}
+                                                {t(`common.${m}`).toUpperCase()}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
@@ -179,13 +186,13 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
 
                             {/* Notes */}
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Notes (Optional)</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Ref #, Transaction ID, etc."
+                                <AppTextInput
+                                    label={t('customers.notes_optional')}
+                                    placeholder={t('customers.notes_placeholder')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     value={notes}
                                     onChangeText={setNotes}
+                                    multiline
                                 />
                             </View>
 
@@ -199,7 +206,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                 }}
                             >
                                 <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
-                                <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                                <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? t('common.file_attached') : t('common.attach_receipt')}</Text>
                                 {receiptUri && (
                                     <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
                                         <FontAwesome name="times-circle" size={18} color={colors.danger} />
@@ -210,13 +217,13 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                             {/* Submit */}
                             <View style={styles.actions}>
                                 <AppButton
-                                    title="Cancel"
+                                    title={t('common.cancel')}
                                     onPress={onClose}
                                     variant="outline"
                                     style={{ flex: 1, marginRight: 8 }}
                                 />
                                 <AppButton
-                                    title={`Pay $${parseFloat(amount) || 0}`}
+                                    title={`${t('suppliers.pay_amount')} ${formatCurrency(parseFloat(amount) || 0)}`}
                                     onPress={handleSubmit}
                                     loading={isLoading}
                                     style={{ flex: 2 }}

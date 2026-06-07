@@ -1,23 +1,26 @@
-import { AppButton } from '@/components/ui/AppButton';
 import { ReturnModal } from '@/components/ReturnModal';
+import { AppButton } from '@/components/ui/AppButton';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useReceiptGenerator } from '@/hooks/useReceiptGenerator';
 import { useSaleReturns } from '@/hooks/useReturns';
-import { supabase } from '@/lib/supabase';
 import { downloadFile } from '@/lib/fileUtils';
+import { formatCurrency } from '@/lib/formatters';
+import { supabase } from '@/lib/supabase';
 import { FontAwesome } from '@expo/vector-icons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SaleDetailsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -47,7 +50,7 @@ export default function SaleDetailsScreen() {
             setLoading(true);
             const { data: saleData, error: saleError } = await supabase
                 .from('sales')
-                .select('*, customers(name)')
+                .select('*, customers(name, phone, address, tax_id)')
                 .eq('id', id)
                 .single();
 
@@ -72,7 +75,7 @@ export default function SaleDetailsScreen() {
 
         } catch (e) {
             console.error(e);
-            showFeedback('error', 'Error', 'Failed to load sale details');
+            showFeedback('error', t('common.error'), t('sales.load_error'));
         } finally {
             setLoading(false);
         }
@@ -83,10 +86,10 @@ export default function SaleDetailsScreen() {
 
         confirmAction(
             'error',
-            'Confirm Reversal',
-            'Are you sure you want to reverse this sale? Stock will be restored and balances updated.',
+            t('sales.reverse_confirm_title'),
+            t('sales.reverse_confirm_msg'),
             performReversal,
-            'Reverse Sale'
+            t('sales.reverse_sale')
         );
     };
 
@@ -107,7 +110,7 @@ export default function SaleDetailsScreen() {
                 variant_id: item.variant_id,
                 qty_change: item.quantity, // Positive to restore
                 type: 'return',
-                reason: `Reversal Sale #${id.toString().split('-')[0]}`,
+                reason: `${t('sales.reverse_sale')} #${id.toString().split('-')[0]}`,
                 user_id: user?.id
             }));
             await supabase.from('stock_movements').insert(movements);
@@ -143,17 +146,17 @@ export default function SaleDetailsScreen() {
                             type: 'adjustment',
                             amount: -creditAmount,
                             reference_id: sale.id,
-                            description: `Reversal Sale #${id.toString().split('-')[0]}`
+                            description: `${t('sales.reverse_sale')} #${id.toString().split('-')[0]}`
                         }]);
                     }
                 }
             }
 
-            showFeedback('success', "Success", "Sale reversed");
+            showFeedback('success', t('common.success'), t('sales.sale_reversed'));
             // router.back(); // Wait for feedback close?
 
         } catch (e: any) {
-            showFeedback('error', "Error", e.message);
+            showFeedback('error', t('common.error'), e.message);
         } finally {
             setActionLoading(false);
         }
@@ -187,17 +190,25 @@ export default function SaleDetailsScreen() {
                 amountPaid: sale.paid_amount || sale.total_amount || sale.total,
                 change: sale.type === 'cash' ? ((sale.paid_amount || 0) - (sale.total_amount || sale.total || 0)) : undefined,
                 paymentMethod: sale.payment_method || sale.type || 'cash',
-                status: sale.status
+                status: sale.status,
+                tin: company?.tin,
+                vatNo: company?.vatNo,
+                address: company?.address,
+                city: company?.city,
+                phone: company?.contactEmail || user?.email, // Fallback phone or email
+                customerPhone: sale.customers?.phone,
+                customerAddress: sale.customers?.address,
+                customerTin: sale.customers?.tax_id
             });
         } catch (e) {
-            showFeedback('error', 'Error', 'Failed to generate receipt');
+            showFeedback('error', t('common.error'), t('sales.receipt_failed'));
         } finally {
             setGenerating(false);
         }
     };
 
     if (loading) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
-    if (!sale) return <View style={styles.center}><Text style={{ color: colors.text }}>Sale not found</Text></View>;
+    if (!sale) return <View style={styles.center}><Text style={{ color: colors.text }}>{t('sales.not_found')}</Text></View>;
 
     return (
         <View style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -208,10 +219,10 @@ export default function SaleDetailsScreen() {
                         <Ionicons name="arrow-back" size={24} color={colors.text} />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.title}>Sale #{sale.id.split('-')[0]}</Text>
+                        <Text style={styles.title}>{t('sales.sale')} #{sale.id.split('-')[0]}</Text>
                         <Text style={styles.date}>{new Date(sale.created_at).toLocaleString()}</Text>
                         <Text style={[styles.statusItem, sale.status === 'completed' ? { color: colors.success } : { color: colors.danger }]}>
-                            {sale.status.toUpperCase()}
+                            {t(`sales.status_${sale.status}`).toUpperCase()}
                         </Text>
                     </View>
 
@@ -221,23 +232,23 @@ export default function SaleDetailsScreen() {
                     <View style={styles.section}>
                         <View style={styles.detailRow}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Customer</Text>
-                                <Text style={styles.value}>{sale.customers?.name || 'Walk-in Guest'}</Text>
+                                <Text style={styles.label}>{t('common.customers')}</Text>
+                                <Text style={styles.value}>{sale.customers?.name || t('sales.walk_in_guest')}</Text>
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Cashier / Rep</Text>
+                                <Text style={styles.label}>{t('sales.cashier')}</Text>
                                 <Text style={styles.value}>{sale.profiles?.full_name || 'System'}</Text>
                             </View>
                         </View>
 
                         <View style={[styles.detailRow, { marginTop: 12 }]}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Payment Method</Text>
-                                <Text style={styles.value}>{(sale.payment_method || sale.type || 'Cash').toUpperCase()}</Text>
+                                <Text style={styles.label}>{t('sales.payment_method')}</Text>
+                                <Text style={styles.value}>{t(`sales.${sale.payment_method || sale.type || 'cash'}`).toUpperCase()}</Text>
                             </View>
                             {sale.due_date && (
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Due Date</Text>
+                                    <Text style={styles.label}>{t('sales.due_date')}</Text>
                                     <Text style={styles.value}>{new Date(sale.due_date).toLocaleDateString()}</Text>
                                 </View>
                             )}
@@ -245,7 +256,7 @@ export default function SaleDetailsScreen() {
 
                         {(sale.note || sale.notes) && (
                             <View style={{ marginTop: 12 }}>
-                                <Text style={styles.label}>Notes / Remarks</Text>
+                                <Text style={styles.label}>{t('common.notes')}</Text>
                                 <Text style={[styles.value, { fontSize: 14, fontStyle: 'italic', fontWeight: '400', color: colors.textSecondary }]}>
                                     {sale.note || sale.notes}
                                 </Text>
@@ -254,53 +265,53 @@ export default function SaleDetailsScreen() {
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Items</Text>
+                        <Text style={styles.sectionTitle}>{t('sales.items')}</Text>
                         {items.map((item, i) => (
                             <View key={i} style={styles.itemRow}>
                                 <Text style={styles.itemName}>{item.product_name} x {item.quantity}</Text>
-                                <Text style={styles.itemPrice}>${(item.total_price || 0).toFixed(2)}</Text>
+                                <Text style={styles.itemPrice}>{formatCurrency(item.total_price)}</Text>
                             </View>
                         ))}
                     </View>
 
                     <View style={styles.footer}>
                         <View style={styles.row}>
-                            <Text style={styles.label}>Subtotal</Text>
-                            <Text style={styles.value}>${(sale.subtotal || (sale.total_amount - (sale.tax || 0) + (sale.discount || 0)) || 0).toFixed(2)}</Text>
+                            <Text style={styles.label}>{t('common.subtotal')}</Text>
+                            <Text style={styles.value}>{formatCurrency(sale.subtotal || (sale.total_amount - (sale.tax || 0) + (sale.discount || 0)))}</Text>
                         </View>
                         {(sale.discount > 0) && (
                             <View style={styles.row}>
-                                <Text style={styles.label}>Discount</Text>
+                                <Text style={styles.label}>{t('common.discount')}</Text>
                                 <Text style={[styles.value, { color: colors.success }]}>
-                                    -${(sale.discount || 0).toFixed(2)}
+                                    -{formatCurrency(sale.discount)}
                                 </Text>
                             </View>
                         )}
                         {(sale.tax > 0) && (
                             <View style={styles.row}>
-                                <Text style={styles.label}>Tax</Text>
+                                <Text style={styles.label}>{t('common.tax')}</Text>
                                 <Text style={styles.value}>
-                                    +${(sale.tax || 0).toFixed(2)}
+                                    +{formatCurrency(sale.tax)}
                                 </Text>
                             </View>
                         )}
                         <View style={styles.row}>
-                            <Text style={styles.label}>Total Amount</Text>
-                            <Text style={[styles.value, { fontWeight: 'bold' }]}>${(sale.total_amount || sale.total || 0).toFixed(2)}</Text>
+                            <Text style={styles.label}>{t('common.total')}</Text>
+                            <Text style={[styles.value, { fontWeight: 'bold' }]}>{formatCurrency(sale.total_amount || sale.total)}</Text>
                         </View>
                         <View style={styles.row}>
-                            <Text style={styles.label}>Paid Amount</Text>
-                            <Text style={styles.value}>${(sale.paid_amount || 0).toFixed(2)}</Text>
+                            <Text style={styles.label}>{t('sales.paid_amount')}</Text>
+                            <Text style={styles.value}>{formatCurrency(sale.paid_amount)}</Text>
                         </View>
                         <View style={styles.row}>
-                            <Text style={styles.label}>Balance Due</Text>
+                            <Text style={styles.label}>{t('sales.balance_due')}</Text>
                             <Text style={[styles.value, { color: colors.danger, fontWeight: 'bold' }]}>
-                                ${((sale.total_amount || sale.total || 0) - (sale.paid_amount || 0)).toFixed(2)}
+                                {formatCurrency((sale.total_amount || sale.total || 0) - (sale.paid_amount || 0))}
                             </Text>
                         </View>
 
                         <AppButton
-                            title="Print Professional Invoice"
+                            title={t('sales.print_invoice')}
                             onPress={handleDownloadReceipt}
                             loading={generating}
                             style={{ marginTop: 24 }}
@@ -314,7 +325,7 @@ export default function SaleDetailsScreen() {
                                 onPress={() => setReturnModalVisible(true)}
                             >
                                 <FontAwesome name="undo" size={14} color="#06B6D4" />
-                                <Text style={styles.returnBtnText}>Record Customer Return</Text>
+                                <Text style={styles.returnBtnText}>{t('sales.record_return')}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -322,7 +333,7 @@ export default function SaleDetailsScreen() {
                     {/* Payment History */}
                     {payments.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Payment History</Text>
+                            <Text style={styles.sectionTitle}>{t('sales.payment_history')}</Text>
                             {payments.map((p: any, i: number) => (
                                 <View key={i} style={{ marginBottom: i < payments.length - 1 ? 12 : 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <View>
@@ -330,11 +341,11 @@ export default function SaleDetailsScreen() {
                                             {new Date(p.payment_date || p.created_at).toLocaleDateString()}
                                         </Text>
                                         <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, textTransform: 'uppercase' }}>
-                                            {p.method || 'CASH'}
+                                            {t(`sales.${p.method || 'cash'}`).toUpperCase()}
                                         </Text>
                                     </View>
                                     <Text style={{ fontSize: 15, fontWeight: '700', color: colors.success }}>
-                                        +${(p.amount || 0).toFixed(2)}
+                                        +{formatCurrency(p.amount)}
                                     </Text>
                                 </View>
                             ))}
@@ -344,7 +355,7 @@ export default function SaleDetailsScreen() {
                     {/* Returns History */}
                     {saleReturns.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Returns History</Text>
+                            <Text style={styles.sectionTitle}>{t('sales.returns_history')}</Text>
                             {saleReturns.map((ret: any, i: number) => (
                                 <View key={ret.id} style={{ marginBottom: i < saleReturns.length - 1 ? 12 : 0 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -352,7 +363,7 @@ export default function SaleDetailsScreen() {
                                             <View style={{ backgroundColor: '#06B6D420', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
                                                 <Text style={{ fontSize: 11, color: '#06B6D4', fontWeight: '700' }}>
                                                     {ret.refund_method === 'cash' ? 'CASH' :
-                                                     ret.refund_method === 'ar_adjustment' ? 'AR ADJ' : 'CREDIT'}
+                                                        ret.refund_method === 'ar_adjustment' ? 'AR ADJ' : 'CREDIT'}
                                                 </Text>
                                             </View>
                                             <Text style={[styles.label, { marginBottom: 0 }]}>
@@ -360,7 +371,7 @@ export default function SaleDetailsScreen() {
                                             </Text>
                                         </View>
                                         <Text style={{ fontSize: 15, fontWeight: '700', color: '#06B6D4' }}>
-                                            −${(ret.total_amount || 0).toFixed(2)}
+                                            −{formatCurrency(ret.total_amount)}
                                         </Text>
                                     </View>
                                     {ret.reason && (
@@ -372,7 +383,7 @@ export default function SaleDetailsScreen() {
                                                 {ri.product_name} × {ri.quantity}
                                             </Text>
                                             <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                                                ${(ri.total_amount || 0).toFixed(2)}
+                                                {formatCurrency(ri.total_amount)}
                                             </Text>
                                         </View>
                                     ))}
@@ -384,13 +395,13 @@ export default function SaleDetailsScreen() {
                     {sale.receipt_url && (
                         <View style={styles.section}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Receipt / Payment Proof</Text>
-                                <TouchableOpacity 
+                                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{t('common.receipt')}</Text>
+                                <TouchableOpacity
                                     onPress={() => downloadFile(sale.receipt_url, `sale_receipt_${sale.id.split('-')[0]}.jpg`)}
                                     style={{ flexDirection: 'row', alignItems: 'center' }}
                                 >
                                     <FontAwesome name="download" size={16} color={colors.primary} />
-                                    <Text style={{ color: colors.primary, fontWeight: '700', marginLeft: 8 }}>Download</Text>
+                                    <Text style={{ color: colors.primary, fontWeight: '700', marginLeft: 8 }}>{t('common.download')}</Text>
                                 </TouchableOpacity>
                             </View>
                             <View style={styles.imageContainer}>
@@ -410,7 +421,7 @@ export default function SaleDetailsScreen() {
                 visible={returnModalVisible}
                 type="customer_return"
                 referenceId={sale?.id}
-                referenceLabel={sale ? `Sale #${sale.id.split('-')[0].toUpperCase()} — ${sale.customers?.name || 'Walk-in'} — $${(sale.total_amount || 0).toFixed(2)}` : ''}
+                referenceLabel={sale ? `${t('sales.sale')} #${sale.id.split('-')[0].toUpperCase()} — ${sale.customers?.name || t('sales.walk_in_guest')} — ${formatCurrency(sale.total_amount)}` : ''}
                 onClose={() => setReturnModalVisible(false)}
                 onSuccess={() => fetchSaleDetails()}
             />
@@ -421,8 +432,8 @@ export default function SaleDetailsScreen() {
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { padding: 16, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', borderBottomWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { fontSize: 20, fontWeight: 'bold', color: colors.text },
+    header: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', borderBottomWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    title: { fontSize: 18, fontWeight: 'bold', color: colors.text },
     date: { color: colors.textSecondary, marginTop: 4 },
     statusItem: { fontWeight: 'bold', marginTop: 4 },
     section: { padding: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, marginTop: 8, marginHorizontal: 16 },

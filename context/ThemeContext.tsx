@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme as useDeviceColorScheme } from 'react-native';
+import { ActivityIndicator, useColorScheme as useDeviceColorScheme, View } from 'react-native';
 
 type ThemeType = 'light' | 'dark' | 'system';
 
@@ -51,7 +51,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const colors = Colors[activeTheme];
 
     if (!isReady) {
-        return null; // Or a splash screen
+        return (
+            <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator color="#fff" />
+            </View>
+        );
     }
 
     return (

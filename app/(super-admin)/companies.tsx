@@ -7,14 +7,15 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View, Modal, Image, ActivityIndicator } from 'react-native';
 
 export default function CompaniesScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const router = useRouter();
     const [companies, setCompanies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const { showFeedback } = useFeedback();
 
     useEffect(() => {
@@ -83,6 +84,7 @@ export default function CompaniesScreen() {
                         const subStatus = item.sub_status;
                         const subEndDate = item.sub_end_date;
                         const subId = item.sub_id;
+                        const receiptUrl = item.sub_receipt_url;
 
                         return (
                             <View style={styles.card}>
@@ -112,25 +114,62 @@ export default function CompaniesScreen() {
                                     {subEndDate && (
                                         <Text style={styles.expiry}>Expires: {formatDate(subEndDate)}</Text>
                                     )}
-                                    {subStatus === 'pending_approval' && subId && (
-                                        <TouchableOpacity
-                                            style={styles.approveBtn}
-                                            onPress={() => approveSubscription(subId)}
-                                        >
-                                            <Text style={styles.approveText}>Approve Subscription</Text>
-                                        </TouchableOpacity>
-                                    )}
+
+                                    <View style={styles.subActions}>
+                                        {receiptUrl && (
+                                            <TouchableOpacity
+                                                style={[styles.receiptBtn, { borderColor: colors.primary }]}
+                                                onPress={() => setSelectedReceipt(receiptUrl)}
+                                            >
+                                                <FontAwesome name="file-image-o" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                                                <Text style={[styles.receiptText, { color: colors.primary }]}>View Receipt</Text>
+                                            </TouchableOpacity>
+                                        )}
+
+                                        {subStatus === 'pending_approval' && subId && (
+                                            <TouchableOpacity
+                                                style={styles.approveBtn}
+                                                onPress={() => approveSubscription(subId)}
+                                            >
+                                                <Text style={styles.approveText}>Approve Subscription</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 </View>
                             </View>
                         );
                     }}
                 />
+
+                {/* Receipt Preview Modal */}
+                <Modal visible={!!selectedReceipt} transparent animationType="fade" onRequestClose={() => setSelectedReceipt(null)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableOpacity style={styles.modalCloseArea} onPress={() => setSelectedReceipt(null)} />
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Payment Proof</Text>
+                                <TouchableOpacity onPress={() => setSelectedReceipt(null)} style={styles.closeIcon}>
+                                    <FontAwesome name="times" size={20} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
+                            {selectedReceipt ? (
+                                <Image
+                                    source={{ uri: selectedReceipt }}
+                                    style={styles.receiptImage}
+                                    resizeMode="contain"
+                                />
+                            ) : (
+                                <ActivityIndicator size="large" color={colors.primary} />
+                            )}
+                        </View>
+                    </View>
+                </Modal>
             </View>
         </SuperAdminGuard>
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, theme: string) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     topHeader: {
         flexDirection: 'row',
@@ -173,6 +212,52 @@ const createStyles = (colors: any) => StyleSheet.create({
     planNameText: { fontSize: 16, fontWeight: '600', color: colors.text },
     subStatus: { fontWeight: 'bold', fontSize: 13 },
     expiry: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-    approveBtn: { backgroundColor: colors.primary, padding: 10, borderRadius: 8, marginTop: 12, alignItems: 'center' },
-    approveText: { color: '#fff', fontWeight: 'bold', fontSize: 13 }
+    subActions: { marginTop: 12, gap: 10 },
+    receiptBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+        borderRadius: 8,
+        borderWidth: 1.5,
+        backgroundColor: 'transparent',
+    },
+    receiptText: { fontWeight: '700', fontSize: 13 },
+    approveBtn: { backgroundColor: colors.primary, padding: 10, borderRadius: 8, alignItems: 'center' },
+    approveText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+    
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalCloseArea: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+    },
+    modalContent: {
+        width: '90%',
+        height: '80%',
+        backgroundColor: colors.card,
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+    closeIcon: { padding: 4 },
+    receiptImage: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#000',
+    }
 });

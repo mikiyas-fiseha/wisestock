@@ -1,6 +1,8 @@
 import { Layout } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export type DatePeriod = 'today' | 'week' | 'month' | 'custom';
 
@@ -18,6 +20,7 @@ interface DateFilterProps {
 
 export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeChange }: DateFilterProps) => {
     const { colors } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [modalVisible, setModalVisible] = useState(false);
     const [tempStart, setTempStart] = useState('');
@@ -53,20 +56,20 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
     return (
         <View style={styles.container}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-                <QuickChip label="Today" value="today" />
-                <QuickChip label="7D" value="week" />
-                <QuickChip label="30D" value="month" />
-                <QuickChip label={period === 'custom' ? `${customRange.start.getDate()}/${customRange.start.getMonth() + 1}` : "Custom"} value="custom" />
+                <QuickChip label={t('common.today')} value="today" />
+                <QuickChip label={t('common.last_7d')} value="week" />
+                <QuickChip label={t('common.last_30d')} value="month" />
+                <QuickChip label={period === 'custom' ? `${customRange.start.getDate()}/${customRange.start.getMonth() + 1}` : t('common.custom')} value="custom" />
             </ScrollView>
 
             <Modal visible={modalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Select Custom Range</Text>
+                        <Text style={styles.modalTitle}>{t('common.select_range')}</Text>
                         <Text style={styles.modalSubtitle}>Format: YYYY-MM-DD</Text>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Start Date</Text>
+                            <Text style={styles.label}>{t('common.start_date')}</Text>
                             <TextInput
                                 style={styles.input}
                                 value={tempStart}
@@ -78,7 +81,7 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>End Date</Text>
+                            <Text style={styles.label}>{t('common.end_date')}</Text>
                             <TextInput
                                 style={styles.input}
                                 value={tempEnd}
@@ -90,13 +93,13 @@ export const DateFilter = ({ period, onPeriodChange, customRange, onCustomRangeC
                         </View>
 
                         <View style={styles.actions}>
-                            <TouchableOpacity style={[styles.button, styles.cancel]} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.buttonTextCancel}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.button, styles.submit]} onPress={applyCustom}>
-                                <Text style={styles.buttonTextSubmit}>Apply Range</Text>
-                            </TouchableOpacity>
-                        </View>
+                                <TouchableOpacity style={[styles.button, styles.cancel]} onPress={() => setModalVisible(false)}>
+                                    <Text style={styles.buttonTextCancel}>{t('common.cancel')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.button, styles.submit]} onPress={applyCustom}>
+                                    <Text style={styles.buttonTextSubmit}>{t('common.apply')}</Text>
+                                </TouchableOpacity>
+                            </View>
                     </View>
                 </View>
             </Modal>
@@ -127,9 +130,6 @@ export const getRangeForPeriod = (period: DatePeriod, currentCustom: { start: Da
     }
     return currentCustom;
 };
-
-import { useTheme } from '@/context/ThemeContext';
-import { ScrollView } from 'react-native';
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: { marginBottom: 0 },

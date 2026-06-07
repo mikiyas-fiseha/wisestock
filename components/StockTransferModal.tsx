@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Alert,
@@ -37,6 +38,7 @@ interface ProductOption {
 
 export function StockTransferModal({ visible, onClose, productId: initialProductId, productName: initialProductName }: Props) {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company, allBranches, branch } = useAuth();
     const { transfer, isTransferring } = useStockTransfer();
@@ -108,11 +110,11 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                 quantity: qty,
                 notes,
             });
-            Alert.alert('Success', `Transferred ${qty} units successfully.`);
+            Alert.alert(t('common.success'), t('inventory.transfer_success', { qty }));
             resetForm();
             onClose();
         } catch (err: any) {
-            Alert.alert('Transfer Failed', err.message || 'Unknown error');
+            Alert.alert(t('inventory.transfer_failed'), err.message || t('common.error'));
         }
     };
 
@@ -162,8 +164,8 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                     {/* Header */}
                     <View style={styles.header}>
                         <View>
-                            <Text style={styles.title}>Transfer Stock</Text>
-                            <Text style={styles.subtitle}>Move inventory between branches</Text>
+                            <Text style={styles.title}>{t('inventory.transfer_stock')}</Text>
+                            <Text style={styles.subtitle}>{t('inventory.move_inventory')}</Text>
                         </View>
                         <Pressable onPress={onClose} style={styles.closeBtn}>
                             <FontAwesome name="times" size={18} color={colors.textSecondary} />
@@ -173,14 +175,14 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                     <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                         {/* Product Selector */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Product</Text>
+                            <Text style={styles.label}>{t('common.products')}</Text>
                             <Pressable
                                 style={styles.productSelector}
                                 onPress={() => !initialProductId && setShowProductSearch(!showProductSearch)}
                             >
                                 <FontAwesome name="cube" size={14} color={colors.textSecondary} />
                                 <Text style={[styles.productSelectorText, !selectedProductName && { color: colors.textSecondary }]} numberOfLines={1}>
-                                    {selectedProductName || 'Select product...'}
+                                    {selectedProductName || t('products.search_placeholder')}
                                 </Text>
                                 {!initialProductId && <FontAwesome name="chevron-down" size={10} color={colors.textSecondary} />}
                             </Pressable>
@@ -189,7 +191,7 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                                 <View style={styles.searchSection}>
                                     <TextInput
                                         style={styles.searchInput}
-                                        placeholder="Search product..."
+                                        placeholder={t('products.search_placeholder')}
                                         placeholderTextColor={colors.textSecondary}
                                         value={productSearch}
                                         onChangeText={setProductSearch}
@@ -223,25 +225,25 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                         </View>
 
                         {/* Branch selectors */}
-                        {renderBranchPicker('From Branch', fromBranchId, setFromBranchId, toBranchId)}
+                        {renderBranchPicker(t('inventory.from_branch'), fromBranchId, setFromBranchId, toBranchId)}
 
                         {/* Arrow indicator */}
                         <View style={styles.arrowContainer}>
                             <FontAwesome name="arrow-down" size={16} color={colors.primary} />
                         </View>
 
-                        {renderBranchPicker('To Branch', toBranchId, setToBranchId, fromBranchId)}
+                        {renderBranchPicker(t('inventory.to_branch'), toBranchId, setToBranchId, fromBranchId)}
 
                         {/* Stock info */}
                         {selectedProductId && fromBranchId && toBranchId && (
                             <View style={styles.stockInfoRow}>
                                 <View style={styles.stockInfoCard}>
-                                    <Text style={styles.stockInfoLabel}>Source Stock</Text>
+                                    <Text style={styles.stockInfoLabel}>{t('inventory.source_stock')}</Text>
                                     <Text style={[styles.stockInfoValue, sourceStock <= 0 && { color: colors.danger }]}>{sourceStock}</Text>
                                 </View>
                                 <FontAwesome name="long-arrow-right" size={16} color={colors.textSecondary} />
                                 <View style={styles.stockInfoCard}>
-                                    <Text style={styles.stockInfoLabel}>Dest Stock</Text>
+                                    <Text style={styles.stockInfoLabel}>{t('inventory.dest_stock')}</Text>
                                     <Text style={styles.stockInfoValue}>{destStock}</Text>
                                 </View>
                             </View>
@@ -249,26 +251,26 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
 
                         {/* Quantity */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Quantity</Text>
+                            <Text style={styles.label}>{t('inventory.quantity')}</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="Enter quantity"
+                                placeholder={t('inventory.quantity')}
                                 placeholderTextColor={colors.textSecondary}
                                 value={quantity}
                                 onChangeText={setQuantity}
                                 keyboardType="numeric"
                             />
                             {qty > sourceStock && sourceStock > 0 && (
-                                <Text style={styles.errorText}>Exceeds available stock ({sourceStock})</Text>
+                                <Text style={styles.errorText}>{t('inventory.invalid_qty')} ({sourceStock})</Text>
                             )}
                         </View>
 
                         {/* Notes */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.label}>Notes (optional)</Text>
+                            <Text style={styles.label}>{t('common.reference')} ({t('common.optional')})</Text>
                             <TextInput
                                 style={[styles.input, { minHeight: 60 }]}
-                                placeholder="Reason for transfer..."
+                                placeholder={t('common.reference')}
                                 placeholderTextColor={colors.textSecondary}
                                 value={notes}
                                 onChangeText={setNotes}
@@ -279,7 +281,7 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                         {/* Preview */}
                         {canSubmit && (
                             <View style={styles.previewCard}>
-                                <Text style={styles.previewTitle}>Preview</Text>
+                                <Text style={styles.previewTitle}>{t('inventory.preview')}</Text>
                                 <Text style={styles.previewText}>
                                     {allBranches.find(b => b.id === fromBranchId)?.name}: {sourceStock} → {sourceStock - qty}
                                 </Text>
@@ -292,7 +294,7 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                         {/* Actions */}
                         <View style={styles.actions}>
                             <Pressable style={styles.cancelBtn} onPress={onClose}>
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
                             </Pressable>
                             <Pressable
                                 style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
@@ -304,7 +306,7 @@ export function StockTransferModal({ visible, onClose, productId: initialProduct
                                 ) : (
                                     <>
                                         <FontAwesome name="exchange" size={14} color="#fff" />
-                                        <Text style={styles.submitBtnText}>Transfer</Text>
+                                        <Text style={styles.submitBtnText}>{t('inventory.transfer')}</Text>
                                     </>
                                 )}
                             </Pressable>
@@ -370,7 +372,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         letterSpacing: 0.5,
     },
     input: {
-
+        borderWidth: 1,
+        borderColor: colors.border,
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 10,
@@ -384,7 +387,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-
+        borderWidth: 1,
+        borderColor: colors.border,
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 10,
@@ -444,8 +448,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.border,
         backgroundColor: 'transparent',
-
     },
     branchChipActive: {
         backgroundColor: colors.primary,

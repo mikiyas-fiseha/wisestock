@@ -4,10 +4,12 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
+import { formatCurrency } from '@/lib/formatters';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     FlatList,
@@ -26,16 +28,19 @@ export default function PurchasesListScreen() {
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
     const { purchases, isLoading } = usePurchases();
-    const { branch } = useAuth();
+    const { branch, company } = useAuth();
+    const { t, i18n } = useTranslation();
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return d.toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
     };
 
-    const formatCurrency = (amount: number) => {
-        return `$${(amount || 0).toFixed(2)}`;
-    };
+
 
     const stats = useMemo(() => {
         if (!purchases?.length) return { total: 0, count: 0, thisMonth: 0 };
@@ -62,21 +67,21 @@ export default function PurchasesListScreen() {
                         <FontAwesome name="shopping-bag" size={16} color={colors.primary} />
                     </View>
                     <View>
-                        <Text style={styles.supplierName}>{item.supplier?.name || 'Unknown Supplier'}</Text>
+                        <Text style={styles.supplierName}>{item.supplier?.name || t('purchases.supplier')}</Text>
                         <Text style={styles.cardDate}>{formatDate(item.purchase_date || item.created_at)}</Text>
                     </View>
                 </View>
                 <View style={styles.cardRight}>
                     <Text style={styles.cardAmount}>{formatCurrency(item.total_amount)}</Text>
                     {item.invoice_number ? (
-                        <Text style={styles.invoiceNum}>#{item.invoice_number}</Text>
+                        <Text style={styles.invoiceNum}>{t('purchases.invoice')} #{item.invoice_number}</Text>
                     ) : null}
                 </View>
             </View>
             <View style={styles.cardFooter}>
                 <View style={[styles.statusBadge, item.amount_paid >= item.total_amount ? styles.badgePaid : styles.badgeUnpaid]}>
                     <Text style={[styles.statusText, item.amount_paid >= item.total_amount ? styles.statusPaid : styles.statusUnpaid]}>
-                        {item.amount_paid >= item.total_amount ? 'Paid' : 'Partial'}
+                        {item.amount_paid >= item.total_amount ? t('purchases.paid') : t('purchases.partial')}
                     </Text>
                 </View>
                 {item.notes ? <Text style={styles.notes} numberOfLines={1}>{item.notes}</Text> : null}
@@ -99,28 +104,28 @@ export default function PurchasesListScreen() {
             {/* Header */}
             <View style={[styles.header, isWeb && styles.headerWeb]}>
                 <View>
-                    <Text style={styles.title}>Purchases</Text>
+                    <Text style={styles.title}>{t('purchases.purchases')}</Text>
                     {branch && <Text style={styles.branchLabel}>{branch.name}</Text>}
                 </View>
                 <AppButton
-                    title="+ New Purchase"
+                    title={t('purchases.new_purchase')}
                     onPress={() => router.push('/(tabs)/purchases/add')}
-                    style={{ paddingHorizontal: 20 }}
+                    style={{ paddingHorizontal: 20, marginVertical: 0, height: 40, borderRadius: 24 }}
                 />
             </View>
 
             {/* Stats Row */}
             <View style={[styles.statsRow, isWeb && styles.statsRowWeb]}>
                 <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>Total Purchases</Text>
+                    <Text style={styles.statLabel}>{t('purchases.total_purchases')}</Text>
                     <Text style={styles.statValue}>{stats.count}</Text>
                 </View>
                 <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>All Time</Text>
+                    <Text style={styles.statLabel}>{t('purchases.all_time')}</Text>
                     <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
                 </View>
                 <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>This Month</Text>
+                    <Text style={styles.statLabel}>{t('purchases.this_month')}</Text>
                     <Text style={styles.statValue}>{formatCurrency(stats.thisMonth)}</Text>
                 </View>
             </View>
@@ -129,10 +134,10 @@ export default function PurchasesListScreen() {
             {!purchases?.length ? (
                 <View style={styles.emptyState}>
                     <FontAwesome name="inbox" size={48} color={colors.textSecondary} />
-                    <Text style={styles.emptyTitle}>No purchases yet</Text>
-                    <Text style={styles.emptySubtitle}>Create a purchase to add stock to your branches</Text>
+                    <Text style={styles.emptyTitle}>{t('purchases.no_purchases')}</Text>
+                    <Text style={styles.emptySubtitle}>{t('purchases.no_purchases_subtitle')}</Text>
                     <AppButton
-                        title="Create First Purchase"
+                        title={t('purchases.create_first')}
                         onPress={() => router.push('/(tabs)/purchases/add')}
                         style={{ marginTop: 16 }}
                     />
@@ -155,9 +160,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
 
     // Header
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 16, backgroundColor: colors.card + 'E0' },
-    headerWeb: { paddingTop: 20 },
-    title: { fontSize: 22, fontWeight: '700', color: colors.text },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 20, backgroundColor: 'transparent', marginTop: 8 },
+    headerWeb: { paddingTop: 24 },
+    title: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
     branchLabel: { fontSize: 13, color: colors.primary, fontWeight: '500', marginTop: 2 },
 
     // Stats

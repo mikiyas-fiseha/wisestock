@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type IconName = React.ComponentProps<typeof FontAwesome>['name'];
@@ -56,22 +57,23 @@ const SidebarItem = ({ name, icon, isActive, onPress }: SidebarItemProps) => {
 
 export function WebSidebar() {
     const { colors, theme, systemTheme, setTheme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const pathname = usePathname();
     const { user, company, branch } = useAuth();
 
     const routes = [
-        { name: 'Dashboard', icon: 'th-large' as IconName, route: '/(tabs)/dashboard' },
-        { name: 'Products', icon: 'cube' as IconName, route: '/(tabs)/products' },
-        { name: 'Purchases', icon: 'shopping-bag' as IconName, route: '/(tabs)/purchases' },
-        { name: 'Inventory', icon: 'archive' as IconName, route: '/(tabs)/inventory' },
-        { name: 'Sales', icon: 'shopping-cart' as IconName, route: '/(tabs)/sales' },
-        { name: 'Reports', icon: 'line-chart' as IconName, route: '/(tabs)/reports' },
-        { name: 'Customers', icon: 'users' as IconName, route: '/(tabs)/customers' },
-        { name: 'Suppliers', icon: 'truck' as IconName, route: '/(tabs)/suppliers' },
-        { name: 'Expenses', icon: 'money' as IconName, route: '/(tabs)/expenses' },
-        { name: 'Settings', icon: 'cog' as IconName, route: '/(tabs)/settings' },
+        { name: t('common.dashboard'), icon: 'th-large' as IconName, route: '/(tabs)/dashboard' },
+        { name: t('common.products'), icon: 'cube' as IconName, route: '/(tabs)/products' },
+        { name: t('common.purchases'), icon: t('common.purchases') ? 'shopping-bag' : 'shopping-bag' as IconName, route: '/(tabs)/purchases' },
+        { name: t('common.inventory'), icon: 'archive' as IconName, route: '/(tabs)/inventory' },
+        { name: t('common.sales'), icon: 'shopping-cart' as IconName, route: '/(tabs)/sales' },
+        { name: t('common.reports'), icon: 'line-chart' as IconName, route: '/(tabs)/reports' },
+        { name: t('common.customers'), icon: 'users' as IconName, route: '/(tabs)/customers' },
+        { name: t('common.suppliers'), icon: 'truck' as IconName, route: '/(tabs)/suppliers' },
+        { name: t('common.expenses'), icon: 'money' as IconName, route: '/(tabs)/expenses' },
+        { name: t('common.settings'), icon: 'cog' as IconName, route: '/(tabs)/settings' },
     ];
 
     const handleNavigate = (route: string) => {
@@ -110,7 +112,7 @@ export function WebSidebar() {
 
             {/* Navigation */}
             <View style={styles.navigation}>
-                <Text style={styles.navLabel}>MENU</Text>
+                <Text style={styles.navLabel}>{t('common.menu') || 'MENU'}</Text>
                 {routes.map((item) => {
                     const routeSegment = item.route.replace('/(tabs)', '');
                     const isActive = pathname === routeSegment || pathname.startsWith(routeSegment + '/');
@@ -136,8 +138,8 @@ export function WebSidebar() {
                         </Text>
                     </View>
                     <View style={styles.userInfo}>
-                        <Text style={styles.userName} numberOfLines={1}>{user?.name || 'User'}</Text>
-                        <Text style={styles.userRole} numberOfLines={1}>{user?.role || 'Member'}</Text>
+                        <Text style={styles.userName} numberOfLines={1}>{user?.name || t('common.user')}</Text>
+                        <Text style={styles.userRole} numberOfLines={1}>{t(`common.${(user?.role || 'member').toLowerCase()}`)}</Text>
                     </View>
                     <TouchableOpacity
                         onPress={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

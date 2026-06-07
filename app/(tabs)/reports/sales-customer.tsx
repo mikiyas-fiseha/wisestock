@@ -2,13 +2,16 @@ import { DateRange } from '@/components/reports/DateFilter';
 import { ReportChart } from '@/components/reports/ReportChart';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportColumn, ReportTable } from '@/components/reports/ReportTable';
+import { useAuth } from '@/context/AuthContext';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
+import i18n from '@/lib/i18n';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 export default function SalesCustomerReport() {
+    const { company } = useAuth();
     const [range, setRange] = useState<DateRange>({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        start: new Date(new Date().setDate(new Date().getDate() - 7)),
         end: new Date()
     });
 
@@ -56,7 +59,13 @@ export default function SalesCustomerReport() {
             exportFilename="sales_by_customer"
             chartContent={
                 <View>
-                    <ReportChart type="bar" data={chartData} yAxisLabelPrefix="$" color="#8B5CF6" />
+                    <ReportChart
+                        type="bar"
+                        data={chartData}
+                        yAxisLabelPrefix={i18n.language === 'en' ? (company?.currency || '$') : ''}
+                        yAxisLabelSuffix={i18n.language === 'am' ? ' ብር' : ''}
+                        color="#8B5CF6"
+                    />
                 </View>
             }
         >
@@ -65,6 +74,6 @@ export default function SalesCustomerReport() {
                 columns={columns}
                 totals={totals}
             />
-        </ReportLayout>
+        </ReportLayout >
     );
 }

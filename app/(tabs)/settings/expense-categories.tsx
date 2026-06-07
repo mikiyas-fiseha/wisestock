@@ -3,17 +3,19 @@ import { ListItem } from '@/components/ListItem';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
+import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useAddExpenseCategory, useExpenseCategories } from '@/hooks/useExpenses';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gradients } from '@/constants/Colors';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
 
 export default function ExpenseCategoriesScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { company, isAdmin, isSuperAdmin } = useAuth();
     const { showFeedback } = useFeedback();
@@ -30,12 +32,12 @@ export default function ExpenseCategoriesScreen() {
 
         addCategory.mutate(name, {
             onSuccess: () => {
-                showFeedback('success', 'Success', 'Category added successfully');
+                showFeedback('success', t('common.success'), t('common.saved'));
                 setName('');
                 setModalVisible(false);
             },
             onError: (err: any) => {
-                showFeedback('error', 'Error', err.message);
+                showFeedback('error', t('common.error'), err.message);
             }
         });
     };
@@ -50,8 +52,8 @@ export default function ExpenseCategoriesScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{x: 0, y: 0}} end={{x: 1, y: 1}} />
-            <AppHeader title="Expense Categories" showBack />
+            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <AppHeader title={t('settings.expense_categories')} showBack hideThemeToggle={true} />
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
@@ -62,7 +64,7 @@ export default function ExpenseCategoriesScreen() {
                     renderItem={({ item }) => (
                         <ListItem
                             title={item.name}
-                            subtitle={item.is_system ? 'System Category' : 'Custom'}
+                            subtitle={item.is_system ? t('common.system') : t('common.custom')}
                             rightIcon={item.is_system ? undefined : "chevron-right"}
                         />
                     )}
@@ -71,15 +73,15 @@ export default function ExpenseCategoriesScreen() {
             )}
 
             <View style={styles.footer}>
-                <AppButton title="+ Add Category" onPress={() => setModalVisible(true)} />
+                <AppButton title={"+ " + t('common.add')} onPress={() => setModalVisible(true)} />
             </View>
 
             <Modal visible={modalVisible} animationType="fade" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>New Category</Text>
+                        <Text style={styles.modalTitle}>{t('settings.new_category')}</Text>
                         <AppTextInput
-                            label="Category Name"
+                            label={t('settings.category_name')}
                             value={name}
                             onChangeText={setName}
                             placeholder="e.g. Travel, Software"
@@ -87,13 +89,13 @@ export default function ExpenseCategoriesScreen() {
                         />
                         <View style={styles.modalButtons}>
                             <AppButton
-                                title="Cancel"
+                                title={t('common.cancel')}
                                 variant="outline"
                                 onPress={() => setModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <AppButton
-                                title="Add"
+                                title={t('common.add')}
                                 loading={addCategory.isPending}
                                 onPress={handleAdd}
                                 style={{ flex: 1 }}
@@ -107,9 +109,9 @@ export default function ExpenseCategoriesScreen() {
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    footer: { padding: 16, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+    footer: { padding: 16, backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border },
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
@@ -117,7 +119,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: 24,
     },
     modalContent: {
-        backgroundColor: 'white',
+        backgroundColor: colors.card,
         borderRadius: 16,
         padding: 24,
         shadowColor: '#000',
@@ -128,7 +130,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1E293B',
+        color: colors.text,
         marginBottom: 16,
     },
     modalButtons: { flexDirection: 'row', marginTop: 24 },

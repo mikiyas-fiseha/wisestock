@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/AuthContext';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -16,6 +17,8 @@ export interface ExportSection {
 }
 
 export const useDataExport = () => {
+    const { company } = useAuth();
+    const currency = company?.currency || '$';
 
     const exportToCSV = async (data: any[], filename: string) => {
         if (!data || data.length === 0) {
@@ -157,7 +160,7 @@ export const useDataExport = () => {
                                 <div class="summary-row">
                                     <span class="summary-label">${item.label}</span>
                                     <span class="summary-value ${item.value < 0 ? 'negative' : ''}">
-                                        ${item.isPercentage ? `${item.value}%` : `$${item.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                                        ${item.isPercentage ? `${item.value}%` : `${currency}${item.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                                     </span>
                                 </div>
                             `).join('')}
@@ -252,7 +255,7 @@ export const useDataExport = () => {
                             <div class="header-banner">
                                 <div class="header-info">
                                     <h1>${title}</h1>
-                                    <p>StockManager Executive Business Report</p>
+                                    <p>ብልህStock Executive Business Report</p>
                                 </div>
                                 <div class="header-meta">
                                     <div class="date">${new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}</div>

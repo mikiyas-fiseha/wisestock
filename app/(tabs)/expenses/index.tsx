@@ -1,5 +1,4 @@
 
-import { AppHeader } from '@/components/AppHeader';
 import { SummaryCard } from '@/components/SummaryCard';
 import { DateFilter, DatePeriod, DateRange, getRangeForPeriod } from '@/components/reports/DateFilter';
 import { ReportChart } from '@/components/reports/ReportChart';
@@ -8,10 +7,12 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useExpenseReports, useExpenses, useExpenseStats, useProcessRecurringExpenses } from '@/hooks/useExpenses';
+import { formatCurrency } from '@/lib/formatters';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     FlatList,
@@ -25,9 +26,10 @@ import {
 
 export default function ExpensesScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+    const { company, isAdmin, isSuperAdmin, branch, allBranches } = useAuth();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
-    const { isAdmin, isSuperAdmin, branch } = useAuth();
 
     // Auto-process recurring expenses on load
     const processRecurring = useProcessRecurringExpenses();
@@ -71,23 +73,19 @@ export default function ExpensesScreen() {
 
     const stats = statsData || { today: 0, totalMonth: 0, totalYear: 0, topCategory: 'None' };
 
-    const { allBranches } = useAuth(); // Make sure to get allBranches from context
-
-    const fmt = (n: number) => `$${n.toFixed(2)}`;
-
     const renderHeader = () => (
         <View style={styles.headerSection}>
             <View style={styles.statsRow}>
                 <SummaryCard
-                    title="This Month"
-                    value={fmt(stats.totalMonth)}
+                    title={t('expenses.this_month')}
+                    value={formatCurrency(stats.totalMonth)}
                     type="danger"
                     icon="money"
                     compact
                 />
                 <SummaryCard
-                    title="Top Category"
-                    value={stats.topCategory}
+                    title={t('expenses.top_category')}
+                    value={stats.topCategory === 'None' ? t('common.none') || 'None' : stats.topCategory}
                     type="neutral"
                     icon="tag"
                     compact
@@ -105,7 +103,7 @@ export default function ExpensesScreen() {
                     <TouchableOpacity style={styles.branchBtn} onPress={() => {/* Branch Picker Modal */ }}>
                         <Ionicons name="location-outline" size={18} color={colors.primary} />
                         <Text style={styles.branchBtnText}>
-                            {branchId ? allBranches.find(b => b.id === branchId)?.name || 'Branch' : 'All Branches'}
+                            {branchId ? allBranches.find(b => b.id === branchId)?.name || t('branch') : t('common.all_branches')}
                         </Text>
                     </TouchableOpacity>
                 )}
@@ -118,7 +116,7 @@ export default function ExpensesScreen() {
         return (
             <ScrollView style={styles.reportsContent} contentContainerStyle={{ paddingBottom: 20 }}>
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Spending by Category</Text>
+                    <Text style={styles.chartTitle}>{t('expenses.spending_by_category')}</Text>
                     <ReportChart
                         type="bar"
                         data={reports.byCategory}
@@ -129,7 +127,7 @@ export default function ExpensesScreen() {
 
                 {(isAdmin || isSuperAdmin) && (
                     <View style={styles.chartCard}>
-                        <Text style={styles.chartTitle}>Branch Comparison</Text>
+                        <Text style={styles.chartTitle}>{t('expenses.branch_comparison')}</Text>
                         <ReportChart
                             type="bar"
                             data={reports.byBranch}
@@ -140,7 +138,7 @@ export default function ExpensesScreen() {
                 )}
 
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Monthly Trend</Text>
+                    <Text style={styles.chartTitle}>{t('expenses.monthly_trend')}</Text>
                     <ReportChart
                         type="line"
                         data={reports.monthlyTrend}
@@ -155,20 +153,19 @@ export default function ExpensesScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-            <AppHeader title="Expenses" />
 
             <View style={styles.tabContainer}>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'list' && styles.activeTab]}
                     onPress={() => setActiveTab('list')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'list' && styles.activeTabText]}>All Expenses</Text>
+                    <Text style={[styles.tabText, activeTab === 'list' && styles.activeTabText]}>{t('expenses.all_expenses')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'reports' && styles.activeTab]}
                     onPress={() => setActiveTab('reports')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>Reports</Text>
+                    <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>{t('common.reports')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -183,11 +180,11 @@ export default function ExpensesScreen() {
                                     <Ionicons name="receipt-outline" size={20} color={colors.primary} />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.description}>{item.description || 'No description'}</Text>
-                                    <Text style={styles.category}>{item.expense_categories?.name || 'Uncategorized'}</Text>
+                                    <Text style={styles.description}>{item.description || t('expenses.no_description')}</Text>
+                                    <Text style={styles.category}>{item.expense_categories?.name || t('expenses.uncategorized')}</Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={styles.amount}>-{fmt(item.amount)}</Text>
+                                    <Text style={styles.amount}>-{formatCurrency(item.amount)}</Text>
                                     <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
                                 </View>
                             </View>
@@ -200,7 +197,7 @@ export default function ExpensesScreen() {
                         !listLoading ? (
                             <View style={styles.emptyContainer}>
                                 <Ionicons name="document-text-outline" size={48} color={colors.textSecondary} />
-                                <Text style={styles.emptyText}>No expenses found for this period</Text>
+                                <Text style={styles.emptyText}>{t('expenses.empty_expenses')}</Text>
                             </View>
                         ) : null
                     }
@@ -227,7 +224,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: colors.card + 'E0',
         marginHorizontal: 16,
-        marginTop: 16,
+        marginTop: 8,
         borderRadius: 12,
         padding: 4,
     },

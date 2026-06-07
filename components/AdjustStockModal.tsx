@@ -8,13 +8,14 @@ import { useAdjustStock } from '@/hooks/useInventoryLogs';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const REASONS = [
-    { label: 'Damaged', value: 'damaged', icon: '💥' },
-    { label: 'Expired', value: 'expired', icon: '⏰' },
-    { label: 'Correction', value: 'correction', icon: '✏️' },
-    { label: 'Other', value: 'other', icon: '📋' },
+const getReasons = (t: any) => [
+    { label: t('inventory.damaged'), value: 'damaged', icon: '💥' },
+    { label: t('inventory.expired'), value: 'expired', icon: '⏰' },
+    { label: t('inventory.correction'), value: 'correction', icon: '✏️' },
+    { label: t('inventory.other'), value: 'other', icon: '📋' },
 ];
 
 interface AdjustStockModalProps {
@@ -28,6 +29,7 @@ interface AdjustStockModalProps {
 
 export function AdjustStockModal({ visible, onClose, productId, productName, currentStock, unit }: AdjustStockModalProps) {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [adjustmentType, setAdjustmentType] = useState<'add' | 'remove'>('add');
     const [quantity, setQuantity] = useState('');
@@ -35,11 +37,12 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
     const [notes, setNotes] = useState('');
     const { showFeedback } = useFeedback();
     const adjustStock = useAdjustStock();
+    const reasons = getReasons(t);
 
     const handleSave = async () => {
         const qty = parseFloat(quantity);
         if (!qty || qty <= 0) {
-            showFeedback('error', 'Error', 'Please enter a valid quantity');
+            showFeedback('error', t('common.error'), t('inventory.invalid_qty'));
             return;
         }
 
@@ -51,10 +54,10 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                 reason,
                 notes: notes || undefined,
             });
-            showFeedback('success', 'Success', `Stock ${adjustmentType === 'add' ? 'increased' : 'decreased'} by ${qty} ${unit}`);
+            showFeedback('success', t('common.success'), t('inventory.adjust_success'));
             handleClose();
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message || 'Failed to adjust stock');
+            showFeedback('error', t('common.error'), e.message || t('inventory.adjust_failed'));
         }
     };
 
@@ -85,7 +88,7 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                     {/* Header */}
                     <View style={styles.header}>
                         <View>
-                            <Text style={styles.title}>Adjust Stock</Text>
+                            <Text style={styles.title}>{t('inventory.adjust_stock')}</Text>
                             <Text style={styles.subtitle}>{productName}</Text>
                         </View>
                         <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
@@ -96,14 +99,14 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                     {/* Current Stock Display */}
                     <View style={styles.stockDisplay}>
                         <View style={styles.stockBox}>
-                            <Text style={styles.stockLabel}>Current</Text>
-                            <Text style={styles.stockValue}>{currentStock} {unit}</Text>
+                            <Text style={styles.stockLabel}>{t('inventory.current')}</Text>
+                            <Text style={styles.stockValue}>{currentStock} {unit ? t(`common.${unit}`) : t('common.pcs')}</Text>
                         </View>
                         <FontAwesome name="arrow-right" size={16} color={colors.textSecondary} />
                         <View style={styles.stockBox}>
-                            <Text style={styles.stockLabel}>New</Text>
+                            <Text style={styles.stockLabel}>{t('inventory.new')}</Text>
                             <Text style={[styles.stockValue, newStock < 0 && { color: colors.danger }]}>
-                                {newStock < 0 ? '—' : `${newStock} ${unit}`}
+                                {newStock < 0 ? '—' : `${newStock} ${unit ? t(`common.${unit}`) : t('common.pcs')}`}
                             </Text>
                         </View>
                     </View>
@@ -115,20 +118,20 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                             onPress={() => setAdjustmentType('add')}
                         >
                             <FontAwesome name="plus" size={12} color={adjustmentType === 'add' ? '#fff' : colors.textSecondary} />
-                            <Text style={[styles.typeBtnText, adjustmentType === 'add' && styles.typeBtnTextActive]}>Add Stock</Text>
+                            <Text style={[styles.typeBtnText, adjustmentType === 'add' && styles.typeBtnTextActive]}>{t('inventory.add_stock')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.typeBtn, adjustmentType === 'remove' && styles.typeBtnActiveRemove]}
                             onPress={() => setAdjustmentType('remove')}
                         >
                             <FontAwesome name="minus" size={12} color={adjustmentType === 'remove' ? '#fff' : colors.textSecondary} />
-                            <Text style={[styles.typeBtnText, adjustmentType === 'remove' && styles.typeBtnTextActive]}>Remove Stock</Text>
+                            <Text style={[styles.typeBtnText, adjustmentType === 'remove' && styles.typeBtnTextActive]}>{t('inventory.remove_stock')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Quantity */}
                     <AppTextInput
-                        label={`Quantity (${unit})`}
+                        label={`${t('inventory.quantity')} (${unit ? t(`common.${unit}`) : t('common.pcs')})`}
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="numeric"
@@ -136,9 +139,9 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                     />
 
                     {/* Reason Pills */}
-                    <Text style={styles.reasonLabel}>Reason</Text>
+                    <Text style={styles.reasonLabel}>{t('reports.reason') || 'Reason'}</Text>
                     <View style={styles.reasonGrid}>
-                        {REASONS.map(r => (
+                        {reasons.map(r => (
                             <TouchableOpacity
                                 key={r.value}
                                 style={[styles.reasonPill, reason === r.value && styles.reasonPillActive]}
@@ -152,10 +155,10 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
 
                     {/* Notes */}
                     <AppTextInput
-                        label="Notes (optional)"
+                        label={`${t('common.notes') || 'Notes'} (${t('common.optional')})`}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Additional details..."
+                        placeholder={t('sales.note_placeholder')}
                         multiline
                         numberOfLines={2}
                         style={{ height: 60 }}
@@ -163,9 +166,9 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
 
                     {/* Actions */}
                     <View style={styles.actions}>
-                        <AppButton title="Cancel" variant="outline" onPress={handleClose} style={{ flex: 1 }} />
+                        <AppButton title={t('common.cancel')} variant="outline" onPress={handleClose} style={{ flex: 1 }} />
                         <AppButton
-                            title={adjustStock.isPending ? 'Saving...' : 'Confirm'}
+                            title={adjustStock.isPending ? t('common.saving') || 'Saving...' : t('common.confirm')}
                             onPress={handleSave}
                             loading={adjustStock.isPending}
                             style={{ flex: 1 }}

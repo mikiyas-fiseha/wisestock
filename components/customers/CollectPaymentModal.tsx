@@ -1,12 +1,16 @@
 import { AppButton } from '@/components/ui/AppButton';
+import { AppSelect } from '@/components/ui/AppSelect';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import { formatCurrency } from '@/lib/formatters';
 import { pickImage } from '@/lib/imagePicker';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
-import { AppSelect } from '@/components/ui/AppSelect';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 interface CollectPaymentModalProps {
     visible: boolean;
@@ -20,6 +24,8 @@ interface CollectPaymentModalProps {
 
 export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, currentBalance, isLoading, sales }: CollectPaymentModalProps) {
     const { colors, theme } = useTheme();
+    const { company } = useAuth();
+    const { t, i18n } = useTranslation();
     const { showFeedback } = useFeedback();
     const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const { width } = useWindowDimensions();
@@ -62,11 +68,11 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
         }
         if (parsedAmount > currentBalance) {
             setAmount(currentBalance.toFixed(2));
-            showFeedback('warning', 'Amount Adjusted', 'Collection cannot exceed current balance.');
+            showFeedback('warning', t('customers.amount_adjusted'), t('customers.amount_exceed_balance'));
             return;
         }
         if (sales && sales.length > 0 && !selectedSaleId) {
-            showFeedback('error', 'Selection Required', 'Please select a sale to collect for.');
+            showFeedback('error', t('customers.selection_required'), t('customers.select_sale_error'));
             return;
         }
         onSubmit({
@@ -100,8 +106,8 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.title}>Collect Payment</Text>
-                            <Text style={styles.subtitle}>From: {customerName}</Text>
+                            <Text style={styles.title}>{t('customers.collect_payment')}</Text>
+                            <Text style={styles.subtitle}>{t('customers.from')}: {customerName}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                             <FontAwesome name="times" size={20} color={colors.textSecondary} />
@@ -110,8 +116,8 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
 
                     {/* Balance Info */}
                     <View style={styles.balanceContainer}>
-                        <Text style={styles.balanceLabel}>Current Balance</Text>
-                        <Text style={styles.balanceValue}>${currentBalance.toFixed(2)}</Text>
+                        <Text style={styles.balanceLabel}>{t('customers.current_balance')}</Text>
+                        <Text style={styles.balanceValue}>{formatCurrency(currentBalance)}</Text>
                     </View>
 
                     {/* Form */}
@@ -119,9 +125,8 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                         <View style={styles.form}>
                             {/* Amount */}
                             <View style={[styles.inputGroup, { zIndex: 100 }]}>
-                                <Text style={styles.label}>Amount Collected</Text>
-                                <TextInput
-                                    style={styles.input}
+                                <AppTextInput
+                                    label={t('customers.amount_collected')}
                                     placeholder="0.00"
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="numeric"
@@ -135,37 +140,39 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                                         const parsed = parseFloat(text);
                                         if (!isNaN(parsed) && parsed > currentBalance) {
                                             setAmount(currentBalance.toFixed(2));
-                                            showFeedback('warning', 'Amount Adjusted', 'Collection cannot exceed current balance.');
+                                            showFeedback('warning', t('customers.amount_adjusted'), t('customers.amount_exceed_balance'));
                                         } else {
                                             setAmount(text);
                                         }
                                     }}
                                     autoFocus
+                                    prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
+                                    suffix={i18n.language === 'am' ? 'ብር' : undefined}
                                 />
                             </View>
 
                             {sales && sales.length > 0 && (
                                 <View style={[styles.inputGroup, { zIndex: 90 }]}>
                                     <AppSelect
-                                        label="Link to Sale"
+                                        label={t('customers.link_to_sale')}
                                         options={sales.map(s => {
                                             const due = s.balance_due || ((s.total_amount || 0) - (s.paid_amount || 0));
                                             return {
-                                                label: `Inv: ${s.invoice_number || s.id.split('-')[0].toUpperCase()} - Due: $${due.toFixed(2)}`,
+                                                label: `${t('common.inv')}: ${s.invoice_number || s.id.split('-')[0].toUpperCase()} - ${t('common.due')}: ${formatCurrency(due)}`,
                                                 value: s.id
                                             };
                                         })}
                                         selectedValue={selectedSaleId || ''}
                                         onValueChange={(val) => setSelectedSaleId(val || null)}
                                         containerStyle={{ marginBottom: 0 }}
-                                        error={!selectedSaleId ? 'Required' : undefined}
+                                        error={!selectedSaleId ? t('common.required') : undefined}
                                     />
                                 </View>
                             )}
 
                             {/* Method */}
                             <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                                <Text style={styles.label}>Payment Method</Text>
+                                <Text style={styles.label}>{t('sales.payment_method')}</Text>
                                 <View style={styles.methodRow}>
                                     {['cash', 'bank', 'check'].map(m => (
                                         <TouchableOpacity
@@ -174,7 +181,7 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                                             onPress={() => setMethod(m)}
                                         >
                                             <Text style={[styles.methodText, method === m && styles.methodTextActive]}>
-                                                {m.toUpperCase()}
+                                                {t(`common.${m}`).toUpperCase()}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
@@ -183,13 +190,13 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
 
                             {/* Notes */}
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Notes (Optional)</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Ref #, Transaction ID, etc."
+                                <AppTextInput
+                                    label={t('customers.notes_optional')}
+                                    placeholder={t('customers.notes_placeholder')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     value={notes}
                                     onChangeText={setNotes}
+                                    multiline
                                 />
                             </View>
 
@@ -203,7 +210,7 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                                 }}
                             >
                                 <FontAwesome name="image" size={16} color={colors.primary} style={{ marginRight: 8 }} />
-                                <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? 'Receipt attached' : 'Attach Receipt / Proof'}</Text>
+                                <Text style={{ color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' }}>{receiptUri ? t('common.file_attached') : t('common.attach_receipt')}</Text>
                                 {receiptUri && (
                                     <TouchableOpacity onPress={() => setReceiptUri(null)} hitSlop={10}>
                                         <FontAwesome name="times-circle" size={18} color={colors.danger} />
@@ -214,13 +221,13 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                             {/* Submit */}
                             <View style={styles.actions}>
                                 <AppButton
-                                    title="Cancel"
+                                    title={t('common.cancel')}
                                     onPress={onClose}
                                     variant="outline"
                                     style={{ flex: 1, marginRight: 8 }}
                                 />
                                 <AppButton
-                                    title={`Collect $${parseFloat(amount) || 0}`}
+                                    title={`${t('customers.collect_amount')} ${formatCurrency(parseFloat(amount) || 0)}`}
                                     onPress={handleSubmit}
                                     loading={isLoading}
                                     style={{ flex: 2 }}

@@ -20,17 +20,22 @@ import {
 } from 'react-native';
 
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { formatCompactCurrency, formatCurrency } from '@/lib/formatters';
 import { BlurView } from 'expo-blur';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardScreen() {
     const { colors, theme } = useTheme();
+    const { company } = useAuth();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { data, isLoading, refetch } = useDashboardData();
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
     const [trendPeriod, setTrendPeriod] = useState<'7d' | '30d'>('7d');
+    const { t, i18n } = useTranslation();
 
     const stats = data?.stats || {
         todaySales: 0, todayProfit: 0, todayExpenses: 0, monthSales: 0, monthExpenses: 0,
@@ -56,16 +61,17 @@ export default function DashboardScreen() {
         );
     }
 
-    const fmt = (n: number) => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toFixed(2)}`;
-    const fmtFull = (n: number) => `$${n.toFixed(2)}`;
+    // Use centralized formatters instead of local fmt functions
+    const fmt = (n: number) => formatCompactCurrency(n);
+    const fmtFull = (n: number) => formatCurrency(n);
 
     // ─── Stock urgency helper ───
     const getStockUrgency = (stock: number, min: number) => {
         const ratio = min > 0 ? stock / min : stock / 5;
-        if (stock === 0) return { color: colors.danger, pct: 100, label: 'OUT' };
-        if (ratio <= 0.3) return { color: colors.warning, pct: 80, label: 'CRITICAL' };
-        if (ratio <= 0.6) return { color: colors.warning, pct: 50, label: 'LOW' };
-        return { color: colors.warning, pct: 30, label: 'LOW' };
+        if (stock === 0) return { color: colors.danger, pct: 100, label: t('dashboard.out') };
+        if (ratio <= 0.3) return { color: colors.warning, pct: 80, label: t('dashboard.critical') };
+        if (ratio <= 0.6) return { color: colors.warning, pct: 50, label: t('dashboard.low') };
+        return { color: colors.warning, pct: 30, label: t('dashboard.low') };
     };
 
     // ─────────── WEB LAYOUT ───────────
@@ -82,48 +88,48 @@ export default function DashboardScreen() {
                     >
                         {/* ─── Section 1: Summary Cards ─── */}
                         <View style={styles.sectionWeb}>
-                            <Text style={styles.pageTitle}>Dashboard</Text>
+                            <Text style={styles.pageTitle}>{t('common.dashboard')}</Text>
                             <View style={styles.cardRow}>
                                 <SummaryCard
-                                    title="Today Sales"
+                                    title={t('dashboard.today_sales')}
                                     value={fmtFull(stats.todaySales)}
                                     type="primary"
                                     icon="shopping-cart"
                                     change={stats.salesChange}
                                 />
                                 <SummaryCard
-                                    title="Today Profit"
+                                    title={t('dashboard.today_profit')}
                                     value={fmtFull(stats.todayProfit)}
                                     type={stats.todayProfit >= 0 ? 'success' : 'danger'}
                                     icon="line-chart"
                                     change={stats.profitChange}
                                 />
                                 <SummaryCard
-                                    title="This Month"
+                                    title={t('dashboard.month_sales')}
                                     value={fmt(stats.monthSales)}
                                     type="neutral"
                                     icon="calendar"
                                 />
                                 <SummaryCard
-                                    title="Credit Due"
+                                    title={t('dashboard.credit_due')}
                                     value={fmtFull(stats.creditDue)}
                                     type={stats.creditDue > 0 ? 'danger' : 'neutral'}
                                     icon="credit-card"
                                 />
                                 <SummaryCard
-                                    title="Loan on store"
+                                    title={t('dashboard.loan_on_store')}
                                     value={fmtFull(stats.totalPayables)}
                                     type="warning"
                                     icon="bank"
                                 />
                                 <SummaryCard
-                                    title="Today Expenses"
+                                    title={t('dashboard.today_expenses')}
                                     value={fmtFull(data?.stats.todayExpenses || 0)}
                                     type="danger"
                                     icon="money"
                                 />
                                 <SummaryCard
-                                    title="Month Expenses"
+                                    title={t('dashboard.month_expenses')}
                                     value={fmt(data?.stats.monthExpenses || 0)}
                                     type="danger"
                                     icon="minus-circle"
@@ -138,7 +144,7 @@ export default function DashboardScreen() {
                                 {/* Section 2: Sales Trend */}
                                 <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={[styles.cardWeb, theme === 'dark' ? styles.cardDark : styles.cardLight]}>
                                     <View style={styles.cardHeaderRow}>
-                                        <Text style={styles.cardTitle}>Sales Trend</Text>
+                                        <Text style={styles.cardTitle}>{t('dashboard.sales_trend')}</Text>
                                         <View style={styles.toggleRow}>
                                             <Pressable
                                                 style={[styles.toggleBtn, trendPeriod === '7d' && styles.toggleActive]}
@@ -159,13 +165,14 @@ export default function DashboardScreen() {
                                             type="line"
                                             data={salesTrend}
                                             height={200}
-                                            yAxisLabelPrefix="$"
+                                            yAxisLabelPrefix={i18n.language !== 'am' ? '$' : ''}
+                                            yAxisLabelSuffix={i18n.language === 'am' ? ' ብር' : ''}
                                             color={colors.primary}
                                         />
                                     ) : (
                                         <View style={styles.chartEmpty}>
                                             <FontAwesome name="bar-chart" size={24} color="#CBD5E1" />
-                                            <Text style={styles.emptyLabel}>No sales data for this period</Text>
+                                            <Text style={styles.emptyLabel}>{t('dashboard.no_sales_data')}</Text>
                                         </View>
                                     )}
                                 </BlurView>
@@ -175,7 +182,7 @@ export default function DashboardScreen() {
                                     <View style={styles.cardHeaderRow}>
                                         <View style={styles.titleWithBadge}>
                                             <FontAwesome name="exclamation-triangle" size={14} color="#D97706" style={{ marginRight: 6 }} />
-                                            <Text style={styles.cardTitle}>Low Stock Alerts</Text>
+                                            <Text style={styles.cardTitle}>{t('dashboard.low_stock_alerts')}</Text>
                                             {lowStockItems.length > 0 && (
                                                 <View style={styles.countBadge}>
                                                     <Text style={styles.countBadgeText}>{lowStockItems.length}</Text>
@@ -205,15 +212,15 @@ export default function DashboardScreen() {
                                                         </View>
                                                         <View style={styles.stockRight}>
                                                             <Text style={[styles.stockQty, { color: urgency.color }]}>
-                                                                {item.stock === 0 ? 'OUT' : `${item.stock}`}
+                                                                {item.stock === 0 ? t('dashboard.out') : `${item.stock}`}
                                                             </Text>
-                                                            <Text style={styles.stockMinLabel}>min: {item.min_stock}</Text>
+                                                            <Text style={styles.stockMinLabel}>{t('inventory.min_stock')}: {item.min_stock}</Text>
                                                         </View>
                                                         <TouchableOpacity
                                                             style={[styles.restockBtn, item.stock === 0 && styles.restockBtnUrgent]}
                                                             onPress={() => router.push({ pathname: '/(tabs)/products/[id]', params: { id: item.id } })}
                                                         >
-                                                            <Text style={[styles.restockText, item.stock === 0 && { color: '#FFF' }]}>Restock</Text>
+                                                            <Text style={[styles.restockText, item.stock === 0 && { color: '#FFF' }]}>{t('suppliers.restock')}</Text>
                                                         </TouchableOpacity>
                                                     </TouchableOpacity>
                                                 );
@@ -222,13 +229,13 @@ export default function DashboardScreen() {
                                                 style={styles.viewAllBtn}
                                                 onPress={() => router.push('/(tabs)/products')}
                                             >
-                                                <Text style={styles.viewAllText}>View All Inventory →</Text>
+                                                <Text style={styles.viewAllText}>{t('dashboard.view_all_inventory')}</Text>
                                             </TouchableOpacity>
                                         </>
                                     ) : (
                                         <View style={styles.emptyGreen}>
                                             <FontAwesome name="check-circle" size={20} color="#10B981" />
-                                            <Text style={styles.emptyGreenText}>All stock levels healthy</Text>
+                                            <Text style={styles.emptyGreenText}>{t('dashboard.all_healthy')}</Text>
                                         </View>
                                     )}
                                 </BlurView>
@@ -238,50 +245,62 @@ export default function DashboardScreen() {
                             <View style={styles.colRight}>
                                 {/* Section 3: Inventory Health */}
                                 <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={[styles.cardWeb, theme === 'dark' ? styles.cardDark : styles.cardLight]}>
-                                    <Text style={styles.cardTitle}>Inventory Health</Text>
+                                    <Text style={styles.cardTitle}>{t('dashboard.inventory_health')}</Text>
                                     <View style={styles.healthGrid}>
-                                        <View style={[styles.healthCard, stats.lowStockCount > 0 && styles.healthCardWarn]}>
+                                        <TouchableOpacity
+                                            style={[styles.healthCard, stats.lowStockCount > 0 && styles.healthCardWarn]}
+                                            onPress={() => router.push({ pathname: '/(tabs)/products', params: { stockStatus: 'low_stock' } })}
+                                            activeOpacity={0.7}
+                                        >
                                             <FontAwesome name="exclamation-triangle" size={16} color="#D97706" />
                                             <Text style={styles.healthValue}>{stats.lowStockCount}</Text>
-                                            <Text style={styles.healthLabel}>Low Stock</Text>
-                                        </View>
-                                        <View style={[styles.healthCard, stats.outOfStockCount > 0 && styles.healthCardDanger]}>
+                                            <Text style={styles.healthLabel}>{t('inventory.low_stock')}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.healthCard, stats.outOfStockCount > 0 && styles.healthCardDanger]}
+                                            onPress={() => router.push({ pathname: '/(tabs)/products', params: { stockStatus: 'out_of_stock' } })}
+                                            activeOpacity={0.7}
+                                        >
                                             <FontAwesome name="times-circle" size={16} color="#DC2626" />
                                             <Text style={[styles.healthValue, stats.outOfStockCount > 0 && { color: '#DC2626' }]}>{stats.outOfStockCount}</Text>
-                                            <Text style={styles.healthLabel}>Out of Stock</Text>
-                                        </View>
-                                        <View style={styles.healthCard}>
+                                            <Text style={styles.healthLabel}>{t('inventory.out_of_stock')}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.healthCard}
+                                            onPress={() => router.push('/(tabs)/inventory')}
+                                            activeOpacity={0.7}
+                                        >
                                             <FontAwesome name="archive" size={16} color="#2563EB" />
                                             <Text style={styles.healthValue}>{fmt(stats.inventoryValue)}</Text>
-                                            <Text style={styles.healthLabel}>Value</Text>
-                                        </View>
+                                            <Text style={styles.healthLabel}>{t('inventory.stock_value')}</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </BlurView>
 
                                 {/* Section 5: Credit Overview */}
                                 <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={[styles.cardWeb, theme === 'dark' ? styles.cardDark : styles.cardLight]}>
                                     <View style={styles.cardHeaderRow}>
-                                        <Text style={styles.cardTitle}>Credit Overview</Text>
+                                        <Text style={styles.cardTitle}>{t('dashboard.credit_due')}</Text>
                                     </View>
                                     <View style={styles.creditSummary}>
                                         <View style={styles.creditStat}>
                                             <Text style={styles.creditStatValue}>{fmtFull(stats.creditDue)}</Text>
-                                            <Text style={styles.creditStatLabel}>Unpaid</Text>
+                                            <Text style={styles.creditStatLabel}>{t('common.unpaid')}</Text>
                                         </View>
                                         <View style={styles.creditDivider} />
                                         <View style={styles.creditStat}>
                                             <Text style={styles.creditStatValue}>{stats.customersWithBalanceCount}</Text>
-                                            <Text style={styles.creditStatLabel}>In Debt</Text>
+                                            <Text style={styles.creditStatLabel}>{t('dashboard.in_debt')}</Text>
                                         </View>
                                         <View style={styles.creditDivider} />
                                         <View style={styles.creditStat}>
                                             <Text style={styles.creditStatValue}>{stats.totalCustomers}</Text>
-                                            <Text style={styles.creditStatLabel}>Total</Text>
+                                            <Text style={styles.creditStatLabel}>{t('common.total')}</Text>
                                         </View>
                                     </View>
                                     {creditCustomers.length > 0 && (
                                         <View style={styles.creditList}>
-                                            <Text style={styles.creditListTitle}>Top Outstanding</Text>
+                                            <Text style={styles.creditListTitle}>{t('dashboard.top_outstanding')}</Text>
                                             {creditCustomers.map((c: any) => (
                                                 <View key={c.id} style={styles.creditRow}>
                                                     <View style={styles.creditAvatar}>
@@ -377,8 +396,7 @@ export default function DashboardScreen() {
                     {/* Header */}
                     <View style={styles.mobileHeader}>
                         <View>
-                            <Text style={styles.mobileGreeting}>Welcome back</Text>
-                            <Text style={styles.mobileTitle}>Dashboard</Text>
+                            <Text style={styles.mobileTitle}>{t('common.dashboard')}</Text>
                         </View>
                     </View>
 
@@ -440,7 +458,8 @@ export default function DashboardScreen() {
                                 type="line"
                                 data={data?.salesTrend7d || []}
                                 height={150}
-                                yAxisLabelPrefix="$"
+                                yAxisLabelPrefix={i18n.language !== 'am' ? '$' : ''}
+                                yAxisLabelSuffix={i18n.language === 'am' ? ' ብር' : ''}
                                 color={colors.primary}
                             />
                         ) : (
@@ -448,6 +467,40 @@ export default function DashboardScreen() {
                                 <Text style={styles.emptyLabel}>No sales data yet</Text>
                             </View>
                         )}
+                    </BlurView>
+
+                    {/* Inventory Health */}
+                    <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={[styles.mobileSectionCard, theme === 'dark' ? styles.cardDark : styles.cardLight]}>
+                        <Text style={styles.mobileSectionTitle}>{t('dashboard.inventory_health')}</Text>
+                        <View style={styles.healthGrid}>
+                            <TouchableOpacity
+                                style={[styles.healthCard, stats.lowStockCount > 0 && styles.healthCardWarn]}
+                                onPress={() => router.push({ pathname: '/(tabs)/products', params: { stockStatus: 'low_stock' } })}
+                                activeOpacity={0.7}
+                            >
+                                <FontAwesome name="exclamation-triangle" size={16} color="#D97706" />
+                                <Text style={styles.healthValue}>{stats.lowStockCount}</Text>
+                                <Text style={styles.healthLabel}>{t('inventory.low_stock')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.healthCard, stats.outOfStockCount > 0 && styles.healthCardDanger]}
+                                onPress={() => router.push({ pathname: '/(tabs)/products', params: { stockStatus: 'out_of_stock' } })}
+                                activeOpacity={0.7}
+                            >
+                                <FontAwesome name="times-circle" size={16} color="#DC2626" />
+                                <Text style={[styles.healthValue, stats.outOfStockCount > 0 && { color: '#DC2626' }]}>{stats.outOfStockCount}</Text>
+                                <Text style={styles.healthLabel}>{t('inventory.out_of_stock')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.healthCard}
+                                onPress={() => router.push('/(tabs)/inventory')}
+                                activeOpacity={0.7}
+                            >
+                                <FontAwesome name="archive" size={16} color="#2563EB" />
+                                <Text style={styles.healthValue}>{fmt(stats.inventoryValue)}</Text>
+                                <Text style={styles.healthLabel}>{t('inventory.stock_value')}</Text>
+                            </TouchableOpacity>
+                        </View>
                     </BlurView>
 
                     {/* Quick Actions */}
@@ -470,7 +523,7 @@ export default function DashboardScreen() {
                     </BlurView>
                 </ScrollView>
             </ResponsiveContainer>
-        </View>
+        </View >
     );
 }
 
@@ -610,7 +663,11 @@ const createStyles = (colors: any) => StyleSheet.create({
 
     // ─── Mobile Layout ───
     mobileContent: { paddingBottom: 32, paddingHorizontal: 16 },
-    mobileHeader: { paddingHorizontal: 16, paddingBottom: 12 },
+    mobileHeader: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+        paddingTop: Platform.OS === 'ios' ? 20 : 10,
+    },
     mobileGreeting: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     mobileTitle: { fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
     mobileSectionCard: { marginHorizontal: 0, marginTop: 12, padding: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.card + 'E0' },

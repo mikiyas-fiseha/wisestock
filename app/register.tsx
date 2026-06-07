@@ -1,17 +1,19 @@
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { LanguagePicker } from '@/components/ui/LanguagePicker';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 
 export default function RegisterScreen() {
     const { colors, theme } = useTheme();
@@ -25,16 +27,17 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const { showFeedback } = useFeedback();
+    const { t } = useTranslation();
 
     const handleRegister = async () => {
         if (!companyName || !userName || !email || !password) {
-            showFeedback('error', 'Error', 'Please fill in all fields');
+            showFeedback('error', t('common.error'), t('auth.fill_all_fields'));
             return;
         }
 
         const { error } = await register(companyName, userName, email, password);
         if (error) {
-            showFeedback('error', 'Registration Failed', error.message || 'Something went wrong');
+            showFeedback('error', t('auth.registration_failed'), error.message || 'Something went wrong');
         } else {
             router.replace('/(tabs)/dashboard');
         }
@@ -53,12 +56,15 @@ export default function RegisterScreen() {
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.keyboardView}
                 >
+                    <View style={[styles.topActions, { top: insets.top + 8 }]}>
+                        <LanguagePicker />
+                    </View>
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                         <View style={styles.headerContainer}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                                <Text style={[styles.backButtonText, { color: theme === 'dark' ? '#cbd5e1' : '#64748b' }]}>← Back</Text>
+                                <Text style={[styles.backButtonText, { color: theme === 'dark' ? '#cbd5e1' : '#64748b' }]}>← {t('common.back')}</Text>
                             </TouchableOpacity>
-                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>Create Account</Text>
+                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>{t('auth.create_account')}</Text>
                         </View>
 
                         <BlurView
@@ -67,12 +73,12 @@ export default function RegisterScreen() {
                             style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
                         >
                             <View style={styles.header}>
-                                <Text style={styles.title}>Get Started</Text>
-                                <Text style={styles.subtitle}>Start managing your stock today</Text>
+                                <Text style={styles.title}>{t('auth.get_started')}</Text>
+                                <Text style={styles.subtitle}>{t('auth.register_subtitle')}</Text>
                             </View>
 
                             <AppTextInput
-                                label="Company Name"
+                                label={t('auth.company_name')}
                                 placeholder="e.g. My Business Inc."
                                 value={companyName}
                                 onChangeText={setCompanyName}
@@ -81,7 +87,7 @@ export default function RegisterScreen() {
                             />
 
                             <AppTextInput
-                                label="Your Name"
+                                label={t('auth.your_name')}
                                 placeholder="e.g. John Founder"
                                 value={userName}
                                 onChangeText={setUserName}
@@ -90,7 +96,7 @@ export default function RegisterScreen() {
                             />
 
                             <AppTextInput
-                                label="Email Address"
+                                label={t('auth.email')}
                                 placeholder="admin@business.com"
                                 value={email}
                                 onChangeText={setEmail}
@@ -101,7 +107,7 @@ export default function RegisterScreen() {
                             />
 
                             <AppTextInput
-                                label="Password"
+                                label={t('auth.password')}
                                 placeholder="••••••••"
                                 value={password}
                                 onChangeText={setPassword}
@@ -112,23 +118,23 @@ export default function RegisterScreen() {
 
                             <View style={styles.footerButtons}>
                                 <AppButton
-                                    title="Create Account"
+                                    title={t('auth.create_account')}
                                     onPress={handleRegister}
                                     loading={isLoading}
                                     style={styles.button}
                                 />
 
                                 <View style={styles.loginContainer}>
-                                    <Text style={styles.loginText}>Already have an account? </Text>
+                                    <Text style={styles.loginText}>{t('auth.already_account')}</Text>
                                     <TouchableOpacity onPress={() => router.back()}>
-                                        <Text style={styles.loginLink}>Sign In</Text>
+                                        <Text style={styles.loginLink}>{t('auth.sign_in')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         </BlurView>
 
                         <View style={styles.footer}>
-                            <Text style={[styles.footerText, { color: theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>By registering, you agree to our Terms & Privacy</Text>
+                            <Text style={[styles.footerText, { color: theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>{t('auth.terms_privacy')}</Text>
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -231,8 +237,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: 'center',
     },
     footerText: {
-        color: 'rgba(255,255,255,0.6)',
         fontSize: 12,
         textAlign: 'center',
+    },
+    topActions: {
+        position: 'absolute',
+        right: 20,
+        zIndex: 1000,
     },
 });

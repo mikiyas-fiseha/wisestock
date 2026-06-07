@@ -3,17 +3,17 @@ import { SearchFilterHeader } from '@/components/SearchFilterHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { Gradients, Layout } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
-import { useDataExport } from '@/hooks/useDataExport';
 import { useCustomers } from '@/hooks/useSupabaseQuery';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 
 
 export default function CustomersScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
@@ -21,7 +21,6 @@ export default function CustomersScreen() {
 
     // Pass search and filters to the hook
     const { data: customers, isLoading: loading } = useCustomers(searchQuery, filters);
-    const { exportToCSV } = useDataExport();
     const statusBarPadding = 0;
 
     const handleSearch = (text: string) => setSearchQuery(text);
@@ -30,46 +29,29 @@ export default function CustomersScreen() {
     const filterGroups = [
         {
             key: 'balance',
-            title: 'Account Status',
+            title: t('customers.account_status'),
             options: [
-                { label: 'Outstanding Balance', value: 'outstanding' }
+                { label: t('customers.outstanding_balance'), value: 'outstanding' }
             ]
         },
         {
             key: 'customer_type',
-            title: 'Customer Type',
+            title: t('customers.customer_type'),
             options: [
-                { label: 'Retail', value: 'retail' },
-                { label: 'Wholesale', value: 'wholesale' }
+                { label: t('customers.retail'), value: 'retail' },
+                { label: t('customers.wholesale'), value: 'wholesale' }
             ]
         },
         {
             key: 'status',
-            title: 'Status',
+            title: t('reports.status'),
             options: [
-                { label: 'Active', value: 'active' },
-                { label: 'Blocked', value: 'blocked' },
-                { label: 'Inactive', value: 'inactive' }
+                { label: t('common.active'), value: 'active' },
+                { label: t('common.blocked'), value: 'blocked' },
+                { label: t('common.inactive'), value: 'inactive' }
             ]
         }
     ];
-
-    const handleExportCustomers = async () => {
-        if (!customers || customers.length === 0) {
-            alert("No customers to export");
-            return;
-        }
-
-        const exportData = customers.map((c: any) => ({
-            Name: c.name,
-            Phone: c.phone || '',
-            Email: c.email || '',
-            Balance: c.current_balance,
-            Address: c.address || ''
-        }));
-
-        await exportToCSV(exportData, `customers_export_${new Date().getTime()}.csv`);
-    };
 
     return (
         <View style={[styles.container, { paddingTop: statusBarPadding }]}>
@@ -81,18 +63,15 @@ export default function CustomersScreen() {
             />
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.headerTitle}>Customers</Text>
-                    <Text style={styles.headerSubtitle}>Manage your client base</Text>
+                    <Text style={styles.headerTitle}>{t('customers.customer_list')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('customers.manage_subtitle')}</Text>
                 </View>
                 <AppButton
-                    title="+ Add"
+                    title={t('common.add')}
                     onPress={() => router.push('/(tabs)/customers/add')}
-                    style={styles.newButton}
+                    style={{ paddingHorizontal: 20, marginVertical: 0, height: 40, borderRadius: 24 }}
                     textStyle={styles.newButtonText}
                 />
-                <TouchableOpacity onPress={handleExportCustomers} style={[styles.newButton, { width: 40, paddingHorizontal: 0, marginLeft: 8, backgroundColor: 'transparent', }]}>
-                    <FontAwesome name="download" size={16} color={colors.text} />
-                </TouchableOpacity>
             </View>
 
             <SearchFilterHeader
@@ -100,7 +79,7 @@ export default function CustomersScreen() {
                 onFilter={handleFilter}
                 filterGroups={filterGroups}
                 activeFilters={filters}
-                placeholder="Search name or phone..."
+                placeholder={t('customers.search_placeholder')}
             />
 
             {loading ? (
@@ -125,10 +104,10 @@ export default function CustomersScreen() {
                             <View style={styles.emptyIconCircle}>
                                 <Text style={{ fontSize: 32 }}>👥</Text>
                             </View>
-                            <Text style={styles.emptyText}>No customers found</Text>
-                            <Text style={styles.emptySubtext}>Add your first customer to track sales and credit history.</Text>
+                            <Text style={styles.emptyText}>{t('customers.no_customers')}</Text>
+                            <Text style={styles.emptySubtext}>{t('customers.empty_subtitle')}</Text>
                             <AppButton
-                                title="Add Customer"
+                                title={t('customers.add_customer')}
                                 onPress={() => router.push('/(tabs)/customers/add')}
                                 style={{ marginTop: 20 }}
                             />
@@ -150,17 +129,19 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: Layout.spacing.lg,
-        paddingVertical: Layout.spacing.md,
+        paddingTop: Layout.spacing.lg,
+        paddingBottom: Layout.spacing.md,
+        marginTop: 8,
         backgroundColor: 'transparent',
     },
     headerTitle: {
-        fontSize: 28,
-        fontWeight: '800',
+        fontSize: 20,
+        fontWeight: '700',
         color: colors.text,
-        letterSpacing: -0.5,
+        letterSpacing: -0.3,
     },
     headerSubtitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: colors.textSecondary,
         marginTop: 2,
     },

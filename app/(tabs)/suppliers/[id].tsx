@@ -8,17 +8,19 @@ import { Gradients } from '@/constants/Colors';
 import { useTheme } from '@/context/ThemeContext';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { downloadFile } from '@/lib/fileUtils';
+import { formatCurrency } from '@/lib/formatters';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '@/lib/supabase';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SupplierDetailsScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
@@ -57,9 +59,9 @@ export default function SupplierDetailsScreen() {
                 receipt_url: receiptUrl
             });
             setPaymentModalVisible(false);
-            setFeedback({ visible: true, type: 'success', message: 'Payment recorded successfully' });
+            setFeedback({ visible: true, type: 'success', message: t('suppliers.payment_success') });
         } catch (error: any) {
-            setFeedback({ visible: true, type: 'error', message: error.message || 'Failed to record payment' });
+            setFeedback({ visible: true, type: 'error', message: error.message || t('suppliers.payment_error') });
         } finally {
             setIsUploading(false);
         }
@@ -76,7 +78,7 @@ export default function SupplierDetailsScreen() {
     if (!supplier) {
         return (
             <View style={styles.center}>
-                <Text>Supplier not found</Text>
+                <Text>{t('suppliers.not_found')}</Text>
             </View>
         );
     }
@@ -95,7 +97,7 @@ export default function SupplierDetailsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <FontAwesome name="arrow-left" size={18} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Supplier Details</Text>
+                <Text style={styles.headerTitle}>{t('suppliers.details')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -105,7 +107,7 @@ export default function SupplierDetailsScreen() {
                     <View style={styles.heroSection}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.title}>{supplier.name}</Text>
-                            <Text style={styles.subtitle}>{supplier.contact_person || 'No contact person'}</Text>
+                            <Text style={styles.subtitle}>{supplier.contact_person || t('suppliers.no_contact')}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <View style={[
@@ -116,7 +118,7 @@ export default function SupplierDetailsScreen() {
                                     styles.balanceText,
                                     { color: (supplier.current_balance || 0) > 0 ? colors.danger : colors.success }
                                 ]}>
-                                    Balance: ${(supplier.current_balance || 0).toFixed(2)}
+                                    {t('suppliers.balance')}: {formatCurrency(supplier.current_balance || 0)}
                                 </Text>
                             </View>
                         </View>
@@ -125,13 +127,13 @@ export default function SupplierDetailsScreen() {
                     <View style={styles.actionsRow}>
                         {(supplier.current_balance || 0) > 0 && (
                             <AppButton
-                                title="Record Payment"
+                                title={t('suppliers.record_payment')}
                                 onPress={() => setPaymentModalVisible(true)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                         )}
                         <AppButton
-                            title="Restock Items"
+                            title={t('suppliers.restock')}
                             onPress={() => router.push({ pathname: '/(tabs)/purchases/add', params: { supplierId: supplier.id } })}
                             variant="outline"
                             style={{ flex: 1 }}
@@ -140,35 +142,35 @@ export default function SupplierDetailsScreen() {
 
                     {/* Contact Info Card */}
                     <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Contact Information</Text>
+                        <Text style={styles.cardTitle}>{t('suppliers.contact_info')}</Text>
                         <View style={styles.infoRow}>
                             <FontAwesome name="envelope" size={16} color={colors.textSecondary} style={styles.icon} />
-                            <Text style={styles.infoText}>{supplier.email || 'N/A'}</Text>
+                            <Text style={styles.infoText}>{supplier.email || t('common.not_available')}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <FontAwesome name="phone" size={16} color={colors.textSecondary} style={styles.icon} />
-                            <Text style={styles.infoText}>{supplier.phone || 'N/A'}</Text>
+                            <Text style={styles.infoText}>{supplier.phone || t('common.not_available')}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <FontAwesome name="map-marker" size={16} color={colors.textSecondary} style={styles.icon} />
-                            <Text style={styles.infoText}>{supplier.address || 'N/A'}</Text>
+                            <Text style={styles.infoText}>{supplier.address || t('common.not_available')}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <FontAwesome name="building" size={16} color={colors.textSecondary} style={styles.icon} />
-                            <Text style={styles.infoText}>Tax ID: {supplier.tax_id || 'N/A'}</Text>
+                            <Text style={styles.infoText}>{t('common.tax_id')}: {supplier.tax_id || t('common.not_available')}</Text>
                         </View>
                     </View>
 
                     {/* Transaction History Tabs (Simple View for now) */}
-                    <Text style={styles.sectionTitle}>Recent Logic</Text>
+                    <Text style={styles.sectionTitle}>{t('suppliers.recent_activity')}</Text>
                     {/* TODO: Implement real Tabs for Purchases vs Payments. For now showing Purchases */}
 
-                    <Text style={styles.subSectionTitle}>Purchases</Text>
+                    <Text style={styles.subSectionTitle}>{t('common.purchases')}</Text>
                     {supplierPurchases.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No purchases recorded yet.</Text>
+                            <Text style={styles.emptyText}>{t('suppliers.no_purchases')}</Text>
                             <AppButton
-                                title="Restock Items"
+                                title={t('suppliers.restock')}
                                 onPress={() => router.push({ pathname: '/(tabs)/purchases/add', params: { supplierId: supplier.id } })}
                                 style={{ marginTop: 16 }}
                             />
@@ -183,43 +185,43 @@ export default function SupplierDetailsScreen() {
                                             styles.statusBadge,
                                             { color: purchase.payment_status === 'paid' ? colors.success : (purchase.payment_status === 'partial' ? colors.warning : colors.danger) }
                                         ]}>
-                                            {purchase.payment_status?.toUpperCase()}
+                                            {t(`common.${purchase.payment_status || 'unpaid'}`).toUpperCase()}
                                         </Text>
                                     </View>
                                     <View style={styles.historyDetails}>
-                                        <Text style={styles.historyInv}>Inv: {purchase.invoice_number || 'N/A'}</Text>
-                                        <Text style={styles.historyAmount}>${purchase.total_amount.toFixed(2)}</Text>
+                                        <Text style={styles.historyInv}>{t('customers.inv')}: {purchase.invoice_number || t('common.not_available')}</Text>
+                                        <Text style={styles.historyAmount}>{formatCurrency(purchase.total_amount)}</Text>
                                     </View>
                                 </View>
                             ))}
                             {supplierPurchases.length > 5 && (
-                                <AppButton title="View All Purchases" onPress={() => { }} variant="outline" />
+                                <AppButton title={t('suppliers.view_all_purchases')} onPress={() => { }} variant="outline" />
                             )}
                         </View>
                     )}
 
                     {/* Payments List */}
-                    <Text style={[styles.subSectionTitle, { marginTop: 20 }]}>Payments Made</Text>
+                    <Text style={[styles.subSectionTitle, { marginTop: 20 }]}>{t('suppliers.payments_made')}</Text>
                     {payments && payments.length > 0 ? (
                         payments.slice(0, 5).map(payment => (
                             <View key={payment.id} style={styles.paymentCard}>
                                 <View style={styles.historyHeader}>
                                     <Text style={styles.historyDate}>{new Date(payment.payment_date!).toLocaleDateString()}</Text>
-                                    <Text style={styles.paymentMethod}>{payment.method?.toUpperCase()}</Text>
+                                    <Text style={styles.paymentMethod}>{t(`common.${payment.method}`).toUpperCase()}</Text>
                                 </View>
                                 <View style={styles.historyDetails}>
                                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                        <Text style={styles.paymentNote}>{payment.notes || 'Payment'}</Text>
+                                        <Text style={styles.paymentNote}>{payment.notes || t('common.payment')}</Text>
                                         {payment.receipt_url && (
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                                                <TouchableOpacity 
-                                                    onPress={() => Platform.OS === 'web' ? window.open(payment.receipt_url, '_blank') : null}
+                                                <TouchableOpacity
+                                                    onPress={() => Platform.OS === 'web' ? (window as any).open(payment.receipt_url, '_blank') : null}
                                                     style={styles.proofIconBtn}
                                                     hitSlop={8}
                                                 >
                                                     <FontAwesome name="eye" size={14} color={colors.primary} />
                                                 </TouchableOpacity>
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     onPress={() => downloadFile(payment.receipt_url, `receipt_${payment.id.split('-')[0]}.jpg`)}
                                                     style={styles.proofIconBtn}
                                                     hitSlop={8}
@@ -229,12 +231,12 @@ export default function SupplierDetailsScreen() {
                                             </View>
                                         )}
                                     </View>
-                                    <Text style={styles.paymentAmount}>-${payment.amount.toFixed(2)}</Text>
+                                    <Text style={styles.paymentAmount}>-{formatCurrency(payment.amount)}</Text>
                                 </View>
                             </View>
                         ))
                     ) : (
-                        <Text style={styles.emptyText}>No payments recorded.</Text>
+                        <Text style={styles.emptyText}>{t('suppliers.no_payments')}</Text>
                     )}
 
                 </ScrollView>
@@ -253,7 +255,7 @@ export default function SupplierDetailsScreen() {
             <FeedbackModal
                 visible={feedback.visible}
                 type={feedback.type}
-                title={feedback.type === 'success' ? 'Success' : 'Error'}
+                title={feedback.type === 'success' ? t('common.success') : t('common.error')}
                 message={feedback.message}
                 onClose={() => setFeedback({ ...feedback, visible: false })}
             />

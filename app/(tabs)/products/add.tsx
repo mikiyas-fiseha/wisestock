@@ -5,16 +5,18 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useAddProduct, useUpdateProduct } from '@/hooks/useSupabaseQuery';
+import { formatCurrency } from '@/lib/formatters';
 import { pickImage } from '@/lib/imagePicker';
 import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const UNIT_TYPES = ['pcs', 'kg', 'liter', 'carton', 'bag'];
+const getUnitTypes = (t: any) => ['pcs', 'kg', 'liter', 'carton', 'bag'];
 
 interface Category {
     id: string;
@@ -40,11 +42,13 @@ import { useTheme } from '@/context/ThemeContext';
 
 export default function AddProductScreen() {
     const { colors } = useTheme();
+    const { t, i18n } = useTranslation();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { company } = useAuth();
+    const unitTypes = getUnitTypes(t);
     const [permission, requestPermission] = useCameraPermissions();
     const { showFeedback } = useFeedback();
 
@@ -88,7 +92,6 @@ export default function AddProductScreen() {
     const [variantModalVisible, setVariantModalVisible] = useState(false);
     const [newVarSku, setNewVarSku] = useState('');
     const [newVarPrice, setNewVarPrice] = useState('');
-    const [newVarStock, setNewVarStock] = useState('');
     const [newVarAttributes, setNewVarAttributes] = useState<Record<string, string>>({});
 
     // Custom Field Modal
@@ -129,7 +132,7 @@ export default function AddProductScreen() {
 
             // Load unit type
             if (product.unit) {
-                if (UNIT_TYPES.includes(product.unit)) {
+                if (unitTypes.includes(product.unit)) {
                     setUnitType(product.unit);
                 } else {
                     setUnitType('custom');
@@ -171,7 +174,7 @@ export default function AddProductScreen() {
 
         } catch (e: any) {
             console.error(e);
-            showFeedback('error', 'Error', 'Failed to load product details');
+            showFeedback('error', t('common.error'), t('inventory.product_not_found'));
         } finally {
             setLocalLoading(false);
         }
@@ -229,9 +232,9 @@ export default function AddProductScreen() {
             setCategoryAttributes([...categoryAttributes, attr]);
             setFieldModalVisible(false);
             setNewFieldName('');
-            showFeedback('success', 'Success', 'Field created');
+            showFeedback('success', t('common.success'), t('products.field_created'));
         } catch (e: any) {
-            showFeedback('error', 'Error', e.message);
+            showFeedback('error', t('common.error'), e.message);
         } finally {
             setLocalLoading(false);
         }
@@ -244,7 +247,7 @@ export default function AddProductScreen() {
                 setImageUri(uri);
             }
         } catch (e) {
-            showFeedback('error', 'Error', 'Could not pick image');
+            showFeedback('error', t('common.error'), t('products.image_error'));
         }
     };
 
@@ -271,18 +274,18 @@ export default function AddProductScreen() {
 
     const addVariant = () => {
         if (!newVarSku || !newVarPrice) {
-            showFeedback('error', 'Error', 'SKU and Price are required');
+            showFeedback('error', t('common.error'), t('products.simple_required'));
             return;
         }
         setVariants([...variants, {
             sku: newVarSku,
             price: newVarPrice,
-            stock: newVarStock || '0',
+            stock: '0',
             attributes: { ...newVarAttributes }
         }]);
         setVariantModalVisible(false);
         setNewVarSku('');
-        setNewVarStock('');
+        setNewVarPrice('');
         setNewVarAttributes({});
     };
 
@@ -290,19 +293,19 @@ export default function AddProductScreen() {
         if (loading) return;
 
         // Validation
-        if (!name) { showFeedback('error', 'Error', 'Product Name is required'); return; }
+        if (!name) { showFeedback('error', t('common.error'), t('products.name_required')); return; }
 
         if (!isVariable && (!primarySku || !costPrice || !salePrice)) {
-            showFeedback('error', 'Error', 'Please fill in SKU, Cost Price, and Sale Price');
+            showFeedback('error', t('common.error'), t('products.simple_required'));
             return;
         }
         if (isVariable && variants.length === 0) {
-            showFeedback('error', 'Error', 'Please add at least one variant');
+            showFeedback('error', t('common.error'), t('products.variable_required'));
             return;
         }
 
         if (!company?.id) {
-            showFeedback('error', 'Error', 'Company ID missing. Please re-login.');
+            showFeedback('error', t('common.error'), t('auth.company_id_missing') || 'Company ID missing. Please re-login.');
             return;
         }
 
@@ -333,12 +336,12 @@ export default function AddProductScreen() {
             const minStock = parseInt(minStockLevel) || 0;
 
             const onSuccess = () => {
-                showFeedback('success', 'Success', id ? 'Product updated' : 'Product saved');
+                showFeedback('success', t('common.success'), id ? t('products.update_success') : t('products.save_success'));
                 router.back();
             };
 
             const onError = (error: any) => {
-                showFeedback('error', 'Error', error.message || 'Failed to save');
+                showFeedback('error', t('common.error'), error.message || t('products.save_failed'));
             };
 
             if (id) {
@@ -353,7 +356,7 @@ export default function AddProductScreen() {
 
         } catch (e: any) {
             setIsUploading(false);
-            showFeedback('error', 'Error', e.message || 'Failed to save');
+            showFeedback('error', t('common.error'), e.message || t('products.save_failed'));
         }
     };
 
@@ -375,7 +378,7 @@ export default function AddProductScreen() {
             }
         }
         setShowScanner(false);
-        showFeedback('success', 'Scanned', `SKU: ${data}`);
+        showFeedback('success', t('products.scan_success'), `SKU: ${data}`);
     };
 
     // Collapsible Section Component
@@ -402,7 +405,7 @@ export default function AddProductScreen() {
                             <FontAwesome name="arrow-left" size={20} color={colors.text} />
                         </TouchableOpacity>
                         <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
-                            {id ? 'Edit Product' : 'Add Product'}
+                            {id ? t('products.edit_product') : t('products.add_product')}
                         </Text>
                     </View>
 
@@ -418,19 +421,19 @@ export default function AddProductScreen() {
 
                             {/* Name & SKU Right */}
                             <View style={{ flex: 1 }}>
-                                <AppTextInput label="Product Name *" value={name} onChangeText={setName} style={{ marginBottom: 8 }} />
-                                <AppTextInput 
-                                    label="Description" 
-                                    value={description} 
-                                    onChangeText={setDescription} 
-                                    multiline 
-                                    numberOfLines={4} 
-                                    style={{ marginBottom: 8, minHeight: 80, paddingTop: 10 }} 
+                                <AppTextInput label={t('products.name') + " *"} value={name} onChangeText={setName} style={{ marginBottom: 8 }} />
+                                <AppTextInput
+                                    label={t('products.description')}
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    multiline
+                                    numberOfLines={4}
+                                    style={{ marginBottom: 8, minHeight: 80, paddingTop: 10 }}
                                 />
                                 {!isVariable && (
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <View style={{ flex: 1 }}>
-                                            <AppTextInput label="SKU *" value={primarySku} onChangeText={setPrimarySku} placeholder="Scan/Enter" />
+                                            <AppTextInput label={t('products.sku') + " *"} value={primarySku} onChangeText={setPrimarySku} placeholder={t('products.scan_enter')} />
                                         </View>
                                         <TouchableOpacity onPress={handleScan} style={styles.miniScanBtn}>
                                             <FontAwesome name="barcode" size={18} color={colors.primary} />
@@ -441,9 +444,9 @@ export default function AddProductScreen() {
                         </View>
 
                         {/* Unit Type */}
-                        <Text style={styles.label}>Unit Type *</Text>
+                        <Text style={styles.label}>{t('products.unit_type')} *</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                            {UNIT_TYPES.map(u => (
+                            {unitTypes.map(u => (
                                 <TouchableOpacity
                                     key={u}
                                     onPress={() => setUnitType(u)}
@@ -454,7 +457,7 @@ export default function AddProductScreen() {
                                         backgroundColor: unitType === u ? colors.primary + '15' : (colors.card + 'E0'),
                                     }}
                                 >
-                                    <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === u ? colors.primary : colors.textSecondary }}>{u}</Text>
+                                    <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === u ? colors.primary : colors.textSecondary }}>{t(`common.${u}`)}</Text>
                                 </TouchableOpacity>
                             ))}
                             <TouchableOpacity
@@ -466,15 +469,15 @@ export default function AddProductScreen() {
                                     backgroundColor: unitType === 'custom' ? colors.primary + '15' : (colors.card + 'E0'),
                                 }}
                             >
-                                <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === 'custom' ? colors.primary : colors.textSecondary }}>Custom</Text>
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: unitType === 'custom' ? colors.primary : colors.textSecondary }}>{t('common.custom')}</Text>
                             </TouchableOpacity>
                         </View>
                         {unitType === 'custom' && (
                             <AppTextInput
-                                label="Custom Unit"
+                                label={t('products.custom_unit')}
                                 value={customUnit}
                                 onChangeText={setCustomUnit}
-                                placeholder="e.g. dozen, box, meter"
+                                placeholder={t('products.unit_placeholder')}
                                 style={{ marginBottom: 8 }}
                             />
                         )}
@@ -483,16 +486,16 @@ export default function AddProductScreen() {
                         {!isVariable && (
                             <>
                                 <View style={styles.row}>
-                                    <View style={styles.half}><AppTextInput label="Cost Price *" value={costPrice} onChangeText={setCostPrice} keyboardType="numeric" prefix="$" /></View>
-                                    <View style={styles.half}><AppTextInput label="Sale Price *" value={salePrice} onChangeText={setSalePrice} keyboardType="numeric" prefix="$" /></View>
+                                    <View style={styles.half}><AppTextInput label={t('products.price_cost') + " *"} value={costPrice} onChangeText={setCostPrice} keyboardType="numeric" prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined} suffix={i18n.language === 'am' ? 'ብር' : undefined} /></View>
+                                    <View style={styles.half}><AppTextInput label={t('products.price_sale') + " *"} value={salePrice} onChangeText={setSalePrice} keyboardType="numeric" prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined} suffix={i18n.language === 'am' ? 'ብር' : undefined} /></View>
                                 </View>
 
                                 {/* Auto Profit */}
                                 {(costPrice || salePrice) && (
                                     <View style={styles.profitRow}>
-                                        <Text style={styles.profitLabel}>Profit per unit</Text>
+                                        <Text style={styles.profitLabel}>{t('products.profit_per_unit')}</Text>
                                         <Text style={[styles.profitValue, profit < 0 && { color: colors.danger }]}>
-                                            {profit >= 0 ? '+' : ''}{profit.toFixed(2)}
+                                            {formatCurrency(profit)}
                                         </Text>
                                     </View>
                                 )}
@@ -502,11 +505,11 @@ export default function AddProductScreen() {
                         {/* Min Stock Level */}
                         {!isVariable && (
                             <AppTextInput
-                                label="Minimum Stock Level"
+                                label={t('products.min_stock_level')}
                                 value={minStockLevel}
                                 onChangeText={setMinStockLevel}
                                 keyboardType="numeric"
-                                placeholder="Alert when stock falls below this"
+                                placeholder={t('products.min_stock_placeholder')}
                                 style={{ marginTop: 8 }}
                             />
                         )}
@@ -515,7 +518,7 @@ export default function AddProductScreen() {
                     {/* Advanced: Variants (Toggle) */}
                     <View style={styles.card}>
                         <SectionHeader
-                            title="Product Variants"
+                            title={t('products.variants')}
                             isOpen={isVariable}
                             onToggle={() => setIsVariable(!isVariable)}
                             rightElement={<Switch value={isVariable} onValueChange={setIsVariable} trackColor={{ false: colors.border, true: colors.primary }} style={{ transform: [{ scale: 0.7 }] }} />}
@@ -524,12 +527,28 @@ export default function AddProductScreen() {
                         {isVariable && (
                             <View style={styles.sectionContent}>
                                 {variants.map((v, i) => (
-                                    <View key={i} style={styles.variantRow}>
-                                        <Text style={{ fontWeight: '500', color: colors.text }}>{v.sku}</Text>
-                                        <Text style={{ color: colors.textSecondary }}>${v.price}</Text>
+                                    <View key={i} style={[styles.variantRow, { alignItems: 'flex-start', flexDirection: 'column', paddingBottom: 8 }]}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                            <View>
+                                                <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text }}>{v.sku}</Text>
+                                                <Text style={{ color: colors.primary, fontWeight: '600', marginTop: 2 }}>{formatCurrency(Number(v.price))}  <Text style={{ color: colors.textSecondary, fontWeight: '400' }}>{v.stock} {t('products.in_stock_msg')}</Text></Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => setVariants(variants.filter((_, idx) => idx !== i))} style={{ padding: 8 }}>
+                                                <FontAwesome name="trash" size={14} color={colors.danger || '#EF4444'} />
+                                            </TouchableOpacity>
+                                        </View>
+                                        {Object.entries(v.attributes || {}).length > 0 && (
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                                {Object.entries(v.attributes || {}).map(([k, val]) => (
+                                                    <View key={k} style={{ backgroundColor: colors.primary + '15', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>{k}: {val}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
                                     </View>
                                 ))}
-                                <AppButton title="+ Add Variant" onPress={() => setVariantModalVisible(true)} variant="outline" style={{ marginTop: 8 }} />
+                                <AppButton title={"+ " + t('products.add_variant')} onPress={() => setVariantModalVisible(true)} variant="outline" style={{ marginTop: 8 }} />
                             </View>
                         )}
                     </View>
@@ -537,7 +556,7 @@ export default function AddProductScreen() {
                     {/* Advanced: Custom Fields (Toggle) */}
                     <View style={styles.card}>
                         <SectionHeader
-                            title="Custom Fields"
+                            title={t('products.custom_fields')}
                             isOpen={showCustomFields}
                             onToggle={() => setShowCustomFields(!showCustomFields)}
                         />
@@ -545,7 +564,7 @@ export default function AddProductScreen() {
                         {showCustomFields && (
                             <View style={styles.sectionContent}>
                                 <TouchableOpacity onPress={() => setFieldModalVisible(true)} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
-                                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>+ Add Field</Text>
+                                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{"+ " + t('products.add_field')}</Text>
                                 </TouchableOpacity>
 
                                 {categoryAttributes.map(attr => (
@@ -556,7 +575,7 @@ export default function AddProductScreen() {
                                         onChangeText={(text) => setBaseAttributes({ ...baseAttributes, [attr.name]: text })}
                                     />
                                 ))}
-                                {categoryAttributes.length === 0 && <Text style={{ color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' }}>No fields configured.</Text>}
+                                {categoryAttributes.length === 0 && <Text style={{ color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' }}>{t('products.no_fields')}</Text>}
                             </View>
                         )}
                     </View>
@@ -565,7 +584,7 @@ export default function AddProductScreen() {
 
                 {/* Sticky Footer */}
                 <View style={styles.footer}>
-                    <AppButton title={id ? "Update Product" : "Save Product"} onPress={handleSave} loading={loading} />
+                    <AppButton title={id ? t('products.update_product') : t('products.save_product')} onPress={handleSave} loading={loading} />
                 </View>
 
                 {/* Modals */}
@@ -573,8 +592,8 @@ export default function AddProductScreen() {
                     <View style={styles.scannerContainer}>
                         <CameraView style={StyleSheet.absoluteFillObject} facing="back" onBarcodeScanned={handleBarCodeScanned} />
                         <View style={styles.scannerOverlay}>
-                            <Text style={styles.scannerText}>Scan Barcode</Text>
-                            <AppButton title="Cancel" onPress={() => setShowScanner(false)} variant="outline" style={{ marginTop: 50, width: 200 }} />
+                            <Text style={styles.scannerText}>{t('products.scan_barcode')}</Text>
+                            <AppButton title={t('common.cancel')} onPress={() => setShowScanner(false)} variant="outline" style={{ marginTop: 50, width: 200 }} />
                         </View>
                     </View>
                 </Modal>
@@ -582,11 +601,11 @@ export default function AddProductScreen() {
                 <Modal visible={fieldModalVisible} animationType="fade" transparent>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>New Custom Field</Text>
-                            <AppTextInput label="Field Name" value={newFieldName} onChangeText={setNewFieldName} placeholder="e.g. Color, Size" />
+                            <Text style={styles.modalTitle}>{t('products.new_field')}</Text>
+                            <AppTextInput label={t('products.field_name')} value={newFieldName} onChangeText={setNewFieldName} placeholder={t('products.field_placeholder')} />
                             <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-                                <AppButton title="Cancel" variant="outline" onPress={() => setFieldModalVisible(false)} style={{ flex: 1 }} />
-                                <AppButton title="Create" onPress={createCustomField} style={{ flex: 1 }} />
+                                <AppButton title={t('common.cancel')} variant="outline" onPress={() => setFieldModalVisible(false)} style={{ flex: 1 }} />
+                                <AppButton title={t('common.create')} onPress={createCustomField} style={{ flex: 1 }} />
                             </View>
                         </View>
                     </View>
@@ -594,21 +613,20 @@ export default function AddProductScreen() {
 
                 <Modal visible={variantModalVisible} animationType="slide">
                     <View style={styles.modalContainer}>
-                        <View style={styles.modalHeader}><Text style={styles.modalTitle}>New Variant</Text></View>
+                        <View style={styles.modalHeader}><Text style={styles.modalTitle}>{t('products.new_variant')}</Text></View>
                         <ScrollView contentContainerStyle={styles.content}>
                             <View style={styles.skuContainer}>
                                 <View style={{ flex: 1 }}>
-                                    <AppTextInput label="SKU *" value={newVarSku} onChangeText={setNewVarSku} placeholder="Unique SKU" />
+                                    <AppTextInput label={t('products.sku') + " *"} value={newVarSku} onChangeText={setNewVarSku} placeholder={t('products.unique_sku')} />
                                 </View>
                                 <TouchableOpacity style={styles.scanButton} onPress={handleScan}>
                                     <FontAwesome name="camera" size={24} color="white" />
                                 </TouchableOpacity>
                             </View>
-                            <View style={styles.row}>
-                                <View style={{ flex: 1, marginRight: 8 }}><AppTextInput label="Price *" value={newVarPrice} onChangeText={setNewVarPrice} keyboardType="numeric" prefix="$" /></View>
-                                <View style={{ flex: 1 }}><AppTextInput label="Stock" value={newVarStock} onChangeText={setNewVarStock} keyboardType="numeric" /></View>
+                            <View style={{ marginBottom: 12 }}>
+                                <AppTextInput label={t('products.price_sale') + " *"} value={newVarPrice} onChangeText={setNewVarPrice} keyboardType="numeric" prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined} suffix={i18n.language === 'am' ? 'ብር' : undefined} />
                             </View>
-                            <Text style={styles.sectionTitle}>Attributes</Text>
+                            <Text style={styles.sectionTitle}>{t('inventory.attributes')}</Text>
                             {categoryAttributes.map(attr => (
                                 <AppTextInput
                                     key={attr.id}
@@ -619,8 +637,8 @@ export default function AddProductScreen() {
                             ))}
                         </ScrollView>
                         <View style={styles.footer}>
-                            <AppButton title="Cancel" variant="outline" onPress={() => setVariantModalVisible(false)} style={{ marginBottom: 12 }} />
-                            <AppButton title="Add Variant" onPress={addVariant} />
+                            <AppButton title={t('common.cancel')} variant="outline" onPress={() => setVariantModalVisible(false)} style={{ marginBottom: 12 }} />
+                            <AppButton title={t('products.add_variant')} onPress={addVariant} />
                         </View>
                     </View>
                 </Modal>

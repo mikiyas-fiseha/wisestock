@@ -3,10 +3,12 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useInventoryMovements, useInventorySummary } from '@/hooks/useInventory';
+import { formatCurrency } from '@/lib/formatters';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Platform,
@@ -46,8 +48,13 @@ export default function SummaryScreen() {
     const { data: summary, isLoading: loadingSum } = useInventorySummary();
     const { data: recentResult } = useInventoryMovements({ page: 0, pageSize: 10 });
     const recent = recentResult?.data || [];
+    const { t, i18n } = useTranslation();
 
-    const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const fmt = (n: number) => {
+        return n.toLocaleString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
+            maximumFractionDigits: 0
+        });
+    };
 
     const TYPE_KEYS: Record<string, { color: string; icon: string }> = {
         purchase: { color: colors.success, icon: 'shopping-bag' },
@@ -60,9 +67,9 @@ export default function SummaryScreen() {
     };
 
     const SUB_TABS = [
-        { key: 'stock', label: 'Stock', icon: 'archive' },
-        { key: 'movements', label: 'Movements', icon: 'exchange' },
-        { key: 'summary', label: 'Summary', icon: 'bar-chart' },
+        { key: 'stock', label: t('inventory.stock'), icon: 'archive' },
+        { key: 'movements', label: t('inventory.movements'), icon: 'exchange' },
+        { key: 'summary', label: t('inventory.summary'), icon: 'bar-chart' },
     ] as const;
 
     return (
@@ -75,9 +82,9 @@ export default function SummaryScreen() {
                         <FontAwesome name="chevron-left" size={14} color={colors.primary} />
                     </Pressable>
                     <View>
-                        <Text style={styles.screenTitle}>Summary</Text>
+                        <Text style={styles.screenTitle}>{t('inventory.summary')}</Text>
                         <Text style={styles.screenSubtitle}>
-                            {branch ? branch.name : 'All Branches'}
+                            {branch ? branch.name : t('inventory.all_branches')}
                         </Text>
                     </View>
                 </View>
@@ -118,32 +125,32 @@ export default function SummaryScreen() {
                     {/* KPI Cards */}
                     <View style={[styles.kpiGrid, isWeb && styles.kpiGridWeb]}>
                         <KpiCard
-                            label="Total Value"
-                            value={fmt(summary?.totalValue ?? 0)}
+                            label={t('inventory.total_value')}
+                            value={formatCurrency(summary?.totalValue ?? 0)}
                             icon="dollar"
                             color={colors.primary}
                             bg={`${colors.primary}18`}
                         />
                         <KpiCard
-                            label="Total Products"
+                            label={t('inventory.total_products')}
                             value={summary?.totalProducts ?? 0}
                             icon="cube"
                             color={colors.secondary || '#3B82F6'}
                             bg={(colors.secondary || '#3B82F6') + '18'}
                         />
                         <KpiCard
-                            label="Low Stock"
+                            label={t('inventory.low_stock')}
                             value={summary?.lowStockCount ?? 0}
-                            sub="Needs reorder"
+                            sub={t('inventory.needs_reorder')}
                             icon="exclamation-triangle"
                             color={colors.warning}
                             bg={colors.warning + '18'}
                             onPress={() => router.push('/(tabs)/inventory' as any)}
                         />
                         <KpiCard
-                            label="Out of Stock"
+                            label={t('inventory.out_of_stock')}
                             value={summary?.outOfStockCount ?? 0}
-                            sub="Zero quantity"
+                            sub={t('inventory.zero_quantity')}
                             icon="times-circle"
                             color={colors.danger}
                             bg={colors.danger + '18'}
@@ -154,13 +161,13 @@ export default function SummaryScreen() {
                     {/* Branch Breakdown */}
                     {(summary?.branches?.length ?? 0) > 1 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Branch Breakdown</Text>
+                            <Text style={styles.sectionTitle}>{t('inventory.branch_breakdown')}</Text>
                             <View style={styles.table}>
                                 <View style={styles.thead}>
-                                    <Text style={[styles.th, { flex: 2 }]}>Branch</Text>
-                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Products</Text>
-                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Items</Text>
-                                    <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>Value</Text>
+                                    <Text style={[styles.th, { flex: 2 }]}>{t('branch')}</Text>
+                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('inventory.products')}</Text>
+                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('inventory.items')}</Text>
+                                    <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>{t('inventory.stock_value')}</Text>
                                 </View>
                                 {(summary?.branches ?? []).map((b, i) => (
                                     <View key={b.branch_id} style={[styles.tr, i % 2 === 0 && styles.trEven]}>
@@ -173,7 +180,7 @@ export default function SummaryScreen() {
                                         <Text style={[styles.td, { flex: 1, textAlign: 'center' }]}>{b.totalItems}</Text>
                                         <Text style={[styles.td, { flex: 1, textAlign: 'center' }]}>{b.totalStock}</Text>
                                         <Text style={[styles.td, { flex: 2, textAlign: 'right', fontWeight: '600' }]}>
-                                            {fmt(b.totalValue)}
+                                            {formatCurrency(b.totalValue)}
                                         </Text>
                                     </View>
                                 ))}
@@ -184,14 +191,14 @@ export default function SummaryScreen() {
                     {/* Recent Movements */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Recent Movements</Text>
+                            <Text style={styles.sectionTitle}>{t('inventory.recent_movements')}</Text>
                             <Pressable onPress={() => router.push('/(tabs)/inventory/movements' as any)}>
-                                <Text style={styles.seeAll}>See all →</Text>
+                                <Text style={styles.seeAll}>{t('inventory.see_all')}</Text>
                             </Pressable>
                         </View>
                         <View style={styles.table}>
                             {recent.length === 0 ? (
-                                <Text style={styles.emptyNote}>No movements yet</Text>
+                                <Text style={styles.emptyNote}>{t('inventory.no_movements_yet')}</Text>
                             ) : recent.map((m, i) => {
                                 const cfg = TYPE_KEYS[m.type] ?? { color: '#64748B', icon: 'circle' };
                                 const isPos = m.quantity > 0;
@@ -203,7 +210,7 @@ export default function SummaryScreen() {
                                         <View style={{ flex: 1 }}>
                                             <Text style={styles.movProduct} numberOfLines={1}>{m.product_name}</Text>
                                             <Text style={styles.movMeta}>
-                                                {m.branch_name || 'All'} · {new Date(m.created_at).toLocaleDateString()}
+                                                {m.branch_name || t('inventory.all_branches')} · {new Date(m.created_at).toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US')}
                                             </Text>
                                         </View>
                                         <Text style={[styles.movQty, { color: isPos ? colors.success : colors.danger }]}>

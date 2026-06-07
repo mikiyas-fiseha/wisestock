@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,6 @@ export interface MovementFilters {
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 
-/** All products with their stock for the current branch (or all branches) */
 export function useInventoryStock(search?: string, lowStockOnly?: boolean) {
     const { company, branch } = useAuth();
 
@@ -74,36 +73,27 @@ export function useInventoryStock(search?: string, lowStockOnly?: boolean) {
                     stock,
                     min_stock_level,
                     branch_id,
-                    branch:branches!inner(id, name, company_id),
+                    branch:branches!inner(name),
                     product:products!inner(
                         id, name, primary_sku, unit, cost_price, sale_price, category_id, company_id
                     )
                 `)
                 .eq('product.company_id', company.id);
 
-            if (branch?.id) {
-                query = query.eq('branch_id', branch.id);
-            }
+            if (branch?.id) query = query.eq('branch_id', branch.id);
 
             const { data, error } = await query;
-            if (error) {
-                console.error("Inventory fetch error:", error);
-                throw error;
-            }
+            if (error) throw error;
 
             let results = (data || []).map((row: any) => {
-                const p = row.product; // Using alias from select
-                const b = row.branch;
+                const p = row.product;
                 const stock = Number(row.stock || 0);
                 const min = Number(row.min_stock_level || 0);
                 const cost = Number(p?.cost_price || 0);
 
-                const status: 'ok' | 'low' | 'out' =
-                    stock === 0 ? 'out' : stock <= min ? 'low' : 'ok';
-
                 return {
                     id: p?.id || '',
-                    name: p?.name || 'Unknown Product',
+                    name: p?.name || 'Unknown',
                     primary_sku: p?.primary_sku,
                     unit: p?.unit,
                     cost_price: cost,
@@ -112,16 +102,17 @@ export function useInventoryStock(search?: string, lowStockOnly?: boolean) {
                     stock,
                     min_stock_level: min,
                     branch_id: row.branch_id,
-                    branch_name: b?.name ?? null,
+                    branch_name: row.branch?.name ?? null,
                     value: stock * cost,
-                    status,
-                } satisfies InventoryProduct;
+                    status: stock === 0 ? 'out' : stock <= min ? 'low' : 'ok',
+                };
             });
 
             if (search) {
                 const q = search.toLowerCase();
-                results = results.filter(
-                    r => r.name.toLowerCase().includes(q) || (r.primary_sku ?? '').toLowerCase().includes(q)
+                results = results.filter(r =>
+                    r.name.toLowerCase().includes(q) ||
+                    (r.primary_sku ?? '').toLowerCase().includes(q)
                 );
             }
 
@@ -129,20 +120,18 @@ export function useInventoryStock(search?: string, lowStockOnly?: boolean) {
                 results = results.filter(r => r.status !== 'ok');
             }
 
-            // Sort: low/out first, then alphabetically
             results.sort((a, b) => {
                 const order = { out: 0, low: 1, ok: 2 };
-                const diff = order[a.status] - order[b.status];
+                const diff = (order as any)[a.status] - (order as any)[b.status];
                 return diff !== 0 ? diff : a.name.localeCompare(b.name);
             });
 
-            return results;
+            return results as InventoryProduct[];
         },
         enabled: !!company?.id,
     });
 }
 
-/** Summary KPIs for the Inventory Summary screen */
 export function useInventorySummary() {
     const { company, branch } = useAuth();
 
@@ -151,7 +140,7 @@ export function useInventorySummary() {
         queryFn: async () => {
             if (!company?.id) return null;
 
-            let query = supabase
+            const { data: sbData, error } = await supabase
                 .from('branch_products')
                 .select(`
                     stock, min_stock_level, branch_id,
@@ -160,12 +149,18 @@ export function useInventorySummary() {
                 `)
                 .eq('product.company_id', company.id);
 
-            if (branch?.id) query = query.eq('branch_id', branch.id);
+            if (error) throw error;
 
-            const { data, error } = await query;
-            if (error) {
-                console.error("Inventory summary error:", error);
-                throw error;
+            let data = (sbData || []).map((row: any) => ({
+                stock: row.stock,
+                min_stock_level: row.min_stock_level,
+                branch_id: row.branch_id,
+                branch_name: row.branch?.name,
+                cost_price: row.product?.cost_price
+            }));
+
+            if (branch?.id) {
+                data = data.filter((r: any) => r.branch_id === branch.id);
             }
 
             let totalValue = 0;
@@ -177,9 +172,9 @@ export function useInventorySummary() {
             for (const row of data || []) {
                 const stock = Number(row.stock) || 0;
                 const min = Number(row.min_stock_level) || 0;
-                const cost = Number((row as any).product?.cost_price) || 0;
+                const cost = Number(row.cost_price) || 0;
                 const value = stock * cost;
-                const bName = (row as any).branch?.name ?? 'Unknown';
+                const bName = (row as any).branch_name ?? 'Unknown';
 
                 totalValue += value;
                 totalItems++;
@@ -243,11 +238,9 @@ export function useInventoryMovements(filters: MovementFilters = {}) {
 
             if (type && type !== 'all') {
                 if (type === 'customer_return') {
-                    // Match "Customer return", "Return for Sale", or records where the reason is empty but stock increased
                     query = query.eq('type', 'return')
                         .or('reason.ilike.%Customer%,reason.ilike.%Sale%,and(reason.eq."",qty_change.gt.0)');
                 } else if (type === 'supplier_return') {
-                    // Match "Supplier return" or records where the reason is empty but stock decreased
                     query = query.eq('type', 'return')
                         .or('reason.ilike.%Supplier%,and(reason.eq."",qty_change.lt.0)');
                 } else {
@@ -266,7 +259,6 @@ export function useInventoryMovements(filters: MovementFilters = {}) {
             }
 
             const movements: InventoryMovement[] = (data || []).map((row: any) => {
-                // Determine specific return type for UI configuration
                 let displayType = row.type;
                 if (row.type === 'return') {
                     const reason = (row.reason || '').toLowerCase();
@@ -277,7 +269,6 @@ export function useInventoryMovements(filters: MovementFilters = {}) {
                     } else if (reason.includes('customer') || reason.includes('sale')) {
                         displayType = 'customer_return';
                     } else {
-                        // Fallback for empty reasons: positive change is customer, negative is supplier
                         displayType = qty < 0 ? 'supplier_return' : 'customer_return';
                     }
                 }
@@ -331,13 +322,13 @@ export function useProductBranchBreakdown(productId: string) {
             return (data || []).map((row: any) => {
                 const stock = Number(row.stock) || 0;
                 const min = Number(row.min_stock_level) || 0;
-                const cost = Number(row.products?.cost_price) || 0;
+                const cost = Number((row as any).products?.cost_price) || 0;
                 const status: 'ok' | 'low' | 'out' =
                     stock === 0 ? 'out' : stock <= min ? 'low' : 'ok';
 
                 return {
                     branch_id: row.branch_id,
-                    branch_name: row.branches?.name ?? 'Unknown',
+                    branch_name: (row as any).branches?.name ?? 'Unknown',
                     stock,
                     min_stock_level: min,
                     value: stock * cost,
@@ -348,5 +339,3 @@ export function useProductBranchBreakdown(productId: string) {
         enabled: !!company?.id && !!productId,
     });
 }
-
-// ─── Mutations ───────────────────────────────────────────────────────────────

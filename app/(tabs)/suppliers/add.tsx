@@ -9,10 +9,12 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function AddSupplierScreen() {
     const { colors, theme } = useTheme();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
     const { createSupplier, isCreating } = useSuppliers();
@@ -39,8 +41,8 @@ export default function AddSupplierScreen() {
         if (!form.name.trim()) {
             setModalConfig({
                 type: 'error',
-                title: 'Validation Error',
-                message: 'Supplier Name is required'
+                title: t('common.validation_error'),
+                message: t('suppliers.name_required')
             });
             setModalVisible(true);
             return;
@@ -50,15 +52,15 @@ export default function AddSupplierScreen() {
             await createSupplier(form);
             setModalConfig({
                 type: 'success',
-                title: 'Success',
-                message: 'Supplier added successfully'
+                title: t('common.success'),
+                message: t('suppliers.supplier_saved')
             });
             setModalVisible(true);
         } catch (err: any) {
             setModalConfig({
                 type: 'error',
-                title: 'Error',
-                message: err.message || 'Failed to add supplier'
+                title: t('common.error'),
+                message: err.message || t('suppliers.fail_save')
             });
             setModalVisible(true);
         }
@@ -76,16 +78,16 @@ export default function AddSupplierScreen() {
             <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <ResponsiveContainer>
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
-                    <Text style={styles.headerTitle}>New Supplier</Text>
-                    <Text style={styles.headerSubtitle}>Enter supplier details</Text>
+                    <Text style={styles.headerTitle}>{t('suppliers.new_supplier')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('suppliers.enter_details')}</Text>
 
                     <View style={styles.formCard}>
                         {/* Name (Required) */}
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Business Name <Text style={styles.required}>*</Text></Text>
+                            <Text style={styles.label}>{t('suppliers.business_name')} <Text style={styles.required}>*</Text></Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="e.g. Acme Corp"
+                                placeholder={t('suppliers.business_placeholder')}
                                 placeholderTextColor={colors.textSecondary + '80'}
                                 value={form.name}
                                 onChangeText={t => setForm(prev => ({ ...prev, name: t }))}
@@ -94,10 +96,10 @@ export default function AddSupplierScreen() {
 
                         {/* Contact Person */}
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Contact Person</Text>
+                            <Text style={styles.label}>{t('suppliers.contact_person')}</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="e.g. John Doe"
+                                placeholder={t('common.name_placeholder')}
                                 placeholderTextColor={colors.textSecondary + '80'}
                                 value={form.contact_person}
                                 onChangeText={t => setForm(prev => ({ ...prev, contact_person: t }))}
@@ -107,10 +109,10 @@ export default function AddSupplierScreen() {
                         {/* Email & Phone */}
                         <View style={styles.row}>
                             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                                <Text style={styles.label}>Email</Text>
+                                <Text style={styles.label}>{t('suppliers.email')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="john@example.com"
+                                    placeholder={t('common.email_placeholder')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
@@ -119,10 +121,10 @@ export default function AddSupplierScreen() {
                                 />
                             </View>
                             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                                <Text style={styles.label}>Phone</Text>
+                                <Text style={styles.label}>{t('suppliers.phone')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="+1 234 567 890"
+                                    placeholder={t('common.phone_placeholder')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="phone-pad"
                                     value={form.phone}
@@ -133,10 +135,10 @@ export default function AddSupplierScreen() {
 
                         {/* Address */}
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Address</Text>
+                            <Text style={styles.label}>{t('suppliers.address')}</Text>
                             <TextInput
                                 style={[styles.input, { minHeight: 80 }]}
-                                placeholder="Street address, City, etc."
+                                placeholder={t('common.address_placeholder')}
                                 placeholderTextColor={colors.textSecondary + '80'}
                                 multiline
                                 textAlignVertical="top"
@@ -148,20 +150,20 @@ export default function AddSupplierScreen() {
                         {/* Tax Info */}
                         <View style={styles.row}>
                             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                                <Text style={styles.label}>Tax ID / VAT</Text>
+                                <Text style={styles.label}>{t('common.tax_id')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Optional"
+                                    placeholder={t('common.optional')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     value={form.tax_id}
                                     onChangeText={t => setForm(prev => ({ ...prev, tax_id: t }))}
                                 />
                             </View>
                             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                                <Text style={styles.label}>Reg. Number</Text>
+                                <Text style={styles.label}>{t('suppliers.reg_number')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Optional"
+                                    placeholder={t('common.optional')}
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     value={form.registration_number}
                                     onChangeText={t => setForm(prev => ({ ...prev, registration_number: t }))}
@@ -171,13 +173,13 @@ export default function AddSupplierScreen() {
 
                         <View style={styles.actions}>
                             <AppButton
-                                title="Cancel"
+                                title={t('common.cancel')}
                                 onPress={() => router.back()}
                                 variant="outline"
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <AppButton
-                                title="Save Supplier"
+                                title={t('suppliers.save_supplier')}
                                 onPress={handleSubmit}
                                 loading={isCreating}
                                 style={{ flex: 1, marginLeft: 8 }}
