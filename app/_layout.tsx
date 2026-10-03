@@ -97,7 +97,7 @@ function RootNavigator() {
   // Render branded background container during initial boot so no white canvas is painted.
   // Once the app has loaded, NEVER unmount the navigator tree so the user never sees a white flash.
   if (isInitialBoot) {
-    return <View style={{ flex: 1, backgroundColor: '#1a1a2e' }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   try {
@@ -158,8 +158,8 @@ export default function RootLayout() {
     // (improves LCP significantly). On native: splash covers this, so null is fine.
     if (Platform.OS === 'web') {
       return (
-        <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#6366F1" />
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
         </View>
       );
     }

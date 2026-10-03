@@ -18,7 +18,7 @@ const THEME_STORAGE_KEY = '@app_theme_preference';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const deviceTheme = useDeviceColorScheme() ?? 'light';
-    const [systemTheme, setSystemThemeState] = useState<ThemeType>('system');
+    const [systemTheme, setSystemThemeState] = useState<ThemeType>('light');
     const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
@@ -30,6 +30,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
             if (savedTheme) {
                 setSystemThemeState(savedTheme as ThemeType);
+            } else {
+                setSystemThemeState('light');
             }
         } catch (e) {
             console.error('Failed to load theme preference', e);
@@ -47,13 +49,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const activeTheme = systemTheme === 'system' ? deviceTheme : systemTheme;
+    const activeTheme = systemTheme === 'system' ? 'light' : systemTheme;
     const colors = Colors[activeTheme];
 
     if (!isReady) {
         return (
-            <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator color="#fff" />
+            <View style={{ flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator color="#2563EB" />
             </View>
         );
     }
