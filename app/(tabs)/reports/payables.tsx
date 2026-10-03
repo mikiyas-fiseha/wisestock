@@ -123,7 +123,9 @@ export default function PayablesReport() {
 
                 {data.length === 0 ? (
                     <View style={styles.center}>
-                        <Text style={{ fontSize: 40, marginBottom: 12 }}>✅</Text>
+                        <View style={[styles.emptyIconCircle, { backgroundColor: colors.successBg || colors.primary + '15' }]}>
+                            <FontAwesome name="check-circle" size={32} color={colors.successText || colors.success} />
+                        </View>
                         <Text style={styles.emptyTitle}>{t('reports.no_outstanding_payables')}</Text>
                         <Text style={styles.emptyText}>{t('reports.no_outstanding_payables_subtitle')}</Text>
                     </View>
@@ -199,6 +201,7 @@ export default function PayablesReport() {
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    emptyIconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
     emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
     emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
     banner: { flexDirection: 'row', backgroundColor: colors.card + 'F0', paddingVertical: 18, paddingHorizontal: 12, borderRadius: 16, marginBottom: 16, marginHorizontal: 16 },

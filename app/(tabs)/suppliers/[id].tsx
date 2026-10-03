@@ -125,13 +125,11 @@ export default function SupplierDetailsScreen() {
                     </View>
 
                     <View style={styles.actionsRow}>
-                        {(supplier.current_balance || 0) > 0 && (
-                            <AppButton
-                                title={t('suppliers.record_payment')}
-                                onPress={() => setPaymentModalVisible(true)}
-                                style={{ flex: 1, marginRight: 8 }}
-                            />
-                        )}
+                        <AppButton
+                            title={t('suppliers.record_payment')}
+                            onPress={() => setPaymentModalVisible(true)}
+                            style={{ flex: 1, marginRight: 8 }}
+                        />
                         <AppButton
                             title={t('suppliers.restock')}
                             onPress={() => router.push({ pathname: '/(tabs)/purchases/add', params: { supplierId: supplier.id } })}
@@ -181,12 +179,17 @@ export default function SupplierDetailsScreen() {
                                 <View key={purchase.id} style={styles.historyCard}>
                                     <View style={styles.historyHeader}>
                                         <Text style={styles.historyDate}>{new Date(purchase.purchase_date!).toLocaleDateString()}</Text>
-                                        <Text style={[
+                                        <View style={[
                                             styles.statusBadge,
-                                            { color: purchase.payment_status === 'paid' ? colors.success : (purchase.payment_status === 'partial' ? colors.warning : colors.danger) }
+                                            { backgroundColor: purchase.payment_status === 'paid' ? (colors.successBg || colors.success + '20') : (purchase.payment_status === 'partial' ? (colors.warningBg || colors.warning + '20') : (colors.dangerBg || colors.danger + '20')), paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }
                                         ]}>
-                                            {t(`common.${purchase.payment_status || 'unpaid'}`).toUpperCase()}
-                                        </Text>
+                                            <Text style={[
+                                                styles.statusBadgeText,
+                                                { color: purchase.payment_status === 'paid' ? (colors.successText || colors.success) : (purchase.payment_status === 'partial' ? (colors.warningText || colors.warning) : (colors.dangerText || colors.danger)) }
+                                            ]}>
+                                                {t(`common.${purchase.payment_status || 'unpaid'}`).toUpperCase()}
+                                            </Text>
+                                        </View>
                                     </View>
                                     <View style={styles.historyDetails}>
                                         <Text style={styles.historyInv}>{t('customers.inv')}: {purchase.invoice_number || t('common.not_available')}</Text>
@@ -400,8 +403,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
     },
     statusBadge: {
-        fontWeight: '700',
-        fontSize: 11,
+        borderRadius: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+    },
+    statusBadgeText: {
+        fontWeight: '800',
+        fontSize: 10,
+        letterSpacing: 0.3,
     },
     historyDetails: {
         flexDirection: 'row',

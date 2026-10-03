@@ -41,30 +41,15 @@ function ErrorBoundary({ error, source }: { error: any, source: string }) {
 
 function RootNavigator() {
   const { theme, colors } = useTheme();
-  const { session, user, company, isLoading, subLoading, isSuperAdmin } = useAuth();
+  const { session, user, company, isInitialBoot, isSuperAdmin } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
-  // Reveal the app only when auth AND subscription are fully resolved.
+  // Once initial boot resolves, perform atomic navigation and reveal the app.
   // Double-RAF ensures __hideSplash fires AFTER the browser has painted
-  // the mounted Stack/dashboard — so #root becomes visible already showing
-  // the correct screen, never an intermediate state.
+  // the target screen.
   useEffect(() => {
-    if (!isLoading && !subLoading) {
-      SplashScreen.hideAsync().catch(() => { });
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        // RAF 1 → React has committed; RAF 2 → browser has painted
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if ((window as any).__hideSplash) (window as any).__hideSplash();
-          });
-        });
-      }
-    }
-  }, [isLoading, subLoading]);
-
-  useEffect(() => {
-    if (isLoading || subLoading) return;
+    if (isInitialBoot) return;
 
     const firstSegment = segments[0] as string | undefined;
     const inAuthRoute = firstSegment === 'login' || firstSegment === 'register';
@@ -86,7 +71,16 @@ function RootNavigator() {
         router.replace('/(tabs)/dashboard');
       }
     }
-  }, [session, isLoading, subLoading, segments, isSuperAdmin]);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        SplashScreen.hideAsync().catch(() => { });
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          if ((window as any).__hideSplash) (window as any).__hideSplash();
+        }
+      });
+    });
+  }, [session, isInitialBoot, segments, isSuperAdmin]);
 
   const customNavigationTheme = {
     ...(theme === 'dark' ? DarkTheme : DefaultTheme),
@@ -100,13 +94,10 @@ function RootNavigator() {
     },
   };
 
-  // Block the Stack from mounting until BOTH auth and subscription are resolved.
-  // On web the HTML splash (z-index:9999) covers this entire time, so the user
-  // never sees any intermediate screen. On native, the native splash covers it.
-  if (isLoading || subLoading) {
-    // Return null — the HTML #splash div covers everything on web.
-    // (If no HTML splash e.g. native, SplashScreen API covers it.)
-    return null;
+  // Render branded background container during initial boot so no white canvas is painted.
+  // Once the app has loaded, NEVER unmount the navigator tree so the user never sees a white flash.
+  if (isInitialBoot) {
+    return <View style={{ flex: 1, backgroundColor: '#1a1a2e' }} />;
   }
 
   try {

@@ -63,7 +63,7 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
                 {/* Stock + Unit */}
                 <View style={styles.webCol}>
                     <View style={[styles.stockBadge, isOut ? styles.stockOut : (isLowStock ? styles.stockLow : styles.stockOk)]}>
-                        <Text style={[styles.stockBadgeText, isOut ? { color: colors.danger } : (isLowStock ? { color: colors.warning } : { color: colors.success })]}>
+                        <Text style={[styles.stockBadgeText, isOut ? { color: colors.dangerText || colors.danger } : (isLowStock ? { color: colors.warningText || colors.warning } : { color: colors.successText || colors.success })]}>
                             {isOut ? t('inventory.out_of_stock') : stockLabel}
                         </Text>
                     </View>
@@ -71,7 +71,7 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
 
                 {/* Profit */}
                 <View style={styles.webCol}>
-                    <Text style={[styles.webProfit, profit < 0 && { color: colors.danger }]}>
+                    <Text style={[styles.webProfit, profit < 0 && { color: colors.dangerText || colors.danger }]}>
                         {costPrice != null ? `${currency}${profit.toFixed(2)}` : '—'}
                     </Text>
                 </View>
@@ -114,10 +114,10 @@ export function ProductListItem({ name, sku, price, costPrice, stock, unit = 'pc
                         <FontAwesome
                             name={isOut ? 'times-circle' : (isLowStock ? 'exclamation-circle' : 'check-circle')}
                             size={9}
-                            color={isOut ? colors.danger : (isLowStock ? colors.warning : colors.success)}
+                            color={isOut ? (colors.dangerText || colors.danger) : (isLowStock ? (colors.warningText || colors.warning) : (colors.successText || colors.success))}
                             style={{ marginRight: 3 }}
                         />
-                        <Text style={[styles.stockTextSmall, isOut ? { color: colors.danger } : (isLowStock ? { color: colors.warning } : { color: colors.success })]}>
+                        <Text style={[styles.stockTextSmall, isOut ? { color: colors.dangerText || colors.danger } : (isLowStock ? { color: colors.warningText || colors.warning } : { color: colors.successText || colors.success })]}>
                             {isOut ? t('common.out') || 'Out' : stockLabel}
                         </Text>
                     </View>
@@ -142,9 +142,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     webRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: (colors.card + 'E0'),
+        backgroundColor: colors.card,
         paddingVertical: 14,
         paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
         cursor: 'pointer' as any,
     },
     webColProduct: { flex: 3, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -153,9 +155,9 @@ const createStyles = (colors: any) => StyleSheet.create({
 
     webName: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 1 },
     webSku: { fontSize: 11, color: colors.textSecondary, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-    webCost: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-    webPrice: { fontSize: 14, fontWeight: '700', color: colors.text },
-    webProfit: { fontSize: 13, fontWeight: '700', color: colors.success },
+    webCost: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    webPrice: { fontSize: 14, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
+    webProfit: { fontSize: 13, fontWeight: '700', color: colors.successText || colors.success, fontVariant: ['tabular-nums'] },
 
     adjustBtn: {
         width: 30, height: 30, borderRadius: 8,
@@ -165,33 +167,35 @@ const createStyles = (colors: any) => StyleSheet.create({
     // ─── Stock Badges ───
     stockBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     stockBadgeSmall: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
-    stockBadgeText: { fontSize: 12, fontWeight: '700' },
-    stockTextSmall: { fontSize: 10, fontWeight: '700' },
-    stockOk: { backgroundColor: colors.success + '15' },
-    stockLow: { backgroundColor: colors.warning + '15' },
-    stockOut: { backgroundColor: colors.danger + '15' },
+    stockBadgeText: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    stockTextSmall: { fontSize: 10, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    stockOk: { backgroundColor: colors.successBg || (colors.success + '15') },
+    stockLow: { backgroundColor: colors.warningBg || (colors.warning + '15') },
+    stockOut: { backgroundColor: colors.dangerBg || (colors.danger + '15') },
 
     // ─── Image ───
     imageContainer: { width: 40, height: 40, borderRadius: 8, overflow: 'hidden', backgroundColor: 'transparent' },
     imageContainerMobile: { width: 48, height: 48, borderRadius: 10, overflow: 'hidden', backgroundColor: 'transparent', marginRight: 12 },
     image: { width: '100%', height: '100%' },
-    placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
+    placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primaryLight || 'transparent' },
 
     // ─── Mobile Card ───
     mobileCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: (colors.card + 'E0'),
-        borderRadius: 16,
+        backgroundColor: colors.card,
+        borderRadius: 12,
         padding: 14,
         marginTop: 10,
         marginHorizontal: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
-    mobileCardOut: { backgroundColor: colors.danger + '10' },
-    mobileCardLow: { backgroundColor: colors.warning + '10' },
+    mobileCardOut: { backgroundColor: colors.dangerBg || (colors.danger + '10') },
+    mobileCardLow: { backgroundColor: colors.warningBg || (colors.warning + '10') },
     mobileContent: { flex: 1 },
     mobileName: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
-    mobilePrice: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: 6 },
+    mobilePrice: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: 6, fontVariant: ['tabular-nums'] },
     mobileFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     adjustBtnMobile: {
         width: 26, height: 26, borderRadius: 7,

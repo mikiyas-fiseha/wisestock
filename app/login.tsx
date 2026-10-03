@@ -1,4 +1,3 @@
-
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { LanguagePicker } from '@/components/ui/LanguagePicker';
@@ -6,6 +5,7 @@ import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -17,26 +17,39 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const router = useRouter();
-    const { login, isLoading } = useAuth();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const insets = useSafeAreaInsets();
     const { showFeedback } = useFeedback();
     const { t } = useTranslation();
 
     const handleLogin = async () => {
-        if (!email || !password) {
+        if (!email.trim() || !password) {
             showFeedback('error', t('common.error'), t('auth.enter_email_password'));
             return;
         }
 
-        const { error } = await login(email, password);
-        if (error) {
-            showFeedback('error', t('auth.login_failed'), error.message);
-        } else {
-            router.replace('/(tabs)/dashboard');
+        setIsSubmitting(true);
+        try {
+            const result = await login(email.trim(), password);
+            if (result.error) {
+                showFeedback('error', t('auth.login_failed'), result.error.message || 'Login failed');
+                setIsSubmitting(false);
+            } else {
+                if (result.isSuperAdmin) {
+                    router.replace('/(super-admin)/superadminDasboarde');
+                } else {
+                    router.replace('/(tabs)/dashboard');
+                }
+            }
+        } catch (e: any) {
+            showFeedback('error', t('auth.login_failed'), e?.message || 'Login failed');
+            setIsSubmitting(false);
         }
     };
 
@@ -44,47 +57,48 @@ export default function LoginScreen() {
         router.push('/register');
     };
 
-    const scrollRef = React.useRef<ScrollView>(null);
-
-    const scrollToBottom = () => {
-        setTimeout(() => {
-            scrollRef.current?.scrollToEnd({ animated: true });
-        }, 150);
-    };
-
     return (
         <View style={styles.container}>
-            <StatusBar style="light" />
+            <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
             <LinearGradient
                 colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
-                style={[styles.background, { paddingTop: insets.top }]}
+                style={styles.background}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             >
+                <View style={[styles.topActions, { top: insets.top + 12 }]}>
+                    <LanguagePicker />
+                </View>
+
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardView}
+                    style={[styles.keyboardView, { paddingTop: insets.top }]}
                 >
-                    <View style={[styles.topActions, { top: insets.top + 8 }]}>
-                        <LanguagePicker />
-                    </View>
-
                     <ScrollView
-                        ref={scrollRef}
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
-                        <View style={styles.logoContainer}>
-                            <View style={[styles.logoCircle, theme === 'dark' ? styles.logoCircleDark : styles.logoCircleLight]}>
-                                <Text style={[styles.logoText, theme === 'dark' ? styles.logoTextDark : styles.logoTextLight]}>B</Text>
+                        {/* Hero Header */}
+                        <View style={styles.heroHeader}>
+                            <View style={styles.logoBadgeContainer}>
+                                <LinearGradient
+                                    colors={['#3B82F6', '#1D4ED8']}
+                                    style={styles.logoBadge}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <FontAwesome name="cubes" size={32} color="#FFFFFF" />
+                                </LinearGradient>
                             </View>
-                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>ብልህStock</Text>
+                            <Text style={styles.brandTitle}>WiseStock</Text>
+                            <Text style={styles.brandSubtitle}>Enterprise Inventory & POS</Text>
                         </View>
 
+                        {/* Card & Backdrop */}
                         <BlurView
                             tint={theme === 'dark' ? 'dark' : 'light'}
-                            intensity={theme === 'dark' ? 60 : 80}
+                            intensity={theme === 'dark' ? 65 : 85}
                             style={[styles.card, theme === 'dark' ? styles.cardDark : styles.cardLight]}
                         >
                             <View style={styles.header}>
@@ -98,9 +112,12 @@ export default function LoginScreen() {
                                 value={email}
                                 onChangeText={setEmail}
                                 autoCapitalize="none"
+                                autoCorrect={false}
                                 keyboardType="email-address"
+                                autoComplete="email"
+                                textContentType="emailAddress"
                                 style={styles.input}
-                                icon="envelope-o"
+                                icon="envelope"
                             />
 
                             <AppTextInput
@@ -108,28 +125,55 @@ export default function LoginScreen() {
                                 placeholder="••••••••"
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                secureTextEntry={!showPassword}
+                                autoComplete="password"
+                                textContentType="password"
                                 style={styles.input}
                                 icon="lock"
+                                rightIcon={showPassword ? 'eye-slash' : 'eye'}
+                                onRightIconPress={() => setShowPassword((prev) => !prev)}
+                                rightIconAccessibilityLabel={showPassword ? t('auth.hide_password', 'Hide password') : t('auth.show_password', 'Show password')}
                             />
+
+                            <TouchableOpacity
+                                onPress={() => router.push('/forgot-password')}
+                                style={styles.forgotPasswordContainer}
+                                activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                accessibilityRole="button"
+                            >
+                                <Text style={styles.forgotPasswordText}>
+                                    {t('auth.forgot_password', 'Forgot Password?')}
+                                </Text>
+                            </TouchableOpacity>
 
                             <AppButton
                                 title={t('auth.sign_in')}
                                 onPress={handleLogin}
-                                loading={isLoading}
+                                loading={isSubmitting}
                                 style={styles.button}
                             />
 
                             <View style={styles.registerContainer}>
-                                <Text style={styles.registerText}>{t('auth.no_account')}</Text>
-                                <TouchableOpacity onPress={handleRegister}>
+                                <Text style={styles.registerText}>{t('auth.no_account')} </Text>
+                                <TouchableOpacity onPress={handleRegister} activeOpacity={0.7}>
                                     <Text style={styles.registerLink}>{t('auth.create_account')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </BlurView>
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>Secure Business Management v1.0</Text>
+                            <FontAwesome
+                                name="shield"
+                                size={13}
+                                color={theme === 'dark' ? '#94A3B8' : '#64748B'}
+                                style={styles.footerIcon}
+                            />
+                            <Text style={styles.footerText}>
+                                {t('auth.terms_privacy', 'Protected by enterprise-grade encryption')}
+                            </Text>
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -138,7 +182,7 @@ export default function LoginScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, theme: 'light' | 'dark') => StyleSheet.create({
     container: {
         flex: 1,
     },
@@ -149,97 +193,111 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         alignSelf: 'center',
         width: '100%',
-        maxWidth: 500,
+        maxWidth: 480,
     },
     scrollContent: {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: 24,
+        paddingHorizontal: 24,
+        paddingTop: 40,
         paddingBottom: 40,
     },
-    logoContainer: {
-        alignItems: 'center',
-        marginBottom: 40,
+    topActions: {
+        position: 'absolute',
+        right: 20,
+        zIndex: 1000,
     },
-    logoCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        justifyContent: 'center',
+    heroHeader: {
         alignItems: 'center',
+        marginBottom: 32,
+    },
+    logoBadgeContainer: {
         marginBottom: 16,
-        borderWidth: 2,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
         elevation: 8,
     },
-    logoCircleLight: {
-        backgroundColor: '#e2e8f0', // Silver metallic light
-        borderColor: '#cbd5e1',
-        shadowColor: '#94a3b8',
+    logoBadge: {
+        width: 72,
+        height: 72,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.25)',
     },
-    logoCircleDark: {
-        backgroundColor: '#1e293b', // Dark metallic
-        borderColor: '#334155',
-        shadowColor: '#000',
-    },
-    logoText: {
-        fontSize: 40,
-        fontWeight: 'bold',
-    },
-    logoTextLight: {
-        color: '#64748b',
-        textShadowColor: 'rgba(255,255,255,0.8)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 1,
-    },
-    logoTextDark: {
-        color: '#cbd5e1',
-        textShadowColor: 'rgba(0,0,0,0.8)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
-    },
-    appName: {
+    brandTitle: {
         fontSize: 32,
-        fontWeight: 'bold',
-        letterSpacing: 1,
+        fontWeight: '800',
+        color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+        letterSpacing: -0.5,
+    },
+    brandSubtitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme === 'dark' ? '#94A3B8' : '#64748B',
+        marginTop: 4,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
     },
     card: {
         borderRadius: 24,
-        padding: 32,
+        padding: 28,
         overflow: 'hidden',
     },
     cardLight: {
-        backgroundColor: 'rgba(255,255,255,0.6)',
-        borderColor: 'rgba(255,255,255,0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+        borderColor: 'rgba(255, 255, 255, 0.8)',
         borderWidth: 1,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 6,
     },
     cardDark: {
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
         borderWidth: 1,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.35,
+        shadowRadius: 32,
+        elevation: 10,
     },
     header: {
         marginBottom: 24,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: colors.text,
-        marginBottom: 8,
+        marginBottom: 6,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 15,
         color: colors.textSecondary,
+        lineHeight: 20,
     },
     input: {
         backgroundColor: 'transparent',
     },
+    forgotPasswordContainer: {
+        alignSelf: 'flex-end',
+        marginTop: 2,
+        marginBottom: 16,
+    },
+    forgotPasswordText: {
+        color: colors.primary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
     button: {
-        marginTop: 12,
+        marginTop: 8,
         borderRadius: 12,
-        height: 56,
+        height: 52,
         shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -249,28 +307,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     registerContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
+        alignItems: 'center',
         marginTop: 24,
     },
     registerText: {
         color: colors.textSecondary,
-        fontSize: 15,
+        fontSize: 14,
     },
     registerLink: {
         color: colors.primary,
-        fontWeight: '600',
-        fontSize: 15,
+        fontWeight: '700',
+        fontSize: 14,
     },
     footer: {
-        marginTop: 40,
+        flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 36,
+    },
+    footerIcon: {
+        marginRight: 6,
     },
     footerText: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 12,
-    },
-    topActions: {
-        position: 'absolute',
-        right: 20,
-        zIndex: 1000,
+        color: theme === 'dark' ? '#94A3B8' : '#64748B',
+        fontSize: 13,
+        fontWeight: '500',
     },
 });

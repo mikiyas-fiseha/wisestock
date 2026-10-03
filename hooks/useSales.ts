@@ -1,6 +1,8 @@
 import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import uuid from 'react-native-uuid';
 
 export interface SaleFilters {
     status?: string;
@@ -59,15 +61,37 @@ export const useSales = (search?: string, filters?: SaleFilters) => {
             if (filters?.paymentMethod && filters.paymentMethod !== 'all') query = query.eq('type', filters.paymentMethod);
             if (from) query = query.gte('created_at', from);
             if (to) query = query.lte('created_at', to);
-            if (search) query = query.or(`id.ilike.%${search}%`);
+            const trimmedSearch = search?.trim();
+            const isUuid = !!trimmedSearch && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedSearch);
+
+            if (trimmedSearch) {
+                if (isUuid) {
+                    query = query.eq('id', trimmedSearch);
+                } else {
+                    query = query.ilike('notes', `%${trimmedSearch}%`);
+                }
+            }
 
             const { data, error } = await query;
             if (error) throw error;
             
-            return (data || []).map((s: any) => ({ 
+            let mappedData = (data || []).map((s: any) => ({ 
                 ...s, 
                 payment_method: s.type || s.payment_method || 'cash' 
             }));
+
+            if (trimmedSearch && !isUuid) {
+                const lower = trimmedSearch.toLowerCase();
+                mappedData = mappedData.filter(
+                    (s: any) =>
+                        s.id?.toLowerCase().includes(lower) ||
+                        s.notes?.toLowerCase().includes(lower) ||
+                        s.customers?.name?.toLowerCase().includes(lower) ||
+                        s.customers?.phone?.toLowerCase().includes(lower)
+                );
+            }
+
+            return mappedData;
         },
         enabled: !!company?.id,
     });
@@ -108,8 +132,6 @@ export const useProcessSale = () => {
         mutationFn: async ({ cart, customer, paymentMethod, amountPaid, total, subtotal, tax, discount, note }: any) => {
             if (!company?.id) throw new Error('No company ID');
 
-            const { logActivity } = await import('@/lib/activityLogger');
-            const uuid = require('react-native-uuid').default;
             const paid = parseFloat(amountPaid) || 0;
             const newSaleId = uuid.v4();
             const now = new Date().toISOString();
@@ -228,8 +250,6 @@ export const useCancelSale = () => {
         mutationFn: async ({ saleId, items, customerId, totalAmount, paidAmount }: any) => {
             if (!company?.id) throw new Error('No company ID');
 
-            const { logActivity } = await import('@/lib/activityLogger');
-            const uuid = require('react-native-uuid').default;
             const now = new Date().toISOString();
 
             const { error } = await supabase.from('sales').update({ 

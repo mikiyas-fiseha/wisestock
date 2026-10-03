@@ -53,7 +53,6 @@ export default function TabLayout() {
               headerBackground: () => (
                 <View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, { backgroundColor: colors.card, opacity: 0.95 }]} />
               ),
-              headerTitle: company?.name || 'ብልህStock',
               headerTitleAlign: 'center',
               headerStyle: {
                 elevation: 0,
@@ -141,7 +140,7 @@ export default function TabLayout() {
             <Tabs.Screen
               name="purchases"
               options={{
-                title: t('common.purchases') || 'Purchases',
+                title: t('common.purchases'),
                 tabBarIcon: ({ color }) => <TabBarIcon name="shopping-bag" color={color} />,
                 tabBarItemStyle: { display: 'flex' },
               }}
@@ -185,8 +184,6 @@ export default function TabLayout() {
               options={{
                 title: t('common.expenses'),
                 tabBarIcon: ({ color }) => <TabBarIcon name="money" color={color} />,
-                headerShown: !isWeb,
-                header: () => !isWeb ? <AppHeader title={t('common.expenses')} showMenu={true} onMenuPress={() => setMenuVisible(true)} hideThemeToggle={true} /> : undefined,
                 href: null,
                 tabBarItemStyle: { display: 'none' }
               }}
@@ -194,6 +191,7 @@ export default function TabLayout() {
             <Tabs.Screen
               name="expenses/add"
               options={{
+                title: t('common.expenses'),
                 href: null,
                 tabBarItemStyle: { display: 'none' }
               }}

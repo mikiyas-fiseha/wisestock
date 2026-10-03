@@ -106,6 +106,8 @@ export default function SaleDetailsScreen() {
 
             // 2. Restore Stock
             const movements = items.map(item => ({
+                company_id: sale.company_id || company?.id,
+                branch_id: sale.branch_id,
                 product_id: item.product_id,
                 variant_id: item.variant_id,
                 qty_change: item.quantity, // Positive to restore

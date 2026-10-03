@@ -1,50 +1,42 @@
-import { Gradients } from '@/constants/Colors';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Gradients, Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useReceiptGenerator } from '@/hooks/useReceiptGenerator';
 import { SaleFilters, useSales } from '@/hooks/useSupabaseQuery';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { formatCurrency } from '@/lib/formatters';
+import { supabase } from '@/lib/supabase';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { formatCurrency } from '@/lib/formatters';
 import {
-    ActivityIndicator,
-    FlatList,
     Modal,
     Platform,
     Pressable,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
     useWindowDimensions,
+    View,
 } from 'react-native';
 
-const isWeb = Platform.OS === 'web';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const shortId = (id: string) => id.split('-')[0].toUpperCase();
 
-
-const PAYMENT_CONFIG: Record<string, { labelKey: string; bg: string; color: string }> = {
-    cash: { labelKey: 'sales.cash', bg: '#D1FAE5', color: '#065F46' },
-    credit: { labelKey: 'sales.credit', bg: '#FEF3C7', color: '#92400E' },
-    bank: { labelKey: 'sales.bank', bg: '#DBEAFE', color: '#1E40AF' },
-    mobile_money: { labelKey: 'sales.mobile', bg: '#EDE9FE', color: '#5B21B6' },
-    card: { labelKey: 'sales.card', bg: '#E0F2FE', color: '#0369A1' },
-};
-
-const STATUS_CONFIG: Record<string, { labelKey: string; bg: string; color: string }> = {
-    completed: { labelKey: 'common.completed', bg: '#D1FAE5', color: '#065F46' },
-    credit: { labelKey: 'common.credit', bg: '#FEF3C7', color: '#92400E' },
-    returned: { labelKey: 'common.return', bg: '#FEE2E2', color: '#991B1B' },
-    cancelled: { labelKey: 'common.cancel', bg: '#F1F5F9', color: '#475569' },
+const PAYMENT_CONFIG: Record<string, { labelKey: string; icon: any }> = {
+    cash: { labelKey: 'sales.cash', icon: 'cash-outline' },
+    credit: { labelKey: 'sales.credit', icon: 'time-outline' },
+    bank: { labelKey: 'sales.bank', icon: 'business-outline' },
+    mobile_money: { labelKey: 'sales.mobile', icon: 'phone-portrait-outline' },
+    card: { labelKey: 'sales.card', icon: 'card-outline' },
 };
 
 const DATE_CHIPS = [
@@ -54,256 +46,47 @@ const DATE_CHIPS = [
     { key: 'month', labelKey: 'sales.this_month' },
 ] as const;
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
-    const { colors } = useTheme();
-    const cColor = color || colors.primary;
-    return (
-        <View style={[kpiStyles.card, { backgroundColor: colors.card + 'E0' }]}>
-            <Text style={[kpiStyles.value, { color: colors.text }]} numberOfLines={1}>{value}</Text>
-            <Text style={[kpiStyles.label, { color: colors.textSecondary }]}>{label}</Text>
-            {sub ? <Text style={[kpiStyles.sub, { color: cColor }]}>{sub}</Text> : null}
-        </View>
-    );
-}
-
-const kpiStyles = StyleSheet.create({
-    card: { flex: 1, borderRadius: 14, padding: 14, marginHorizontal: 4 },
-    value: { fontSize: 20, fontWeight: '800' },
-    label: { fontSize: 11, marginTop: 2, fontWeight: '500' },
-    sub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
-});
-
-// ─── Payment Badge ────────────────────────────────────────────────────────────
-function PayBadge({ method }: { method?: string }) {
-    const { t } = useTranslation();
-    const cfg = PAYMENT_CONFIG[method || 'cash'] ?? { labelKey: method || '—', bg: '#F1F5F9', color: '#475569' };
-    return (
-        <View style={[badgeStyles.pill, { backgroundColor: cfg.bg }]}>
-            <Text style={[badgeStyles.text, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
-        </View>
-    );
-}
-
-function StatusBadge({ status }: { status?: string }) {
-    const { t } = useTranslation();
-    const cfg = STATUS_CONFIG[status || 'completed'] ?? { labelKey: status || '—', bg: '#F1F5F9', color: '#475569' };
-    return (
-        <View style={[badgeStyles.pill, { backgroundColor: cfg.bg }]}>
-            <Text style={[badgeStyles.text, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
-        </View>
-    );
-}
-
-const badgeStyles = StyleSheet.create({
-    pill: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-    text: { fontSize: 11, fontWeight: '700' },
-});
-
-// ─── Action Menu ─────────────────────────────────────────────────────────────
-function QuickActions({ onView, onPrint }: {
-    onView: () => void; onPrint: () => void;
-}) {
-    return (
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-            <TouchableOpacity style={actionStyles.btn} onPress={onView}>
-                <FontAwesome name="eye" size={13} color="#0052CC" />
-            </TouchableOpacity>
-            <TouchableOpacity style={actionStyles.btn} onPress={onPrint}>
-                <FontAwesome name="print" size={13} color="#475569" />
-            </TouchableOpacity>
-        </View>
-    );
-}
-const actionStyles = StyleSheet.create({
-    btn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }
-});
-
-function SaleCard({ sale, onView, onPrint, formatDate, formatTime }: any) {
-    const { colors } = useTheme();
-    const { t } = useTranslation();
-    return (
-        <TouchableOpacity style={[cardS.container, { backgroundColor: colors.card + 'E0' }]} onPress={onView} activeOpacity={0.7}>
-            <View style={cardS.top}>
-                <View style={{ flex: 1 }}>
-                    <Text style={[cardS.invoice, { color: colors.text }]}>{t('sales.invoice')} #{shortId(sale.id)}</Text>
-                    <Text style={[cardS.customer, { color: colors.textSecondary }]} numberOfLines={1}>{sale.customers?.name || t('sales.walk_in_guest')}</Text>
-                </View>
-                <StatusBadge status={sale.status} />
-            </View>
-            <View style={cardS.middle}>
-                <PayBadge method={sale.payment_method} />
-                <Text style={[cardS.date, { color: colors.textSecondary }]}>{formatDate(sale.created_at)} · {formatTime(sale.created_at)}</Text>
-            </View>
-            <View style={cardS.bottom}>
-                <Text style={[cardS.amount, { color: colors.text }]}>{formatCurrency(sale.total_amount)}</Text>
-                <QuickActions onView={onView} onPrint={onPrint} />
-            </View>
-        </TouchableOpacity>
-    );
-}
-
-const cardS = StyleSheet.create({
-    container: { borderRadius: 16, marginBottom: 10, padding: 16 },
-    top: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-    invoice: { fontSize: 14, fontWeight: '800' },
-    customer: { fontSize: 13, marginTop: 2 },
-    middle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    date: { fontSize: 11 },
-    bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    amount: { fontSize: 20, fontWeight: '800' },
-});
-
-// ─── Filter Popover ───────────────────────────────────────────────────────────
-function FilterPopover({ visible, filters, onApply, onClose }: any) {
-    const { colors } = useTheme();
-    const { t } = useTranslation();
-    const [localFilters, setLocalFilters] = useState<any>({});
-
-    React.useEffect(() => {
-        if (visible) setLocalFilters(filters || {});
-    }, [visible, filters]);
-
-    const toggleStatus = (s: string) => {
-        setLocalFilters((prev: any) => ({ ...prev, status: prev.status === s ? undefined : s }));
-    };
-
-    const togglePayment = (p: string) => {
-        setLocalFilters((prev: any) => ({ ...prev, paymentMethod: prev.paymentMethod === p ? undefined : p }));
-    };
-
-    return (
-        <Modal visible={visible} transparent animationType="fade">
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-                <View style={{ backgroundColor: colors.card + 'E0', padding: 20, borderRadius: 16, width: 320 }}>
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: colors.text }}>{t('common.filter')}</Text>
-
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 }}>{t('common.status')}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-                        {Object.entries(STATUS_CONFIG)
-                            .filter(([key]) => key !== 'credit')
-                            .map(([key, cfg]) => {
-                                const active = localFilters.status === key;
-                                return (
-                                    <TouchableOpacity
-                                        key={key}
-                                        onPress={() => toggleStatus(key)}
-                                        style={[{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                                    >
-                                        <Text style={[{ fontSize: 13, color: colors.text }, active && { color: '#fff', fontWeight: 'bold' }]}>{t(cfg.labelKey)}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                    </View>
-
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 }}>{t('sales.payment_method')}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                        {Object.entries(PAYMENT_CONFIG)
-                            .filter(([key]) => key !== 'mobile_money' && key !== 'card')
-                            .map(([key, cfg]) => {
-                                const active = localFilters.paymentMethod === key;
-                                return (
-                                    <TouchableOpacity
-                                        key={key}
-                                        onPress={() => togglePayment(key)}
-                                        style={[{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                                    >
-                                        <Text style={[{ fontSize: 13, color: colors.text }, active && { color: '#fff', fontWeight: 'bold' }]}>{t(cfg.labelKey)}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                    </View>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-                        <TouchableOpacity onPress={onClose}><Text style={{ color: colors.textSecondary, padding: 10 }}>{t('common.cancel')}</Text></TouchableOpacity>
-                        <TouchableOpacity onPress={() => { onApply(localFilters); onClose(); }} style={{ backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
-                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('common.apply')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-        </Modal>
-    );
-}
-
-// ─── Web Table Row ────────────────────────────────────────────────────────────
-function WebTableRow({ sale, onView, onPrint, formatDate, formatTime }: any) {
-    const { colors } = useTheme();
-    const { t } = useTranslation();
-    const [hovered, setHovered] = useState(false);
-    return (
-        <Pressable
-            style={[
-                { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomColor: colors.border + '40', borderBottomWidth: 1 } as any,
-                hovered && { backgroundColor: colors.primary + '10' }
-            ] as any}
-            onHoverIn={() => setHovered(true)}
-            onHoverOut={() => setHovered(false)}
-            onPress={onView}
-        >
-            <Text style={[{ flex: 1.2, fontSize: 13, color: colors.text, fontWeight: '600' }]} numberOfLines={1}>INV-{shortId(sale.id)}</Text>
-            <Text style={[{ flex: 2, fontSize: 13, color: colors.textSecondary }]} numberOfLines={1}>{sale.customers?.name || t('sales.walk_in_guest')}</Text>
-            <View style={{ flex: 1 }}><PayBadge method={sale.payment_method} /></View>
-            <View style={{ flex: 1.2 }}><StatusBadge status={sale.status} /></View>
-            <Text style={[{ flex: 1.2, fontSize: 13, color: colors.text, fontWeight: '700', textAlign: 'right' }]}>{formatCurrency(sale.total_amount)}</Text>
-            <Text style={[{ flex: 1.5, fontSize: 12, color: colors.textSecondary, paddingLeft: 12 }]}>{formatDate(sale.created_at)} · {formatTime(sale.created_at)}</Text>
-            <View style={{ flex: 1.5 }}>
-                <QuickActions onView={onView} onPrint={onPrint} />
-            </View>
-        </Pressable>
-    );
-}
-
-
-// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function SalesScreen() {
     const { colors, theme } = useTheme();
     const { t, i18n } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const router = useRouter();
     const { width } = useWindowDimensions();
-    const isWebWide = width >= 768;
-    const statusBarPadding = 0;
+    const isDesktop = width >= 768;
+    const styles = React.useMemo(() => createStyles(colors, theme, isDesktop), [colors, theme, isDesktop]);
+    const router = useRouter();
 
     const [search, setSearch] = useState('');
     const [dateRange, setDateRange] = useState<SaleFilters['dateRange']>('week');
     const [filters, setFilters] = useState<SaleFilters>({});
     const [filterVisible, setFilterVisible] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     const { generateAndShareReceipt } = useReceiptGenerator();
-    const { company, user, isAdmin } = useAuth();
+    const { company, user } = useAuth();
     const { showFeedback } = useFeedback();
 
     const currentLocale = i18n.language === 'am' ? 'am-ET' : 'en-US';
-
     const formatDate = (d: string) => new Date(d).toLocaleDateString(currentLocale, { month: 'short', day: 'numeric', year: 'numeric' });
     const formatTime = (d: string) => new Date(d).toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
 
     const appliedFilters = useMemo<SaleFilters>(() => ({ ...filters, dateRange }), [filters, dateRange]);
-    const { data: sales = [], isLoading } = useSales(search, appliedFilters);
+    const { data: sales = [], isLoading, refetch } = useSales(search, appliedFilters);
 
-    // KPI aggregates (calculated from dynamically filtered sales)
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await refetch();
+        setRefreshing(false);
+    };
+
     const validSales = useMemo(() => (sales as any[]).filter(x => x.status !== 'returned' && x.status !== 'cancelled'), [sales]);
-
     const displayTotal = useMemo(() => validSales.reduce((s: number, x: any) => s + (Number(x.total_amount) || 0), 0), [validSales]);
     const displayCount = validSales.length;
-    const creditCount = useMemo(() => validSales.filter((x: any) => x.payment_method === 'credit').length, [validSales]);
-
-    // Format labels based on dateRange
-    const getRangeLabel = () => {
-        switch (dateRange) {
-            case 'today': return t('common.today');
-            case 'week': return t('sales.this_week');
-            case 'month': return t('sales.this_month');
-            default: return t('common.total');
-        }
-    };
-    const titlePrefix = getRangeLabel();
+    const creditSales = useMemo(() => validSales.filter((x: any) => x.payment_method === 'credit'), [validSales]);
+    const creditTotal = useMemo(() => creditSales.reduce((s: number, x: any) => s + (Number(x.total_amount) || 0), 0), [creditSales]);
 
     const openDetail = (id: string) => { router.push(`/(tabs)/sales/${id}`); };
 
     const handlePrint = async (sale: any) => {
-        const { data: items } = await import('@/lib/supabase').then(m => m.supabase.from('sale_items').select('*').eq('sale_id', sale.id));
+        const { data: items } = await supabase.from('sale_items').select('*').eq('sale_id', sale.id);
         if (!items?.length) { showFeedback('error', t('common.error'), t('sales.no_search_results')); return; }
         const subtotal = sale.subtotal || (sale.total_amount - (sale.tax || 0) + (sale.discount || 0));
         const totalTax = sale.tax || 0;
@@ -337,131 +120,218 @@ export default function SalesScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
 
-            <View style={[styles.header, { paddingTop: statusBarPadding }]}>
-                <View>
-                    <Text style={styles.headerTitle}>{t('common.sales')}</Text>
-                    <Text style={styles.headerSub}>{t('sales.manage_track')}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                        style={[styles.newBtn, { backgroundColor: '#1E293B', paddingHorizontal: 12 }]}
-                        onPress={() => router.push('/(tabs)/sales/analytics')}
-                    >
-                        <FontAwesome name="line-chart" size={14} color="#fff" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.newBtn} onPress={() => router.push('/(tabs)/sales/new')}>
-                        <FontAwesome name="plus" size={13} color="#fff" />
-                        <Text style={styles.newBtnText}>{t('sales.new_sale')}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <ResponsiveContainer>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.screenTitle}>{t('common.sales', 'Sales Orders')}</Text>
+                        <Text style={styles.screenSubtitle}>{t('sales.manage_track', 'Manage and track customer sales orders')}</Text>
+                    </View>
 
-            {isWebWide && (
-                <View style={styles.kpiRow}>
-                    <KpiCard label={`${titlePrefix} ${t('sales.revenue')}`} value={formatCurrency(displayTotal)} />
-                    <KpiCard label={`${titlePrefix} ${t('common.sales')}`} value={`${displayCount}`} />
-                    <KpiCard label={t('sales.credit')} value={`${creditCount}`} color="#D97706" />
-                </View>
-            )}
-
-            <View style={styles.searchRow}>
-                <View style={styles.searchBox}>
-                    <FontAwesome name="search" size={14} color="#94A3B8" style={{ marginRight: 8 }} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t('reports.search_placeholder')}
-                        placeholderTextColor="#94A3B8"
-                        value={search}
-                        onChangeText={setSearch}
-                    />
-                    {search.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearch('')}>
-                            <FontAwesome name="times-circle" size={14} color="#94A3B8" />
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity
+                            style={styles.analyticsBtn}
+                            onPress={() => router.push('/(tabs)/sales/analytics' as any)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="stats-chart-outline" size={17} color={colors.text} />
                         </TouchableOpacity>
-                    )}
+
+                        <AppButton
+                            title={t('sales.new_sale', '+ New Sale')}
+                            onPress={() => router.push('/(tabs)/sales/new' as any)}
+                            size="sm"
+                            icon={<Ionicons name="cart" size={16} color="#FFFFFF" />}
+                        />
+                    </View>
                 </View>
-                <TouchableOpacity
-                    style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
-                    onPress={() => setFilterVisible(true)}
+
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+                    }
                 >
-                    <FontAwesome name="sliders" size={14} color={activeFilterCount > 0 ? '#fff' : '#475569'} />
-                    {activeFilterCount > 0 && (
-                        <View style={styles.filterBadge}><Text style={{ fontSize: 10, color: '#fff', fontWeight: '800' }}>{activeFilterCount}</Text></View>
-                    )}
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateChips} style={{ flexGrow: 0 }}>
-                {DATE_CHIPS.map(c => (
-                    <TouchableOpacity
-                        key={c.key}
-                        style={[styles.dateChip, dateRange === c.key && styles.dateChipActive]}
-                        onPress={() => setDateRange(c.key as SaleFilters['dateRange'])}
-                    >
-                        <Text style={[styles.dateChipText, dateRange === c.key && styles.dateChipTextActive]}>{t(c.labelKey)}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-
-            {isLoading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
-            ) : isWebWide ? (
-                <ScrollView style={{ flex: 1 }}>
-                    <View style={styles.table}>
-                        <View style={[styles.tableRow, styles.tableHead]}>
-                            <Text style={[styles.th, { flex: 1.2 }]}>{t('sales.invoice')}</Text>
-                            <Text style={[styles.th, { flex: 2 }]}>{t('common.customer')}</Text>
-                            <Text style={[styles.th, { flex: 1 }]}>{t('sales.payment')}</Text>
-                            <Text style={[styles.th, { flex: 1.2 }]}>{t('common.status')}</Text>
-                            <Text style={[styles.th, { flex: 1.2, textAlign: 'right' }]}>{t('common.total')}</Text>
-                            <Text style={[styles.th, { flex: 1.5 }]}>{t('common.date')}</Text>
-                            <Text style={[styles.th, { flex: 1.5 }]}>{t('common.actions')}</Text>
+                    {/* Top KPI Stats Ribbon */}
+                    <View style={styles.kpiGrid}>
+                        <View style={styles.kpiCard}>
+                            <View style={styles.kpiHeaderRow}>
+                                <Text style={styles.kpiLabel}>{t('sales.revenue', 'Total Sales')}</Text>
+                                <View style={[styles.kpiIconBox, { backgroundColor: `${colors.success}18` }]}>
+                                    <Ionicons name="cash-outline" size={15} color={colors.success} />
+                                </View>
+                            </View>
+                            <Text style={styles.kpiValue}>{formatCurrency(displayTotal)}</Text>
+                            <Text style={styles.kpiSub}>{displayCount} {t('common.orders', 'orders completed')}</Text>
                         </View>
-                        {(sales as any[]).map(sale => (
-                            <WebTableRow
-                                key={sale.id}
-                                sale={sale}
-                                onView={() => openDetail(sale.id)}
-                                onPrint={() => handlePrint(sale)}
-                                formatDate={formatDate}
-                                formatTime={formatTime}
-                            />
-                        ))}
-                        {sales.length === 0 && (
-                            <View style={styles.empty}><Text style={styles.emptyText}>{t('sales.no_sales_found')}</Text></View>
+
+                        <View style={styles.kpiCard}>
+                            <View style={styles.kpiHeaderRow}>
+                                <Text style={styles.kpiLabel}>{t('sales.credit', 'Credit Sales')}</Text>
+                                <View style={[styles.kpiIconBox, { backgroundColor: `${colors.warning}18` }]}>
+                                    <Ionicons name="time-outline" size={15} color={colors.warning} />
+                                </View>
+                            </View>
+                            <Text style={[styles.kpiValue, { color: colors.warning }]}>{formatCurrency(creditTotal)}</Text>
+                            <Text style={styles.kpiSub}>{creditSales.length} {t('customers.receivables', 'credit orders')}</Text>
+                        </View>
+
+                        <View style={styles.kpiCard}>
+                            <View style={styles.kpiHeaderRow}>
+                                <Text style={styles.kpiLabel}>{t('common.average', 'Average Order')}</Text>
+                                <View style={[styles.kpiIconBox, { backgroundColor: `${colors.primary}18` }]}>
+                                    <Ionicons name="trending-up-outline" size={15} color={colors.primary} />
+                                </View>
+                            </View>
+                            <Text style={styles.kpiValue}>
+                                {displayCount > 0 ? formatCurrency(displayTotal / displayCount) : formatCurrency(0)}
+                            </Text>
+                            <Text style={styles.kpiSub}>Avg revenue per transaction</Text>
+                        </View>
+                    </View>
+
+                    {/* Search & Filter Bar */}
+                    <View style={styles.controlsRow}>
+                        <AppTextInput
+                            placeholder={t('reports.search_placeholder', 'Search invoice, customer...') + '...'}
+                            value={search}
+                            onChangeText={setSearch}
+                            icon="search"
+                            containerStyle={{ flex: 1, marginBottom: 0 }}
+                        />
+
+                        <TouchableOpacity
+                            style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
+                            onPress={() => setFilterVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="options-outline" size={16} color={activeFilterCount > 0 ? '#FFFFFF' : colors.textSecondary} />
+                            <Text style={[styles.filterBtnText, activeFilterCount > 0 && { color: '#FFFFFF' }]}>
+                                {t('common.filter', 'Filter')}
+                            </Text>
+                            {activeFilterCount > 0 && (
+                                <View style={styles.filterBadge}>
+                                    <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Date Filter Pills */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.dateChipsContainer}
+                    >
+                        {DATE_CHIPS.map(c => {
+                            const isSelected = dateRange === c.key;
+                            return (
+                                <TouchableOpacity
+                                    key={c.key}
+                                    style={[styles.dateChip, isSelected && styles.dateChipActive]}
+                                    onPress={() => setDateRange(c.key as SaleFilters['dateRange'])}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[styles.dateChipText, isSelected && styles.dateChipTextActive]}>
+                                        {t(c.labelKey)}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+
+                    {/* UNIFIED SALES LEDGER CONTAINER (No individual cards) */}
+                    <View style={styles.ledgerContainer}>
+                        {isLoading ? (
+                            <View style={{ padding: 16, gap: 14 }}>
+                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                    <Skeleton key={i} height={48} borderRadius={8} />
+                                ))}
+                            </View>
+                        ) : (sales as any[]).length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <View style={styles.emptyIconCircle}>
+                                    <Ionicons name="receipt-outline" size={36} color={colors.textSecondary} />
+                                </View>
+                                <Text style={styles.emptyTitle}>{t('sales.no_sales_found', 'No sales transactions found')}</Text>
+                                <Text style={styles.emptySubtitle}>
+                                    {search ? t('common.no_results_found', 'No orders match your search') : t('sales.tap_new', 'Start selling to record your first transaction.')}
+                                </Text>
+                                <AppButton
+                                    title={t('sales.start_selling', 'Create New Sale')}
+                                    onPress={() => router.push('/(tabs)/sales/new' as any)}
+                                    style={{ marginTop: 16 }}
+                                    size="sm"
+                                />
+                            </View>
+                        ) : isDesktop ? (
+                            /* Desktop Table View */
+                            <View>
+                                <View style={styles.desktopTableHeader}>
+                                    <Text style={[styles.th, { width: 110 }]}>{t('sales.invoice', 'INVOICE')}</Text>
+                                    <Text style={[styles.th, { flex: 2.5 }]}>{t('common.customer', 'CUSTOMER')}</Text>
+                                    <Text style={[styles.th, { width: 120 }]}>{t('sales.payment', 'PAYMENT')}</Text>
+                                    <Text style={[styles.th, { width: 110, textAlign: 'center' }]}>{t('common.status', 'STATUS')}</Text>
+                                    <Text style={[styles.th, { width: 130, textAlign: 'right' }]}>{t('common.total', 'AMOUNT')}</Text>
+                                    <Text style={[styles.th, { width: 150, paddingLeft: 12 }]}>{t('common.date', 'DATE / TIME')}</Text>
+                                    <Text style={[styles.th, { width: 90, textAlign: 'right' }]}>{t('common.actions', 'ACTIONS')}</Text>
+                                </View>
+
+                                {(sales as any[]).map((sale, index) => {
+                                    const isLast = index === (sales as any[]).length - 1;
+                                    return (
+                                        <DesktopSaleRow
+                                            key={sale.id}
+                                            sale={sale}
+                                            isLast={isLast}
+                                            onView={() => openDetail(sale.id)}
+                                            onPrint={() => handlePrint(sale)}
+                                            formatDate={formatDate}
+                                            formatTime={formatTime}
+                                            colors={colors}
+                                            theme={theme}
+                                            t={t}
+                                        />
+                                    );
+                                })}
+                            </View>
+                        ) : (
+                            /* Mobile Unified Rows */
+                            <View>
+                                {(sales as any[]).map((sale, index) => {
+                                    const isLast = index === (sales as any[]).length - 1;
+                                    return (
+                                        <MobileSaleRow
+                                            key={sale.id}
+                                            sale={sale}
+                                            isLast={isLast}
+                                            onView={() => openDetail(sale.id)}
+                                            onPrint={() => handlePrint(sale)}
+                                            formatDate={formatDate}
+                                            formatTime={formatTime}
+                                            colors={colors}
+                                            theme={theme}
+                                            t={t}
+                                        />
+                                    );
+                                })}
+                            </View>
                         )}
                     </View>
+
+                    <View style={{ height: 60 }} />
                 </ScrollView>
-            ) : (
-                <FlatList
-                    data={sales as any[]}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.list}
-                    renderItem={({ item }) => (
-                        <SaleCard
-                            sale={item}
-                            onView={() => openDetail(item.id)}
-                            onPrint={() => handlePrint(item)}
-                            formatDate={formatDate}
-                            formatTime={formatTime}
-                        />
-                    )}
-                    ListEmptyComponent={
-                        <View style={styles.empty}>
-                            <View style={styles.emptyIcon}><Text style={{ fontSize: 32 }}>🏷️</Text></View>
-                            <Text style={styles.emptyTitle}>{t('sales.no_sales_yet')}</Text>
-                            <Text style={styles.emptyText}>{t('sales.tap_new')}</Text>
-                            <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/(tabs)/sales/new')}>
-                                <Text style={styles.emptyBtnText}>{t('sales.start_selling')}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    }
-                />
-            )}
+            </ResponsiveContainer>
 
-
+            {/* Filter Popover Dialog */}
             <FilterPopover
                 visible={filterVisible}
                 filters={filters}
@@ -472,35 +342,489 @@ export default function SalesScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+// ─── Desktop Sale Row ────────────────────────────────────────────────────────
+function DesktopSaleRow({ sale, isLast, onView, onPrint, formatDate, formatTime, colors, theme, t }: any) {
+    const [hovered, setHovered] = useState(false);
+    const isCompleted = sale.status === 'completed';
+    const isCredit = sale.payment_method === 'credit';
+    const payCfg = PAYMENT_CONFIG[sale.payment_method || 'cash'] ?? { labelKey: sale.payment_method || 'cash', icon: 'cash-outline' };
+
+    return (
+        <Pressable
+            style={[
+                desktopStyles.row,
+                !isLast && desktopStyles.rowBorder,
+                hovered && { backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)' },
+            ]}
+            // @ts-ignore Web hover
+            onMouseEnter={() => setHovered(true)}
+            // @ts-ignore Web hover
+            onMouseLeave={() => setHovered(false)}
+            onPress={onView}
+        >
+            <View style={{ width: 110 }}>
+                <Text style={desktopStyles.invoiceText}>#{shortId(sale.id)}</Text>
+            </View>
+
+            <View style={{ flex: 2.5, paddingRight: 8 }}>
+                <Text style={desktopStyles.customerText} numberOfLines={1}>
+                    {sale.customers?.name || t('sales.walk_in_guest', 'Walk-in Customer')}
+                </Text>
+            </View>
+
+            <View style={{ width: 120, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Ionicons name={payCfg.icon} size={13} color={colors.textSecondary} />
+                <Text style={desktopStyles.paymentText}>{t(payCfg.labelKey)}</Text>
+            </View>
+
+            <View style={{ width: 110, alignItems: 'center' }}>
+                <View style={[
+                    desktopStyles.statusPill,
+                    {
+                        backgroundColor: isCredit
+                            ? (colors.warningBg || 'rgba(245, 158, 11, 0.12)')
+                            : (isCompleted ? (colors.successBg || 'rgba(16, 185, 129, 0.12)') : (colors.dangerBg || 'rgba(239, 68, 68, 0.12)'))
+                    }
+                ]}>
+                    <View style={[
+                        desktopStyles.statusDot,
+                        { backgroundColor: isCredit ? (colors.warningText || colors.warning) : (isCompleted ? (colors.successText || colors.success) : (colors.dangerText || colors.danger)) }
+                    ]} />
+                    <Text style={[
+                        desktopStyles.statusPillText,
+                        { color: isCredit ? (colors.warningText || colors.warning) : (isCompleted ? (colors.successText || colors.success) : (colors.dangerText || colors.danger)) }
+                    ]}>
+                        {isCredit ? t('common.credit', 'Credit') : (isCompleted ? t('common.completed', 'Completed') : sale.status)}
+                    </Text>
+                </View>
+            </View>
+
+            <View style={{ width: 130, alignItems: 'flex-end' }}>
+                <Text style={desktopStyles.amountText}>{formatCurrency(sale.total_amount)}</Text>
+            </View>
+
+            <View style={{ width: 150, paddingLeft: 12 }}>
+                <Text style={desktopStyles.dateText}>{formatDate(sale.created_at)}</Text>
+                <Text style={desktopStyles.timeText}>{formatTime(sale.created_at)}</Text>
+            </View>
+
+            <View style={{ width: 90, flexDirection: 'row', justifyContent: 'flex-end', gap: 6 }}>
+                <TouchableOpacity
+                    style={desktopStyles.iconActionBtn}
+                    onPress={(e) => { e.stopPropagation?.(); onPrint(); }}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="print-outline" size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[desktopStyles.iconActionBtn, { backgroundColor: `${colors.primary}12` }]}
+                    onPress={(e) => { e.stopPropagation?.(); onView(); }}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="eye-outline" size={14} color={colors.primary} />
+                </TouchableOpacity>
+            </View>
+        </Pressable>
+    );
+}
+
+const desktopStyles = StyleSheet.create({
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        cursor: 'pointer' as any,
+    },
+    rowBorder: {
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.12)',
+    },
+    invoiceText: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    customerText: { fontSize: 13, fontWeight: '700' },
+    paymentText: { fontSize: 12, color: '#94A3B8' },
+    statusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    statusPillCompleted: { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+    statusPillCredit: { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
+    statusPillOther: { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+    statusDot: { width: 5, height: 5, borderRadius: 2.5 },
+    statusPillText: { fontSize: 11, fontWeight: '700' },
+    amountText: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    dateText: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+    timeText: { fontSize: 10, color: '#94A3B8' },
+    iconActionBtn: {
+        width: 30,
+        height: 30,
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(150, 150, 150, 0.08)',
+    },
+});
+
+// ─── Mobile Sale Row (Inside Unified Container) ──────────────────────────────
+function MobileSaleRow({ sale, isLast, onView, onPrint, formatDate, formatTime, colors, theme, t }: any) {
+    const isCompleted = sale.status === 'completed';
+    const isCredit = sale.payment_method === 'credit';
+    const payCfg = PAYMENT_CONFIG[sale.payment_method || 'cash'] ?? { labelKey: sale.payment_method || 'cash', icon: 'cash-outline' };
+
+    return (
+        <Pressable
+            style={[
+                mobileStyles.row,
+                !isLast && mobileStyles.rowBorder,
+            ]}
+            onPress={onView}
+        >
+            <View style={{ flex: 1, paddingRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[mobileStyles.invoiceText, { color: colors.text }]}>#{shortId(sale.id)}</Text>
+                    <View style={[
+                        mobileStyles.statusPill,
+                        {
+                            backgroundColor: isCredit
+                                ? (colors.warningBg || 'rgba(245, 158, 11, 0.12)')
+                                : (isCompleted ? (colors.successBg || 'rgba(16, 185, 129, 0.12)') : (colors.dangerBg || 'rgba(239, 68, 68, 0.12)'))
+                        }
+                    ]}>
+                        <Text style={[
+                            mobileStyles.statusPillText,
+                            { color: isCredit ? (colors.warningText || colors.warning) : (isCompleted ? (colors.successText || colors.success) : (colors.dangerText || colors.danger)) }
+                        ]}>
+                            {isCredit ? t('common.credit', 'Credit') : (isCompleted ? t('common.completed', 'Completed') : sale.status)}
+                        </Text>
+                    </View>
+                </View>
+
+                <Text style={[mobileStyles.customerText, { color: colors.text }]} numberOfLines={1}>
+                    {sale.customers?.name || t('sales.walk_in_guest', 'Walk-in Customer')}
+                </Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <Ionicons name={payCfg.icon} size={11} color={colors.textSecondary} />
+                    <Text style={[mobileStyles.metaText, { color: colors.textSecondary }]}>{t(payCfg.labelKey)}</Text>
+                    <Text style={[mobileStyles.metaText, { color: colors.textSecondary }]}>•</Text>
+                    <Text style={[mobileStyles.metaText, { color: colors.textSecondary }]}>{formatDate(sale.created_at)}</Text>
+                </View>
+            </View>
+
+            <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                <Text style={[mobileStyles.amountText, { color: colors.text }]}>{formatCurrency(sale.total_amount)}</Text>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                        style={mobileStyles.iconBtn}
+                        onPress={(e) => { e.stopPropagation?.(); onPrint(); }}
+                    >
+                        <Ionicons name="print-outline" size={13} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[mobileStyles.iconBtn, { backgroundColor: `${colors.primary}12` }]}
+                        onPress={(e) => { e.stopPropagation?.(); onView(); }}
+                    >
+                        <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Pressable>
+    );
+}
+
+const mobileStyles = StyleSheet.create({
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    rowBorder: {
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.08)',
+    },
+    invoiceText: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    customerText: { fontSize: 14, fontWeight: '700', marginTop: 2 },
+    metaText: { fontSize: 11, fontVariant: ['tabular-nums'] },
+    amountText: { fontSize: 15, fontWeight: '900', fontVariant: ['tabular-nums'] },
+    statusPill: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    statusPillCompleted: { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+    statusPillCredit: { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
+    statusPillOther: { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+    statusPillText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
+    iconBtn: {
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        backgroundColor: 'rgba(150, 150, 150, 0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+});
+
+// ─── Filter Popover ───────────────────────────────────────────────────────────
+function FilterPopover({ visible, filters, onApply, onClose }: any) {
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+    const [localFilters, setLocalFilters] = useState<any>({});
+
+    React.useEffect(() => {
+        if (visible) setLocalFilters(filters || {});
+    }, [visible, filters]);
+
+    const toggleStatus = (s: string) => {
+        setLocalFilters((prev: any) => ({ ...prev, status: prev.status === s ? undefined : s }));
+    };
+
+    const togglePayment = (p: string) => {
+        setLocalFilters((prev: any) => ({ ...prev, paymentMethod: prev.paymentMethod === p ? undefined : p }));
+    };
+
+    return (
+        <Modal visible={visible} transparent animationType="fade">
+            <View style={popoverStyles.overlay}>
+                <View style={[popoverStyles.dialog, { backgroundColor: theme === 'dark' ? '#111827' : '#FFFFFF', borderColor: colors.border }]}>
+                    <View style={popoverStyles.header}>
+                        <Text style={[popoverStyles.title, { color: colors.text }]}>{t('common.filter', 'Filter Sales')}</Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Ionicons name="close" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={[popoverStyles.groupLabel, { color: colors.textSecondary }]}>{t('common.status', 'Order Status')}</Text>
+                    <View style={popoverStyles.pillsRow}>
+                        {['completed', 'returned', 'cancelled'].map(key => {
+                            const active = localFilters.status === key;
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={() => toggleStatus(key)}
+                                    style={[
+                                        popoverStyles.pill,
+                                        { borderColor: colors.border },
+                                        active && { backgroundColor: `${colors.primary}18`, borderColor: colors.primary },
+                                    ]}
+                                >
+                                    <Text style={[popoverStyles.pillText, { color: active ? colors.primary : colors.textSecondary }]}>
+                                        {key.toUpperCase()}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    <Text style={[popoverStyles.groupLabel, { color: colors.textSecondary, marginTop: 14 }]}>{t('sales.payment_method', 'Payment Method')}</Text>
+                    <View style={popoverStyles.pillsRow}>
+                        {['cash', 'credit', 'bank'].map(key => {
+                            const active = localFilters.paymentMethod === key;
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={() => togglePayment(key)}
+                                    style={[
+                                        popoverStyles.pill,
+                                        { borderColor: colors.border },
+                                        active && { backgroundColor: `${colors.primary}18`, borderColor: colors.primary },
+                                    ]}
+                                >
+                                    <Text style={[popoverStyles.pillText, { color: active ? colors.primary : colors.textSecondary }]}>
+                                        {key.toUpperCase()}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    <View style={[popoverStyles.footer, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : colors.border }]}>
+                        <TouchableOpacity onPress={onClose} style={popoverStyles.cancelBtn}>
+                            <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel', 'Cancel')}</Text>
+                        </TouchableOpacity>
+                        <AppButton
+                            title={t('common.apply', 'Apply Filters')}
+                            onPress={() => { onApply(localFilters); onClose(); }}
+                            size="sm"
+                        />
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+const popoverStyles = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    dialog: { width: '100%', maxWidth: 360, borderRadius: Layout.borderRadius.lg, borderWidth: 1, padding: 20 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    title: { fontSize: 16, fontWeight: '800' },
+    groupLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+    pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1 },
+    pillText: { fontSize: 12, fontWeight: '700' },
+    footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 14, borderTopWidth: 1 },
+    cancelBtn: { paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center' },
+});
+
+// ─── Main Screen Styles ───────────────────────────────────────────────────────
+const createStyles = (colors: any, theme: 'light' | 'dark', isDesktop: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, marginTop: 8 },
-    headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-    headerSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-    newBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 24 },
-    newBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-    kpiRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12 },
-    searchRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 10 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 44 },
-    searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineStyle: 'none' } as any,
-    filterBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.card + 'E0', justifyContent: 'center', alignItems: 'center' },
-    filterBtnActive: { backgroundColor: colors.primary },
-    filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center' },
-    dateChips: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 10, flexDirection: 'row', alignItems: 'center' },
-    dateChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: colors.card + 'E0', alignItems: 'center', justifyContent: 'center', minWidth: 75, height: 42 },
-    dateChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    dateChipText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
-    dateChipTextActive: { color: '#fff' },
-    list: { padding: 16, paddingTop: 4, paddingBottom: 20 },
-    table: { marginHorizontal: 16, backgroundColor: colors.card + 'E0', borderRadius: 16, overflow: 'hidden', marginBottom: 24 },
-    tableRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-    tableHead: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
-    th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', paddingHorizontal: 4 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    empty: { alignItems: 'center', paddingTop: 16, paddingHorizontal: 32 },
-    emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 6 },
-    emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-    emptyBtn: { marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },
-    emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 56 : 24,
+        paddingBottom: 14,
+        borderBottomWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+    },
+    screenTitle: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.4 },
+    screenSubtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    analyticsBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: Layout.borderRadius.sm,
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : colors.border,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
+
+    // KPI Ribbon
+    kpiGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+        flexWrap: 'wrap',
+    },
+    kpiCard: {
+        flex: 1,
+        minWidth: isDesktop ? 200 : 140,
+        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.7)' : '#FFFFFF',
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+        borderWidth: 1,
+        borderRadius: Layout.borderRadius.lg,
+        padding: 16,
+        ...Layout.shadows.small,
+    },
+    kpiHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    kpiIconBox: { width: 28, height: 28, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
+    kpiLabel: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
+    kpiValue: { fontSize: 22, fontWeight: '900', color: colors.text, marginTop: 8, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+    kpiSub: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+
+    // Controls Row
+    controlsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 12,
+    },
+    searchBox: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.7)' : '#FFFFFF',
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+        borderWidth: 1,
+        borderRadius: Layout.borderRadius.md,
+        paddingHorizontal: 12,
+        paddingVertical: Platform.OS === 'web' ? 8 : 6,
+    },
+    searchInput: { flex: 1, fontSize: 13, color: colors.text, outlineWidth: 0 as any },
+    filterBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: Layout.borderRadius.md,
+        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.7)' : '#FFFFFF',
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+    },
+    filterBtnActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    filterBtnText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+    filterBadge: {
+        backgroundColor: colors.danger,
+        borderRadius: 8,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+    },
+    filterBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+
+    dateChipsContainer: { gap: 8, paddingBottom: 14 },
+    dateChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
+        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.6)' : '#FFFFFF',
+        borderWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+    },
+    dateChipActive: {
+        backgroundColor: `${colors.primary}18`,
+        borderColor: colors.primary,
+    },
+    dateChipText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+    dateChipTextActive: { color: colors.primary },
+
+    // Single Unified Ledger Container
+    ledgerContainer: {
+        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.75)' : '#FFFFFF',
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+        borderWidth: 1,
+        borderRadius: Layout.borderRadius.lg,
+        overflow: 'hidden',
+        ...Layout.shadows.small,
+    },
+    desktopTableHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.02)' : '#F8FAFC',
+        borderBottomWidth: 1,
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : colors.border,
+    },
+    th: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textSecondary,
+        letterSpacing: 0.5,
+    },
+
+    emptyState: {
+        paddingVertical: 48,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+    emptySubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 4, textAlign: 'center', maxWidth: 300 },
 });

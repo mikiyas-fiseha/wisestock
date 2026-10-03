@@ -1,27 +1,27 @@
 import { BranchSelector } from '@/components/BranchSelector';
+import { Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-type IconName = React.ComponentProps<typeof FontAwesome>['name'];
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface SidebarItemProps {
     name: string;
-    icon: IconName;
+    icon: IoniconsName;
     isActive: boolean;
     onPress: () => void;
 }
 
 const SidebarItem = ({ name, icon, isActive, onPress }: SidebarItemProps) => {
-    const { colors } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { colors, theme } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const [hovered, setHovered] = useState(false);
 
     return (
@@ -36,44 +36,46 @@ const SidebarItem = ({ name, icon, isActive, onPress }: SidebarItemProps) => {
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
-            {/* Active indicator bar */}
+            {/* Active luminous indicator bar */}
             {isActive && <View style={styles.activeBar} />}
-            <FontAwesome
+            <Ionicons
                 name={icon}
-                size={17}
-                color={isActive ? colors.primary : hovered ? colors.text : '#94A3B8'}
+                size={18}
+                color={isActive ? colors.primary : hovered ? colors.text : colors.textSecondary}
                 style={{ width: 26, textAlign: 'center' }}
             />
-            <Text style={[
-                styles.itemText,
-                isActive && styles.activeItemText,
-                hovered && !isActive && styles.hoveredItemText,
-            ]}>
+            <Text
+                style={[
+                    styles.itemText,
+                    isActive && styles.activeItemText,
+                    hovered && !isActive && styles.hoveredItemText,
+                ]}
+            >
                 {name}
             </Text>
-        </Pressable >
+        </Pressable>
     );
 };
 
 export function WebSidebar() {
-    const { colors, theme, systemTheme, setTheme } = useTheme();
+    const { colors, theme, setTheme } = useTheme();
     const { t } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
     const router = useRouter();
     const pathname = usePathname();
-    const { user, company, branch } = useAuth();
+    const { user, company } = useAuth();
 
-    const routes = [
-        { name: t('common.dashboard'), icon: 'th-large' as IconName, route: '/(tabs)/dashboard' },
-        { name: t('common.products'), icon: 'cube' as IconName, route: '/(tabs)/products' },
-        { name: t('common.purchases'), icon: t('common.purchases') ? 'shopping-bag' : 'shopping-bag' as IconName, route: '/(tabs)/purchases' },
-        { name: t('common.inventory'), icon: 'archive' as IconName, route: '/(tabs)/inventory' },
-        { name: t('common.sales'), icon: 'shopping-cart' as IconName, route: '/(tabs)/sales' },
-        { name: t('common.reports'), icon: 'line-chart' as IconName, route: '/(tabs)/reports' },
-        { name: t('common.customers'), icon: 'users' as IconName, route: '/(tabs)/customers' },
-        { name: t('common.suppliers'), icon: 'truck' as IconName, route: '/(tabs)/suppliers' },
-        { name: t('common.expenses'), icon: 'money' as IconName, route: '/(tabs)/expenses' },
-        { name: t('common.settings'), icon: 'cog' as IconName, route: '/(tabs)/settings' },
+    const routes: { name: string; icon: IoniconsName; route: string }[] = [
+        { name: t('common.dashboard'), icon: 'grid-outline', route: '/(tabs)/dashboard' },
+        { name: t('common.products'), icon: 'cube-outline', route: '/(tabs)/products' },
+        { name: t('common.purchases'), icon: 'bag-handle-outline', route: '/(tabs)/purchases' },
+        { name: t('common.inventory'), icon: 'layers-outline', route: '/(tabs)/inventory' },
+        { name: t('common.sales'), icon: 'cart-outline', route: '/(tabs)/sales' },
+        { name: t('common.reports'), icon: 'bar-chart-outline', route: '/(tabs)/reports' },
+        { name: t('common.customers'), icon: 'people-outline', route: '/(tabs)/customers' },
+        { name: t('common.suppliers'), icon: 'briefcase-outline', route: '/(tabs)/suppliers' },
+        { name: t('common.expenses'), icon: 'wallet-outline', route: '/(tabs)/expenses' },
+        { name: t('common.settings'), icon: 'settings-outline', route: '/(tabs)/settings' },
     ];
 
     const handleNavigate = (route: string) => {
@@ -84,19 +86,20 @@ export function WebSidebar() {
         <View style={styles.sidebar}>
             {theme === 'dark' ? (
                 <LinearGradient
-                    colors={['#111B3A', '#1A295A', '#0D1426']}
+                    colors={['#0F172A', '#0B0F19', '#08090C']}
                     style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 />
             ) : (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#E9FAFB' }]} />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FFFFFF' }]} />
             )}
             <BlurView
-                intensity={theme === 'dark' ? 40 : 20}
+                intensity={theme === 'dark' ? 30 : 20}
                 tint={theme === 'dark' ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             />
+
             {/* Company Header */}
             <View style={styles.header}>
                 <View style={styles.companyLogo}>
@@ -105,7 +108,9 @@ export function WebSidebar() {
                     </Text>
                 </View>
                 <View style={styles.companyInfo}>
-                    <Text style={styles.companyName} numberOfLines={1}>{company?.name || 'My Company'}</Text>
+                    <Text style={styles.companyName} numberOfLines={1}>
+                        {company?.name || 'ብልህStock'}
+                    </Text>
                     <BranchSelector />
                 </View>
             </View>
@@ -146,8 +151,8 @@ export function WebSidebar() {
                         style={styles.themeToggle}
                     >
                         <Ionicons
-                            name={theme === 'dark' ? "sunny" : "moon"}
-                            size={20}
+                            name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'}
+                            size={18}
                             color={colors.textSecondary}
                         />
                     </TouchableOpacity>
@@ -157,11 +162,11 @@ export function WebSidebar() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, theme: 'light' | 'dark') => StyleSheet.create({
     sidebar: {
         width: 250,
         borderRightWidth: 1,
-        borderRightColor: 'rgba(255,255,255,0.1)',
+        borderRightColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : colors.border,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -169,34 +174,36 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     themeToggle: {
         padding: 8,
-        borderRadius: 8,
+        borderRadius: Layout.borderRadius.sm,
         marginLeft: 'auto',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 18,
-        paddingTop: 22,
-        paddingBottom: 18,
+        paddingHorizontal: 16,
+        paddingTop: 20,
+        paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : colors.border,
         zIndex: 10,
         // @ts-ignore
         overflow: 'visible',
     },
     companyLogo: {
-        width: 38,
-        height: 38,
-        borderRadius: 10,
+        width: 36,
+        height: 36,
+        borderRadius: Layout.borderRadius.md,
         backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 10,
+        ...Layout.shadows.glow(colors.primary),
     },
     companyLogoText: {
         color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 16,
+        fontWeight: '800',
     },
     companyInfo: {
         flex: 1,
@@ -207,15 +214,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: colors.text,
-    },
-    branchName: {
-        fontSize: 11,
-        color: colors.textSecondary,
-        marginTop: 1,
+        letterSpacing: -0.2,
     },
     navigation: {
         flex: 1,
-        paddingTop: 18,
+        paddingTop: 16,
         paddingHorizontal: 10,
     },
     navLabel: {
@@ -225,22 +228,26 @@ const createStyles = (colors: any) => StyleSheet.create({
         letterSpacing: 1.2,
         paddingHorizontal: 12,
         marginBottom: 8,
+        textTransform: 'uppercase',
     },
     item: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 9,
         paddingHorizontal: 12,
-        marginBottom: 1,
-        borderRadius: 8,
+        marginBottom: 2,
+        borderRadius: Layout.borderRadius.sm,
         position: 'relative',
-        // @ts-ignore — web cursor
-        cursor: 'pointer',
-        // @ts-ignore — web transition
-        transition: 'background-color 0.15s ease',
+        ...(Platform.OS === 'web' ? {
+            cursor: 'pointer',
+            transition: 'background-color 0.15s ease, color 0.15s ease',
+        } as any : {}),
     },
     activeItem: {
-        backgroundColor: `${colors.primary}12`,
+        backgroundColor: colors.primaryLight,
+    },
+    hoveredItem: {
+        backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
     },
     activeBar: {
         position: 'absolute',
@@ -248,48 +255,47 @@ const createStyles = (colors: any) => StyleSheet.create({
         top: '20%',
         bottom: '20%',
         width: 3,
-        backgroundColor: colors.primary,
         borderRadius: 2,
-    },
-    hoveredItem: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: colors.primary,
     },
     itemText: {
         fontSize: 13,
-        color: colors.textSecondary,
         fontWeight: '500',
-        marginLeft: 12,
+        color: colors.textSecondary,
+        marginLeft: 4,
     },
     activeItemText: {
         color: colors.primary,
-        fontWeight: '700',
+        fontWeight: '600',
     },
     hoveredItemText: {
         color: colors.text,
     },
     footer: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 14,
         paddingVertical: 14,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : colors.border,
     },
     userSection: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     userAvatar: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: colors.border,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: `${colors.primary}20`,
+        borderWidth: 1,
+        borderColor: `${colors.primary}40`,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
     },
     userAvatarText: {
+        color: colors.primary,
         fontSize: 13,
         fontWeight: '700',
-        color: colors.textSecondary,
     },
     userInfo: {
         flex: 1,

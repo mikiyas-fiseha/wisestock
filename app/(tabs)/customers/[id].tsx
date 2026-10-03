@@ -184,24 +184,22 @@ export default function CustomerDetailsScreen() {
                     <View style={{ alignItems: 'flex-end', gap: 6 }}>
                         <View style={[
                             styles.balanceBadge,
-                            { backgroundColor: (customer.current_balance || 0) > 0 ? colors.danger + '20' : colors.success + '20' }
+                            { backgroundColor: (customer.current_balance || 0) > 0 ? (colors.dangerBg || colors.danger + '20') : (colors.successBg || colors.success + '20') }
                         ]}>
                             <Text style={[
                                 styles.balanceText,
-                                { color: (customer.current_balance || 0) > 0 ? colors.danger : colors.success }
+                                { color: (customer.current_balance || 0) > 0 ? (colors.dangerText || colors.danger) : (colors.successText || colors.success) }
                             ]}>
                                 {formatCurrency(customer.current_balance || 0)}
                             </Text>
                         </View>
-                        {(customer.current_balance || 0) > 0 && (
-                            <TouchableOpacity
-                                onPress={() => setPaymentModalVisible(true)}
-                                style={styles.collectBtnSmall}
-                            >
-                                <FontAwesome name="money" size={10} color="#fff" />
-                                <Text style={styles.collectBtnTextSmall}>{t('customers.collect')}</Text>
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity
+                            onPress={() => setPaymentModalVisible(true)}
+                            style={styles.collectBtnSmall}
+                        >
+                            <FontAwesome name="money" size={10} color="#fff" />
+                            <Text style={styles.collectBtnTextSmall}>{t('customers.collect')}</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -223,11 +221,11 @@ export default function CustomerDetailsScreen() {
                                         </View>
                                         <View style={[
                                             styles.statusBadge,
-                                            { backgroundColor: item.status === 'completed' ? colors.success + '20' : (item.status === 'credit' ? colors.warning + '20' : colors.danger + '20') }
+                                            { backgroundColor: item.status === 'completed' ? (colors.successBg || colors.success + '20') : (item.status === 'credit' ? (colors.warningBg || colors.warning + '20') : (colors.dangerBg || colors.danger + '20')) }
                                         ]}>
                                             <Text style={[
                                                 styles.statusBadgeText,
-                                                { color: item.status === 'completed' ? colors.success : (item.status === 'credit' ? colors.warning : colors.danger) }
+                                                { color: item.status === 'completed' ? (colors.successText || colors.success) : (item.status === 'credit' ? (colors.warningText || colors.warning) : (colors.dangerText || colors.danger)) }
                                             ]}>
                                                 {t(`common.${item.status || 'completed'}`).toUpperCase()}
                                             </Text>
@@ -238,7 +236,7 @@ export default function CustomerDetailsScreen() {
                                         <View style={{ alignItems: 'flex-end' }}>
                                             <Text style={styles.historyPaid}>{t('customers.paid')}: {formatCurrency(Number(item.paid_amount || 0))}</Text>
                                             {Number(item.balance_due || 0) > 0 && (
-                                                <Text style={[styles.historyMeta, { color: colors.danger, fontWeight: 'bold' }]}>
+                                                <Text style={[styles.historyMeta, { color: colors.dangerText || colors.danger, fontWeight: 'bold' }]}>
                                                     {t('customers.due')}: {formatCurrency(Number(item.balance_due))}
                                                 </Text>
                                             )}
@@ -252,7 +250,7 @@ export default function CustomerDetailsScreen() {
                                             <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                                             <Text style={styles.paymentMethod}>{t(`common.${item.method || 'cash'}`).toUpperCase()}</Text>
                                         </View>
-                                        <Text style={[styles.historyTotal, { color: colors.success }]}>+{formatCurrency(Number(item.amount))}</Text>
+                                        <Text style={[styles.historyTotal, { color: colors.successText || colors.success }]}>+{formatCurrency(Number(item.amount))}</Text>
                                     </View>
                                     <View style={styles.historyDetails}>
                                         <Text style={styles.paymentNote}>{item.notes || t('common.not_available')}</Text>

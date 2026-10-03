@@ -119,7 +119,7 @@ export default function AddProductScreen() {
         try {
             const { data: product, error } = await supabase
                 .from('products')
-                .select('*')
+                .select('*, branch_products(min_stock_level)')
                 .eq('id', id)
                 .single();
 
@@ -129,6 +129,11 @@ export default function AddProductScreen() {
             setDescription(product.description || '');
             setIsActive(product.status === 'active');
             setImageUri(product.image_url);
+
+            const minVal = product.min_stock ?? product.min_stock_level ?? product.branch_products?.[0]?.min_stock_level;
+            if (minVal !== undefined && minVal !== null) {
+                setMinStockLevel(minVal.toString());
+            }
 
             // Load unit type
             if (product.unit) {
@@ -345,7 +350,7 @@ export default function AddProductScreen() {
             };
 
             if (id) {
-                updateProduct.mutate({ id, productData, variants, isVariable }, { onSuccess, onError });
+                updateProduct.mutate({ id, productData, variants, isVariable, minStockLevel: minStock }, { onSuccess, onError });
             } else {
                 // Create product — useAddProduct will auto-create branch_products with stock=0
                 addProduct.mutate({ productData, variants, isVariable, minStockLevel: minStock }, {

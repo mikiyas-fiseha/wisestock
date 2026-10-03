@@ -51,9 +51,11 @@ export const useSales = (search?: string, filters?: SaleFilters) => {
                 query = query.eq('branch_id', branch.id);
             }
 
-            if (search && search.trim()) {
-                // Cast id (UUID) to text for ilike search
-                query = query.filter('id', 'ilike', `%${search}%`);
+            const trimmedSearch = search?.trim();
+            const isUuid = !!trimmedSearch && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedSearch);
+
+            if (trimmedSearch && isUuid) {
+                query = query.eq('id', trimmedSearch);
             }
 
             if (filters?.status) {
@@ -80,12 +82,13 @@ export const useSales = (search?: string, filters?: SaleFilters) => {
                 payment_method: s.type || 'cash', // Default fallback
             }));
 
-            // Client-side filter for customer name / phone if search doesn't look like uuid fragment
-            if (search && search.trim() && !search.includes('-')) {
-                const lower = search.toLowerCase();
+            // Client-side filter for customer name / phone / notes / id substring
+            if (trimmedSearch && !isUuid) {
+                const lower = trimmedSearch.toLowerCase();
                 return mappedData.filter(
                     (s: any) =>
                         s.id?.toLowerCase().includes(lower) ||
+                        s.notes?.toLowerCase().includes(lower) ||
                         s.customers?.name?.toLowerCase().includes(lower) ||
                         s.customers?.phone?.toLowerCase().includes(lower)
                 );
@@ -752,8 +755,16 @@ export const useUpdateProduct = () => {
     const queryClient = useQueryClient();
     const { company, user } = useAuth();
     return useMutation({
-        mutationFn: async ({ id, productData, variants, isVariable }: any) => {
+        mutationFn: async ({ id, productData, variants, isVariable, minStockLevel }: any) => {
             if (!company?.id) throw new Error('No company ID');
+
+            if (minStockLevel !== undefined) {
+                productData.min_stock = minStockLevel;
+                await supabase
+                    .from('branch_products')
+                    .update({ min_stock_level: minStockLevel })
+                    .eq('product_id', id);
+            }
 
             // 1. Update Product
             const { error: prodError } = await supabase

@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -99,7 +100,6 @@ export default function TeamScreen() {
         // We can import `createClient` from `@supabase/supabase-js` directly.
 
         try {
-            const { createClient } = require('@supabase/supabase-js');
             const tempClient = createClient(supabaseUrl, supabaseKey, {
                 auth: {
                     persistSession: false, // CRITICAL: Do not persist!

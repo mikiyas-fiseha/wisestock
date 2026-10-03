@@ -19,6 +19,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     const { colors, theme } = useTheme();
     const {
         isLoading: authLoading,
+        isInitialBoot,
         isSuperAdmin,
         subStatus,
         subLoading,
@@ -31,10 +32,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     const [showPaymentGuide, setShowPaymentGuide] = useState(false);
     const [manualReceiptUploaded, setManualReceiptUploaded] = useState(false);
 
-    // Wait for both auth AND subscription to resolve before making any decision.
-    // Because subscription is fetched in AuthContext alongside the profile, this
-    // loading state is very short (no extra network round-trip).
-    if (authLoading || subLoading) {
+    // Only render full-screen spinner if initial boot or auth state is not settled.
+    // When initial boot is complete and auth state is settled, avoid rendering a secondary full-screen spinner.
+    if ((authLoading || isInitialBoot) && subLoading) {
         return (
             <View style={styles.fullCenter}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -127,7 +127,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
                     </View>
                 )}
 
-                {subStatus === null ? (
+                {(subStatus === null || subStatus === 'expired' || subStatus === 'cancelled') ? (
                     <PlansList onSuccess={() => { recheckSubscription(); }} />
                 ) : (
                     <View style={styles.actionArea}>

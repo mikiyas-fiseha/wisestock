@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import uuid from 'react-native-uuid';
 
 const OFFLINE_PREFIX = 'offline://';
 
@@ -8,7 +9,6 @@ const OFFLINE_PREFIX = 'offline://';
  */
 export const saveImageOffline = async (uri: string): Promise<string> => {
     try {
-        const uuid = require('react-native-uuid').default;
 
         // FileSystem.documentDirectory can be null on Web
         const baseDir = FileSystem.documentDirectory || '/';

@@ -67,10 +67,6 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
             return;
         }
-        if (parsedAmount > currentBalance) {
-            setAmount(currentBalance.toFixed(2));
-            return;
-        }
         if (purchases && purchases.length > 0 && !selectedPurchaseId) {
             showFeedback('error', t('suppliers.selection_required'), t('suppliers.select_purchase_error'));
             return;
@@ -131,19 +127,7 @@ export function RecordPaymentModal({ visible, onClose, onSubmit, supplierName, c
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="numeric"
                                     value={amount}
-                                    onChangeText={(text) => {
-                                        if (text === '') {
-                                            setAmount('');
-                                            return;
-                                        }
-
-                                        const parsed = parseFloat(text);
-                                        if (!isNaN(parsed) && parsed > currentBalance) {
-                                            setAmount(currentBalance.toFixed(2));
-                                        } else {
-                                            setAmount(text);
-                                        }
-                                    }}
+                                    onChangeText={(text) => setAmount(text)}
                                     autoFocus
                                     prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
                                     suffix={i18n.language === 'am' ? 'ብር' : undefined}

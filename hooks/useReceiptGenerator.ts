@@ -1,4 +1,6 @@
+import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
+import i18n from '@/lib/i18n';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -28,14 +30,18 @@ interface ReceiptData {
     change?: number;
     paymentMethod: string;
     status?: string;
+    currencySymbol?: string;
 }
 
 export const useReceiptGenerator = () => {
     const { showFeedback } = useFeedback();
+    const { company } = useAuth();
 
     const generateReceiptHtml = (data: ReceiptData) => {
         const isPaid = data.status?.toLowerCase() === 'completed' || data.total <= data.amountPaid;
         const statusColor = isPaid ? '#10b981' : '#f59e0b';
+        const currency = data.currencySymbol || company?.currency || i18n.t('common.currency_symbol', { defaultValue: '$' }) || '$';
+        const fmt = (amount: number) => `${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         return `
             <!DOCTYPE html>
@@ -129,9 +135,9 @@ export const useReceiptGenerator = () => {
                             ${data.items.map(item => `
                                 <tr>
                                     <td style="font-weight: 600;">${item.name}</td>
-                                    <td class="text-right font-mono">$${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right font-mono">${fmt(item.price)}</td>
                                     <td class="text-right">${item.quantity}</td>
-                                    <td class="text-right font-mono" style="font-weight: 700;">$${item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    <td class="text-right font-mono" style="font-weight: 700;">${fmt(item.total)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -141,32 +147,32 @@ export const useReceiptGenerator = () => {
                         <div class="totals-card">
                             <div class="total-row">
                                 <span style="color: #64748b; font-weight: 500;">Subtotal</span>
-                                <span class="font-mono" style="font-weight: 600;">$${data.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span class="font-mono" style="font-weight: 600;">${fmt(data.subtotal)}</span>
                             </div>
                             ${data.discountAmount ? `
                                 <div class="total-row">
                                     <span style="color: #64748b; font-weight: 500;">Discount</span>
-                                    <span class="font-mono" style="color: #ef4444;">-$${data.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span class="font-mono" style="color: #ef4444;">-${fmt(data.discountAmount)}</span>
                                 </div>
                             ` : ''}
                             ${data.taxAmount ? `
                                 <div class="total-row">
                                     <span style="color: #64748b; font-weight: 500;">Tax</span>
-                                    <span class="font-mono" style="color: #64748b;">+$${data.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span class="font-mono" style="color: #64748b;">+${fmt(data.taxAmount)}</span>
                                 </div>
                             ` : ''}
                             <div class="total-row grand-total">
                                 <span>Total Due</span>
-                                <span class="font-mono">$${data.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span class="font-mono">${fmt(data.total)}</span>
                             </div>
                             <div class="total-row" style="margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
                                 <span style="color: #64748b; font-weight: 500;">Amount Paid</span>
-                                <span class="font-mono" style="font-weight: 700; color: #10b981;">$${data.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span class="font-mono" style="font-weight: 700; color: #10b981;">${fmt(data.amountPaid)}</span>
                             </div>
                             ${data.change !== undefined && data.change > 0 ? `
                                 <div class="total-row">
                                     <span style="color: #64748b; font-weight: 500;">Change</span>
-                                    <span class="font-mono">$${data.change.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span class="font-mono">${fmt(data.change)}</span>
                                 </div>
                             ` : ''}
                         </div>

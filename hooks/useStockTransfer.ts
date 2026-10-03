@@ -57,6 +57,20 @@ export function useStockTransfer() {
                 .eq('branch_id', toBranchId)
                 .maybeSingle();
 
+            if (!destBP) {
+                const { error: createBpErr } = await supabase
+                    .from('branch_products')
+                    .insert({
+                        product_id: productId,
+                        branch_id: toBranchId,
+                        stock: 0,
+                        min_stock_level: 0,
+                    });
+                if (createBpErr) {
+                    console.warn('Failed to ensure target branch product record:', createBpErr);
+                }
+            }
+
             const destStock = Number(destBP?.stock) || 0;
 
             // 3. Insert stock_movements — the DB trigger handles updating branch_products automatically

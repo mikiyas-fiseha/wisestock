@@ -1,6 +1,6 @@
 import { QuickAddCustomerModal } from '@/components/customers/QuickAddCustomerModal';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Gradients } from '@/constants/Colors';
+import { Gradients, withOpacity } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -53,21 +53,21 @@ const createSuccessStyles = (colors: any) => StyleSheet.create({
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
     card: { backgroundColor: 'transparent', borderRadius: 28, padding: 40, alignItems: 'center', width: '85%', maxWidth: 380, position: 'relative' },
     closeX: { position: 'absolute', top: 20, right: 20, zIndex: 10, padding: 4 },
-    circle: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+    circle: { width: 88, height: 88, borderRadius: 44, backgroundColor: withOpacity(colors.success, 0.15), justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     title: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
     inv: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 },
     total: { fontSize: 42, fontWeight: '900', color: colors.primary, marginBottom: 28 },
     printBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 20 },
     printText: { color: colors.primary, fontWeight: '700' },
     newBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },
-    newText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    newText: { color: colors.card, fontWeight: '700', fontSize: 15 },
 });
 
 const createProductItemStyles = (colors: any, theme: string) => StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: withOpacity(colors.card, 0.88),
         borderRadius: 16,
         padding: 10,
         marginBottom: 10,
@@ -110,7 +110,7 @@ const createProductItemStyles = (colors: any, theme: string) => StyleSheet.creat
         borderColor: colors.card,
     },
     cartBadgeText: {
-        color: '#fff',
+        color: colors.card,
         fontSize: 10,
         fontWeight: '900',
     },
@@ -131,7 +131,7 @@ const createProductItemStyles = (colors: any, theme: string) => StyleSheet.creat
         flex: 1,
     },
     variantBadge: {
-        backgroundColor: colors.textSecondary + '20',
+        backgroundColor: withOpacity(colors.textSecondary, 0.2),
         paddingHorizontal: 4,
         paddingVertical: 1,
         borderRadius: 4,
@@ -171,39 +171,39 @@ const createProductItemStyles = (colors: any, theme: string) => StyleSheet.creat
         marginLeft: 8,
     },
     addBtnDisabled: {
-        backgroundColor: colors.textSecondary + '40',
+        backgroundColor: withOpacity(colors.textSecondary, 0.4),
     }
 });
 
 const createCartRowStyles = (colors: any) => StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
-    name: { fontSize: 13, fontWeight: '600', color: colors.text },
-    price: { fontSize: 12, color: colors.textSecondary },
-    priceInput: { fontSize: 13, fontWeight: '700', color: colors.primary, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 50 },
-    warn: { backgroundColor: colors.danger + '18', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-    warnText: { fontSize: 9, color: colors.danger, fontWeight: '700' },
-    qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderRadius: 10, marginRight: 10 },
-    qBtn: { paddingHorizontal: 9, paddingVertical: 7 },
-    qty: { fontSize: 13, fontWeight: '800', color: colors.text, minWidth: 22, textAlign: 'center' },
-    total: { fontSize: 14, fontWeight: '800', color: colors.text, minWidth: 56, textAlign: 'right' },
-    del: { marginLeft: 10, padding: 4 },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+    name: { fontSize: 14, fontWeight: '700', color: colors.text },
+    price: { fontSize: 12, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    priceInput: { fontSize: 13, fontWeight: '700', color: colors.primary, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 50, fontVariant: ['tabular-nums'] },
+    warn: { backgroundColor: colors.dangerBg || withOpacity(colors.danger, 0.18), borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+    warnText: { fontSize: 9, color: colors.dangerText || colors.danger, fontWeight: '700' },
+    qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: withOpacity(colors.border, 0.25), borderRadius: 10, marginRight: 8 },
+    qBtn: { width: 44, height: 44, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    qty: { fontSize: 14, fontWeight: '800', color: colors.text, minWidth: 24, textAlign: 'center', fontVariant: ['tabular-nums'] },
+    total: { fontSize: 14, fontWeight: '800', color: colors.text, minWidth: 64, textAlign: 'right', fontVariant: ['tabular-nums'] },
+    del: { width: 44, height: 44, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', marginLeft: 4 },
 });
 
 const createCheckoutStyles = (colors: any, theme: string) => StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
     sheet: { backgroundColor: 'transparent', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '92%' },
     drag: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10 },
-    hdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
+    hdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: withOpacity(colors.border, 0.25) },
     hdrSub: { fontSize: 12, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
-    hdrTotal: { fontSize: 32, fontWeight: '900', color: colors.text },
-    closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+    hdrTotal: { fontSize: 32, fontWeight: '900', color: colors.text, fontVariant: ['tabular-nums'] },
+    closeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     body: { padding: 22, paddingBottom: 48 },
-    summaryBox: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 18 },
+    summaryBox: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: colors.border },
     row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     rowLabel: { fontSize: 14, color: colors.textSecondary },
-    rowVal: { fontSize: 14, fontWeight: '600', color: colors.text },
+    rowVal: { fontSize: 14, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },
     grandLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
-    grandVal: { fontSize: 24, fontWeight: '800', color: colors.primary },
+    grandVal: { fontSize: 24, fontWeight: '800', color: colors.primary, fontVariant: ['tabular-nums'] },
     label: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 },
     input: {
         backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)',
@@ -213,77 +213,78 @@ const createCheckoutStyles = (colors: any, theme: string) => StyleSheet.create({
         color: colors.text,
         marginBottom: 14,
         borderWidth: 1.5,
-        borderColor: theme === 'dark' ? colors.border + '40' : 'rgba(0,0,0,0.12)',
+        borderColor: theme === 'dark' ? withOpacity(colors.border, 0.25) : 'rgba(0,0,0,0.12)',
+        fontVariant: ['tabular-nums'],
     },
     methods: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-    mBtn: { flex: 1, minWidth: '22%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderWidth: 1, borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)' },
+    mBtn: { flex: 1, minWidth: '22%', minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderWidth: 1, borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)' },
     mBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     mLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
-    mLabelActive: { color: '#fff' },
-    custChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '18', borderRadius: 12, padding: 13, marginBottom: 14 },
+    mLabelActive: { color: colors.card },
+    custChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: withOpacity(colors.primary, 0.18), borderRadius: 12, padding: 13, marginBottom: 14, minHeight: 44 },
     custChipText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary },
     curr: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
-    changeBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#D1FAE5', padding: 12, borderRadius: 10, marginTop: 4 },
-    changeLabel: { fontSize: 13, fontWeight: '700', color: '#065F46' },
-    changeVal: { fontSize: 16, fontWeight: '800', color: '#065F46' },
-    confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 16, marginTop: 10 },
+    changeBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.successBg || withOpacity(colors.success, 0.15), padding: 12, borderRadius: 10, marginTop: 4 },
+    changeLabel: { fontSize: 13, fontWeight: '700', color: colors.successText || colors.success },
+    changeVal: { fontSize: 16, fontWeight: '800', color: colors.successText || colors.success, fontVariant: ['tabular-nums'] },
+    confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, minHeight: 50, paddingVertical: 16, borderRadius: 16, marginTop: 10 },
     confirmBtnOff: { opacity: 0.6, backgroundColor: colors.textSecondary },
-    confirmText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+    confirmText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
 });
 
 const createStyles = (colors: any, theme: string) => StyleSheet.create({
     screen: { flex: 1, backgroundColor: 'transparent' },
-    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: colors.card + 'E0', borderBottomWidth: 1, borderBottomColor: theme === 'dark' ? colors.border + '40' : 'rgba(0,0,0,0.08)' },
-    backBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: withOpacity(colors.card, 0.88), borderBottomWidth: 1, borderBottomColor: colors.border },
+    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     topCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
     topHeading: { fontSize: 17, fontWeight: '800', color: colors.text },
-    branchBadge: { backgroundColor: colors.primary + '18', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+    branchBadge: { backgroundColor: withOpacity(colors.primary, 0.18), borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
     branchText: { fontSize: 11, fontWeight: '700', color: colors.primary },
-    custBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, maxWidth: 140 },
+    custBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, maxWidth: 140, minHeight: 44 },
     custBtnText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, flex: 1 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + 'E0', borderRadius: 14, paddingHorizontal: 14, height: 46, borderWidth: 1, borderColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)' },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 14, height: 46, borderWidth: 1, borderColor: colors.border },
     searchInput: { flex: 1, fontSize: 14, color: colors.text, outlineStyle: 'none' } as any,
-    scanBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.primary + '30' },
+    scanBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: withOpacity(colors.primary, 0.18), justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: withOpacity(colors.primary, 0.3) },
     catRow: { paddingHorizontal: 14, paddingBottom: 10, gap: 8 },
-    catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card + 'E0' },
+    catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: withOpacity(colors.card, 0.88) },
     catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     catText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-    catTextActive: { color: '#fff' },
+    catTextActive: { color: colors.card },
     splitRoot: { flex: 1, flexDirection: 'row' },
     leftPane: { flex: 7 },
-    rightPane: { flex: 3, backgroundColor: colors.card + 'E0' },
+    rightPane: { flex: 3, backgroundColor: colors.card, borderLeftWidth: 1, borderLeftColor: colors.border },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
-    cartHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
+    cartHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
     cartTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
     cartBadge: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
-    cartBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    cartBadgeText: { color: colors.card, fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
     emptyCart: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
-    emptyCartIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+    emptyCartIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: withOpacity(colors.primary, 0.1), justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
     emptyCartTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 },
-    summaryBox: { borderTopWidth: 1, borderTopColor: colors.border + '40', padding: 14, backgroundColor: colors.card + 'E0' },
-    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    summaryLabel: { fontSize: 13, color: colors.textSecondary },
-    summaryVal: { fontSize: 13, fontWeight: '600', color: colors.text },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border + '40', marginBottom: 12 },
-    totalLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
-    totalVal: { fontSize: 28, fontWeight: '900', color: colors.primary },
-    checkoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#059669', borderRadius: 16, paddingVertical: 15 },
-    checkoutBtnOff: { backgroundColor: colors.border },
-    checkoutText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+    summaryBox: { borderTopWidth: 1, borderTopColor: colors.border, padding: 16, backgroundColor: colors.card },
+    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    summaryLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+    summaryVal: { fontSize: 13, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border, marginBottom: 14 },
+    totalLabel: { fontSize: 16, fontWeight: '800', color: colors.text },
+    totalVal: { fontSize: 28, fontWeight: '900', color: colors.primary, fontVariant: ['tabular-nums'] },
+    checkoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: 14, minHeight: 50, paddingVertical: 16 },
+    checkoutBtnOff: { backgroundColor: colors.border, opacity: 0.6 },
+    checkoutText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
     mobileBar: { position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
     mobileBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     mobileBarBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center' },
-    mobileBarBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-    mobileBarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-    mobileBarTotal: { color: '#fff', fontSize: 17, fontWeight: '800' },
+    mobileBarBadgeText: { color: colors.card, fontSize: 12, fontWeight: '800' },
+    mobileBarText: { color: colors.card, fontSize: 15, fontWeight: '700' },
+    mobileBarTotal: { color: colors.card, fontSize: 17, fontWeight: '800' },
     drawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    drawer: { backgroundColor: colors.card + 'F6', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '85%', flexDirection: 'column' },
+    drawer: { backgroundColor: withOpacity(colors.card, 0.96), borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '85%', flexDirection: 'column' },
     drawerHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10 },
     drawerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
     drawerTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
     custOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-    custSheet: { backgroundColor: colors.card + 'F6', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+    custSheet: { backgroundColor: withOpacity(colors.card, 0.96), borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
     custHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
     custTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
     custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -294,10 +295,10 @@ const createStyles = (colors: any, theme: string) => StyleSheet.create({
     scanClose: { position: 'absolute', top: 50, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
 });
 
-function getStockColor(s: number) {
-    if (s <= 0) return '#DC2626';
-    if (s < 5) return '#D97706';
-    return '#059669';
+function getStockColor(s: number, colors: any) {
+    if (s <= 0) return colors.danger;
+    if (s < 5) return colors.warning;
+    return colors.success;
 }
 
 // ─── Success Screen ─────────────────────────────────────────────────────────
@@ -348,7 +349,7 @@ function ProductListItem({ product, onAdd, cartQty, colors, theme }: { product: 
     const price = product.isVariant ? (product.price_override || 0) : (product.sale_price || 0);
     const out = product.stock <= 0;
     const low = !out && product.stock < 5;
-    const stockColor = getStockColor(product.stock);
+    const stockColor = getStockColor(product.stock, colors);
 
     return (
         <TouchableOpacity
@@ -359,7 +360,7 @@ function ProductListItem({ product, onAdd, cartQty, colors, theme }: { product: 
             <View style={styles.imageContainer}>
                 {product.image_url
                     ? <Image source={{ uri: product.image_url }} style={styles.image} resizeMode="cover" />
-                    : <View style={styles.imagePlaceholder}><FontAwesome name="cube" size={20} color={colors.textSecondary + '40'} /></View>
+                    : <View style={styles.imagePlaceholder}><FontAwesome name="cube" size={20} color={withOpacity(colors.textSecondary, 0.4)} /></View>
                 }
                 {cartQty > 0 && (
                     <View style={styles.cartBadge}>
@@ -376,7 +377,7 @@ function ProductListItem({ product, onAdd, cartQty, colors, theme }: { product: 
 
                 <View style={styles.infoRow}>
                     <Text style={styles.price}>{formatCurrency(price)}</Text>
-                    <View style={[styles.stockBadge, { backgroundColor: stockColor + '15' }]}>
+                    <View style={[styles.stockBadge, { backgroundColor: withOpacity(stockColor, 0.15) }]}>
                         <Text style={[styles.stockText, { color: stockColor }]}>
                             {out ? t('sales.out_of_stock') : low ? `${t('sales.low_stock')}: ${product.stock}` : `${product.stock} ${t('inventory.stock')}`}
                         </Text>
@@ -575,7 +576,7 @@ function CheckoutModal({ visible, subtotal, discount, tax, onDiscountChange, onT
                                 </Text>
                             )}
                             {method === 'credit' && paid === grand && grand > 0 && (
-                                <View style={[styles.changeBanner, { backgroundColor: colors.primary + '15', marginTop: 8 }]}>
+                                <View style={[styles.changeBanner, { backgroundColor: withOpacity(colors.primary, 0.15), marginTop: 8 }]}>
                                     <FontAwesome name="info-circle" size={12} color={colors.primary} />
                                     <Text style={[styles.changeLabel, { color: colors.primary, flex: 1, marginLeft: 8 }]}>
                                         {t('sales.credit_full_paid')}
@@ -973,7 +974,7 @@ export default function NewSaleScreen() {
                                 <Text style={s.custTitle}>{t('sales.select_customer')}</Text>
                                 <TouchableOpacity
                                     style={{
-                                        backgroundColor: colors.primary + '20',
+                                        backgroundColor: withOpacity(colors.primary, 0.2),
                                         padding: 6,
                                         borderRadius: 8,
                                         marginTop: -2 // Nudge up to align with text baseline

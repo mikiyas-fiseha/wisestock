@@ -8,8 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-
 
 export default function CustomersScreen() {
     const { colors, theme } = useTheme();
@@ -101,8 +101,8 @@ export default function CustomersScreen() {
                     )}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <View style={styles.emptyIconCircle}>
-                                <Text style={{ fontSize: 32 }}>👥</Text>
+                            <View style={[styles.emptyIconCircle, { backgroundColor: colors.primary + '15' }]}>
+                                <FontAwesome name="users" size={32} color={colors.primary} />
                             </View>
                             <Text style={styles.emptyText}>{t('customers.no_customers')}</Text>
                             <Text style={styles.emptySubtext}>{t('customers.empty_subtitle')}</Text>

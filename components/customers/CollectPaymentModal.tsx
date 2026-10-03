@@ -66,11 +66,6 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
             return;
         }
-        if (parsedAmount > currentBalance) {
-            setAmount(currentBalance.toFixed(2));
-            showFeedback('warning', t('customers.amount_adjusted'), t('customers.amount_exceed_balance'));
-            return;
-        }
         if (sales && sales.length > 0 && !selectedSaleId) {
             showFeedback('error', t('customers.selection_required'), t('customers.select_sale_error'));
             return;
@@ -131,20 +126,7 @@ export function CollectPaymentModal({ visible, onClose, onSubmit, customerName, 
                                     placeholderTextColor={colors.textSecondary + '80'}
                                     keyboardType="numeric"
                                     value={amount}
-                                    onChangeText={(text) => {
-                                        if (text === '') {
-                                            setAmount('');
-                                            return;
-                                        }
-
-                                        const parsed = parseFloat(text);
-                                        if (!isNaN(parsed) && parsed > currentBalance) {
-                                            setAmount(currentBalance.toFixed(2));
-                                            showFeedback('warning', t('customers.amount_adjusted'), t('customers.amount_exceed_balance'));
-                                        } else {
-                                            setAmount(text);
-                                        }
-                                    }}
+                                    onChangeText={(text) => setAmount(text)}
                                     autoFocus
                                     prefix={i18n.language !== 'am' ? (company?.currency || '$') : undefined}
                                     suffix={i18n.language === 'am' ? 'ብር' : undefined}

@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 export interface Product {
@@ -164,8 +165,8 @@ export default function ProductsScreen() {
                         )}
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
-                                <View style={styles.emptyIconCircle}>
-                                    <Text style={{ fontSize: 32 }}>📦</Text>
+                                <View style={[styles.emptyIconCircle, { backgroundColor: colors.primary + '15' }]}>
+                                    <FontAwesome name="cube" size={32} color={colors.primary} />
                                 </View>
                                 <Text style={styles.emptyText}>{t('products.empty_products')}</Text>
                                 <Text style={styles.emptySubtext}>{t('products.adjust_search')}</Text>

@@ -12,6 +12,16 @@
     <title>ብልህStock — Smart Inventory Management</title>
     <meta name="description" content="ብልህStock: The smart inventory management system for Ethiopian businesses. Track stock, sales, purchases, and reports in real time." />
 
+    <!-- PWA & Mobile Web App Meta -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ብልህStock" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,6 +38,7 @@
        */
       #root {
         height: 100%;
+        background-color: #1a1a2e;
         opacity: 0;
         transition: opacity 0.2s ease;
       }
@@ -65,14 +76,14 @@
       }
 
       #splash-logo span {
-        color: #6366F1;
+        color: #3B82F6;
       }
 
       .spinner {
         width: 40px;
         height: 40px;
-        border: 3px solid rgba(99, 102, 241, 0.2);
-        border-top-color: #6366F1;
+        border: 3px solid rgba(59, 130, 246, 0.2);
+        border-top-color: #3B82F6;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
@@ -109,6 +120,15 @@
       // Failsafe: if React never calls __hideSplash (network error, crash, etc.)
       // force-show the app after 15s so the user isn't stuck forever.
       setTimeout(window.__hideSplash, 15000);
+
+      // Register PWA service worker on supported browsers
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function(e) {
+            console.debug('SW reg skipped:', e);
+          });
+        });
+      }
     </script>
   </body>
 </html>

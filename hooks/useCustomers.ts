@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import uuid from 'react-native-uuid';
 
 const toSupa = (obj: any) => { const { is_synced, ...rest } = obj; return rest; };
 
@@ -31,7 +32,6 @@ export const useAddCustomer = () => {
     return useMutation({
         mutationFn: async (customerData: any) => {
             if (!company?.id) throw new Error('No company ID');
-            const uuid = require('react-native-uuid').default;
             const now = new Date().toISOString();
             const newId = customerData.id || uuid.v4();
             const newCustomer = { 
@@ -121,7 +121,6 @@ export const useCollectPayment = () => {
     return useMutation({
         mutationFn: async ({ customerId, amount, method, notes, receiptUrl, saleId }: any) => {
             if (!company?.id) throw new Error('No company ID');
-            const uuid = require('react-native-uuid').default;
             const now = new Date().toISOString();
             const payAmount = parseFloat(amount.toString()) || 0;
             const newPayment = { 

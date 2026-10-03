@@ -2,11 +2,12 @@ import { AppButton } from '@/components/ui/AppButton';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { supabase } from '@/lib/supabase';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -14,9 +15,31 @@ export default function SettingsScreen() {
     const { theme, systemTheme, colors, setTheme } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();
-    const { user, company, logout, isSuperAdmin } = useAuth();
+    const { user, company, logout, isSuperAdmin, subAmount } = useAuth();
     const { t, i18n } = useTranslation();
     const [showLanguageModal, setShowLanguageModal] = useState(false);
+    const [planPrice, setPlanPrice] = useState<number | null>(subAmount);
+    const [planCurrency, setPlanCurrency] = useState<string | null>(null);
+    const [planName, setPlanName] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (subAmount) {
+            setPlanPrice(subAmount);
+        }
+        supabase
+            .from('subscription_plans')
+            .select('price, currency, name, duration_months')
+            .or('duration_months.eq.12,name.ilike.%year%,name.ilike.%annual%')
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => {
+                if (data) {
+                    if (!subAmount) setPlanPrice(2999);
+                    if (data.currency) setPlanCurrency(data.currency);
+                    if (data.name) setPlanName(data.name);
+                }
+            });
+    }, [subAmount]);
 
     const languages = [
         { code: 'en', label: 'English' },
@@ -48,6 +71,13 @@ export default function SettingsScreen() {
             {rightElement || <FontAwesome name="chevron-right" size={14} color={colors.textSecondary} />}
         </TouchableOpacity>
     );
+
+    const displayPriceStr = (planPrice ?? 2999).toLocaleString();
+    const currencyStr = planCurrency || (i18n.language === 'am' ? 'ብር' : 'ETB');
+    const nameStr = planName || t('subscription.plan_name', 'Pro Annual Plan');
+    const planPriceSubtitle = `${nameStr} • ${displayPriceStr} ${currencyStr}/${
+        i18n.language === 'am' ? 'ዓመት' : 'yr'
+    }`;
 
     return (
         <View style={styles.container}>
@@ -110,6 +140,13 @@ export default function SettingsScreen() {
                             currentLanguageLabel,
                             'globe',
                             () => setShowLanguageModal(true)
+                        )}
+                        <View style={styles.separator} />
+                        {renderSettingItem(
+                            t('subscription.plans'),
+                            planPriceSubtitle,
+                            'star',
+                            () => router.push('/subscription/plans')
                         )}
                     </View>
                 </View>

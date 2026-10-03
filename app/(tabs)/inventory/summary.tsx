@@ -1,308 +1,430 @@
-
-import { Gradients } from '@/constants/Colors';
+import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Gradients, Layout } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useInventoryMovements, useInventorySummary } from '@/hooks/useInventory';
 import { formatCurrency } from '@/lib/formatters';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
     Platform,
     Pressable,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
-    View
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 
-const isWeb = Platform.OS === 'web';
+const SUB_TABS = [
+    { key: 'stock', label: 'inventory.stock_list', icon: 'layers-outline', activeIcon: 'layers' },
+    { key: 'movements', label: 'inventory.movements', icon: 'swap-horizontal-outline', activeIcon: 'swap-horizontal' },
+    { key: 'summary', label: 'inventory.summary', icon: 'stats-chart-outline', activeIcon: 'stats-chart' },
+] as const;
 
-function KpiCard({ label, value, sub, icon, color, bg, onPress }: any) {
-    const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+function KpiCard({ label, value, sub, icon, color, bg, onPress, isWeb }: any) {
     return (
-        <Pressable
-            style={({ pressed }) => [styles.kpiCard, pressed && { opacity: onPress ? 0.8 : 1 }]}
+        <TouchableOpacity
+            style={[styles.kpiCard, isWeb && styles.kpiCardWeb]}
             onPress={onPress}
             disabled={!onPress}
+            activeOpacity={onPress ? 0.7 : 1}
         >
-            <View style={[styles.kpiIcon, { backgroundColor: bg }]}>
-                <FontAwesome name={icon as any} size={18} color={color} />
+            <View style={styles.kpiHeaderRow}>
+                <Text style={styles.kpiLabel}>{label}</Text>
+                <View style={[styles.kpiIconBox, { backgroundColor: bg }]}>
+                    <Ionicons name={icon} size={16} color={color} />
+                </View>
             </View>
-            <Text style={styles.kpiValue}>{value}</Text>
-            <Text style={styles.kpiLabel}>{label}</Text>
+            <Text style={[styles.kpiValue, { color }]}>{value}</Text>
             {sub && <Text style={styles.kpiSub}>{sub}</Text>}
-        </Pressable>
+        </TouchableOpacity>
     );
 }
 
 export default function SummaryScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { width } = useWindowDimensions();
+    const isDesktop = width >= 768;
     const router = useRouter();
     const { branch } = useAuth();
-    const { data: summary, isLoading: loadingSum } = useInventorySummary();
-    const { data: recentResult } = useInventoryMovements({ page: 0, pageSize: 10 });
+    const { data: summary, isLoading: loadingSum, refetch: refetchSum } = useInventorySummary();
+    const { data: recentResult, refetch: refetchMov } = useInventoryMovements({ page: 0, pageSize: 8 });
     const recent = recentResult?.data || [];
     const { t, i18n } = useTranslation();
+    const [refreshing, setRefreshing] = useState(false);
 
-    const fmt = (n: number) => {
-        return n.toLocaleString(i18n.language === 'am' ? 'am-ET' : 'en-US', {
-            maximumFractionDigits: 0
-        });
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await Promise.all([refetchSum(), refetchMov()]);
+        setRefreshing(false);
     };
 
-    const TYPE_KEYS: Record<string, { color: string; icon: string }> = {
-        purchase: { color: colors.success, icon: 'shopping-bag' },
-        sale: { color: colors.primary, icon: 'shopping-cart' },
+    const TYPE_KEYS: Record<string, { color: string; icon: any }> = {
+        purchase: { color: colors.success, icon: 'bag-handle' },
+        sale: { color: colors.primary, icon: 'cart' },
         adjustment: { color: colors.warning, icon: 'pencil' },
-        transfer_in: { color: colors.secondary || '#8B5CF6', icon: 'arrow-down' },
+        transfer_in: { color: colors.primary, icon: 'arrow-down' },
         transfer_out: { color: '#EC4899', icon: 'arrow-up' },
-        customer_return: { color: '#06B6D4', icon: 'undo' },
-        supplier_return: { color: '#F97316', icon: 'reply' },
+        customer_return: { color: '#06B6D4', icon: 'return-up-back' },
+        supplier_return: { color: '#F97316', icon: 'return-up-forward' },
     };
-
-    const SUB_TABS = [
-        { key: 'stock', label: t('inventory.stock'), icon: 'archive' },
-        { key: 'movements', label: t('inventory.movements'), icon: 'exchange' },
-        { key: 'summary', label: t('inventory.summary'), icon: 'bar-chart' },
-    ] as const;
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={theme === "dark" ? Gradients.authDark : Gradients.authLight} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerTop}>
-                    <Pressable style={styles.backBtn} onPress={() => router.push('/(tabs)/inventory' as any)}>
-                        <FontAwesome name="chevron-left" size={14} color={colors.primary} />
-                    </Pressable>
-                    <View>
-                        <Text style={styles.screenTitle}>{t('inventory.summary')}</Text>
-                        <Text style={styles.screenSubtitle}>
-                            {branch ? branch.name : t('inventory.all_branches')}
-                        </Text>
-                    </View>
-                </View>
+            <LinearGradient
+                colors={theme === 'dark' ? Gradients.authDark : Gradients.authLight}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
 
-                {/* Sub-tabs */}
-                <View style={styles.subTabBar}>
-                    {SUB_TABS.map(tab => {
-                        const isActive = tab.key === 'summary';
-                        return (
-                            <Pressable
-                                key={tab.key}
-                                style={[styles.subTab, isActive && styles.subTabActive]}
-                                onPress={() => {
-                                    if (tab.key === 'stock') router.push('/(tabs)/inventory' as any);
-                                    if (tab.key === 'movements') router.push('/(tabs)/inventory/movements' as any);
-                                }}
-                            >
-                                <FontAwesome
-                                    name={tab.icon as any}
-                                    size={13}
-                                    color={isActive ? colors.primary : '#94A3B8'}
-                                />
-                                <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
-                                    {tab.label}
+            <ResponsiveContainer>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.screenTitle}>{t('inventory.summary', 'Inventory Overview')}</Text>
+                            <View style={styles.branchRow}>
+                                <Ionicons name="business-outline" size={13} color={colors.primary} />
+                                <Text style={styles.branchName}>
+                                    {branch ? branch.name : t('inventory.all_branches', 'All Branches')}
                                 </Text>
-                            </Pressable>
-                        );
-                    })}
-                </View>
-            </View>
-
-            {loadingSum ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                </View>
-            ) : (
-                <ScrollView contentContainerStyle={styles.content}>
-                    {/* KPI Cards */}
-                    <View style={[styles.kpiGrid, isWeb && styles.kpiGridWeb]}>
-                        <KpiCard
-                            label={t('inventory.total_value')}
-                            value={formatCurrency(summary?.totalValue ?? 0)}
-                            icon="dollar"
-                            color={colors.primary}
-                            bg={`${colors.primary}18`}
-                        />
-                        <KpiCard
-                            label={t('inventory.total_products')}
-                            value={summary?.totalProducts ?? 0}
-                            icon="cube"
-                            color={colors.secondary || '#3B82F6'}
-                            bg={(colors.secondary || '#3B82F6') + '18'}
-                        />
-                        <KpiCard
-                            label={t('inventory.low_stock')}
-                            value={summary?.lowStockCount ?? 0}
-                            sub={t('inventory.needs_reorder')}
-                            icon="exclamation-triangle"
-                            color={colors.warning}
-                            bg={colors.warning + '18'}
-                            onPress={() => router.push('/(tabs)/inventory' as any)}
-                        />
-                        <KpiCard
-                            label={t('inventory.out_of_stock')}
-                            value={summary?.outOfStockCount ?? 0}
-                            sub={t('inventory.zero_quantity')}
-                            icon="times-circle"
-                            color={colors.danger}
-                            bg={colors.danger + '18'}
-                            onPress={() => router.push('/(tabs)/inventory' as any)}
-                        />
+                            </View>
+                        </View>
                     </View>
 
-                    {/* Branch Breakdown */}
-                    {(summary?.branches?.length ?? 0) > 1 && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>{t('inventory.branch_breakdown')}</Text>
-                            <View style={styles.table}>
-                                <View style={styles.thead}>
-                                    <Text style={[styles.th, { flex: 2 }]}>{t('branch')}</Text>
-                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('inventory.products')}</Text>
-                                    <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>{t('inventory.items')}</Text>
-                                    <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>{t('inventory.stock_value')}</Text>
-                                </View>
-                                {(summary?.branches ?? []).map((b, i) => (
-                                    <View key={b.branch_id} style={[styles.tr, i % 2 === 0 && styles.trEven]}>
-                                        <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <View style={styles.branchDot} />
-                                            <Text style={{ fontSize: 13, color: colors.text, fontWeight: '500' }}>
-                                                {b.branch_name}
-                                            </Text>
+                    {/* Sub-tabs bar */}
+                    <View style={styles.subTabBar}>
+                        {SUB_TABS.map(tab => {
+                            const isActive = tab.key === 'summary';
+                            return (
+                                <Pressable
+                                    key={tab.key}
+                                    style={[styles.subTab, isActive && styles.subTabActive]}
+                                    onPress={() => {
+                                        if (tab.key === 'stock') router.push('/(tabs)/inventory' as any);
+                                        if (tab.key === 'movements') router.push('/(tabs)/inventory/movements' as any);
+                                    }}
+                                >
+                                    <Ionicons
+                                        name={(isActive ? tab.activeIcon : tab.icon) as any}
+                                        size={15}
+                                        color={isActive ? colors.primary : colors.textSecondary}
+                                    />
+                                    <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
+                                        {t(tab.label)}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+                    }
+                >
+                    {loadingSum ? (
+                        <View style={{ gap: 16 }}>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <Skeleton height={110} style={{ flex: 1 }} borderRadius={14} />
+                                <Skeleton height={110} style={{ flex: 1 }} borderRadius={14} />
+                            </View>
+                            <Skeleton height={200} borderRadius={16} />
+                        </View>
+                    ) : (
+                        <View style={{ gap: 18 }}>
+                            {/* KPI Metrics Grid */}
+                            <View style={styles.kpiGrid}>
+                                <KpiCard
+                                    label={t('inventory.total_value', 'Inventory Value')}
+                                    value={formatCurrency(summary?.totalValue ?? 0)}
+                                    icon="cash-outline"
+                                    color={colors.text}
+                                    bg={`${colors.success}18`}
+                                    isWeb={isDesktop}
+                                />
+                                <KpiCard
+                                    label={t('inventory.total_products', 'Total Products')}
+                                    value={summary?.totalProducts ?? 0}
+                                    icon="cube-outline"
+                                    color={colors.primary}
+                                    bg={`${colors.primary}18`}
+                                    isWeb={isDesktop}
+                                />
+                                <KpiCard
+                                    label={t('inventory.low_stock', 'Low Stock Items')}
+                                    value={summary?.lowStockCount ?? 0}
+                                    sub={t('inventory.needs_reorder', 'Needs restock')}
+                                    icon="warning-outline"
+                                    color={colors.warning}
+                                    bg={`${colors.warning}18`}
+                                    onPress={() => router.push('/(tabs)/inventory' as any)}
+                                    isWeb={isDesktop}
+                                />
+                                <KpiCard
+                                    label={t('inventory.out_of_stock', 'Depleted Stock')}
+                                    value={summary?.outOfStockCount ?? 0}
+                                    sub={t('inventory.zero_quantity', 'Zero quantity')}
+                                    icon="alert-circle-outline"
+                                    color={colors.danger}
+                                    bg={`${colors.danger}18`}
+                                    onPress={() => router.push('/(tabs)/inventory' as any)}
+                                    isWeb={isDesktop}
+                                />
+                            </View>
+
+                            {/* Branch Breakdown (if multiple branches) */}
+                            {(summary?.branches?.length ?? 0) > 1 && (
+                                <View style={styles.unifiedCard}>
+                                    <View style={styles.cardHeader}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Ionicons name="business" size={16} color={colors.primary} />
+                                            <Text style={styles.cardTitle}>{t('inventory.branch_breakdown', 'Branch Breakdown')}</Text>
                                         </View>
-                                        <Text style={[styles.td, { flex: 1, textAlign: 'center' }]}>{b.totalItems}</Text>
-                                        <Text style={[styles.td, { flex: 1, textAlign: 'center' }]}>{b.totalStock}</Text>
-                                        <Text style={[styles.td, { flex: 2, textAlign: 'right', fontWeight: '600' }]}>
-                                            {formatCurrency(b.totalValue)}
+                                    </View>
+
+                                    <View style={styles.tableHeaderRow}>
+                                        <Text style={[styles.th, { flex: 2.2 }]}>{t('branch', 'BRANCH')}</Text>
+                                        <Text style={[styles.th, { width: 90, textAlign: 'center' }]}>{t('inventory.products', 'ITEMS')}</Text>
+                                        <Text style={[styles.th, { width: 90, textAlign: 'center' }]}>{t('inventory.stock', 'STOCK')}</Text>
+                                        <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>{t('inventory.stock_value', 'HOLDING VALUE')}</Text>
+                                    </View>
+
+                                    {(summary?.branches ?? []).map((b, i) => {
+                                        const isLast = i === (summary?.branches?.length ?? 0) - 1;
+                                        return (
+                                            <View key={b.branch_id} style={[styles.tableRow, !isLast && styles.tableRowBorder]}>
+                                                <View style={{ flex: 2.2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <View style={[styles.branchDot, { backgroundColor: colors.primary }]} />
+                                                    <Text style={{ fontSize: 13, color: colors.text, fontWeight: '700' }}>
+                                                        {b.branch_name}
+                                                    </Text>
+                                                </View>
+                                                <Text style={[styles.td, { width: 90, textAlign: 'center' }]}>{b.totalItems}</Text>
+                                                <Text style={[styles.td, { width: 90, textAlign: 'center' }]}>{b.totalStock}</Text>
+                                                <Text style={[styles.td, { flex: 2, textAlign: 'right', fontWeight: '800', color: colors.text }]}>
+                                                    {formatCurrency(b.totalValue)}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
+                            {/* Recent Movements Unified Card */}
+                            <View style={styles.unifiedCard}>
+                                <View style={styles.cardHeader}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                                        <Text style={styles.cardTitle}>{t('inventory.recent_movements', 'Recent Stock Movements')}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => router.push('/(tabs)/inventory/movements' as any)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.seeAllText}>{t('inventory.see_all', 'View All →')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {recent.length === 0 ? (
+                                    <View style={{ padding: 24, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('inventory.no_movements_yet', 'No recent movements recorded')}
                                         </Text>
                                     </View>
-                                ))}
+                                ) : (
+                                    recent.map((m, i) => {
+                                        const cfg = TYPE_KEYS[m.type] ?? { color: '#64748B', icon: 'ellipse' };
+                                        const isPos = (m.quantity || 0) > 0;
+                                        const isLast = i === recent.length - 1;
+
+                                        return (
+                                            <View key={m.id} style={[styles.movementRow, !isLast && styles.tableRowBorder]}>
+                                                <View style={[styles.movIconBox, { backgroundColor: `${cfg.color}15` }]}>
+                                                    <Ionicons name={cfg.icon} size={15} color={cfg.color} />
+                                                </View>
+                                                <View style={{ flex: 1, paddingRight: 8 }}>
+                                                    <Text style={styles.movProduct} numberOfLines={1}>{m.product_name}</Text>
+                                                    <Text style={styles.movMeta}>
+                                                        {m.branch_name || t('inventory.all_branches', 'All Branches')} • {new Date(m.created_at).toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US')}
+                                                    </Text>
+                                                </View>
+                                                <Text style={[styles.movQty, { color: isPos ? colors.success : colors.danger }]}>
+                                                    {isPos ? '+' : ''}{m.quantity}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })
+                                )}
                             </View>
                         </View>
                     )}
 
-                    {/* Recent Movements */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>{t('inventory.recent_movements')}</Text>
-                            <Pressable onPress={() => router.push('/(tabs)/inventory/movements' as any)}>
-                                <Text style={styles.seeAll}>{t('inventory.see_all')}</Text>
-                            </Pressable>
-                        </View>
-                        <View style={styles.table}>
-                            {recent.length === 0 ? (
-                                <Text style={styles.emptyNote}>{t('inventory.no_movements_yet')}</Text>
-                            ) : recent.map((m, i) => {
-                                const cfg = TYPE_KEYS[m.type] ?? { color: '#64748B', icon: 'circle' };
-                                const isPos = m.quantity > 0;
-                                return (
-                                    <View key={m.id} style={[styles.movRow, i % 2 === 0 && styles.trEven]}>
-                                        <View style={[styles.movIcon, { backgroundColor: `${cfg.color}18` }]}>
-                                            <FontAwesome name={cfg.icon as any} size={12} color={cfg.color} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.movProduct} numberOfLines={1}>{m.product_name}</Text>
-                                            <Text style={styles.movMeta}>
-                                                {m.branch_name || t('inventory.all_branches')} · {new Date(m.created_at).toLocaleDateString(i18n.language === 'am' ? 'am-ET' : 'en-US')}
-                                            </Text>
-                                        </View>
-                                        <Text style={[styles.movQty, { color: isPos ? colors.success : colors.danger }]}>
-                                            {isPos ? '+' : ''}{m.quantity}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </View>
+                    <View style={{ height: 60 }} />
                 </ScrollView>
-            )}
+            </ResponsiveContainer>
         </View>
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
+
     header: {
-        backgroundColor: colors.card + 'E0',
-        paddingTop: 16,
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 56 : 24,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.08)',
     },
     headerTop: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 20, paddingBottom: 12, gap: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
     },
-    backBtn: { padding: 8 },
-    screenTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
-    screenSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-    subTabBar: { flexDirection: 'row', paddingHorizontal: 20 },
+    screenTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+    branchRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+    branchName: { fontSize: 12, fontWeight: '600' },
+
+    subTabBar: {
+        flexDirection: 'row',
+        gap: 8,
+        paddingBottom: 4,
+    },
     subTab: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        paddingVertical: 10, paddingHorizontal: 16, marginRight: 4,
-        borderBottomWidth: 2, borderBottomColor: 'transparent',
-    },
-    subTabActive: { borderBottomColor: colors.primary },
-    subTabText: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
-    subTabTextActive: { color: colors.primary, fontWeight: '700' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    content: { padding: 20, gap: 20, paddingBottom: 100 },
-    kpiGrid: {
-        flexDirection: 'row', flexWrap: 'wrap', gap: 12,
-    },
-    kpiGridWeb: { flexWrap: 'nowrap' },
-    kpiCard: {
-        flex: 1,
-        minWidth: isWeb ? 0 : '46%',
-        backgroundColor: colors.card + 'F0',
-        borderRadius: 20,
-        padding: 20,
-        alignItems: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 8,
     },
-    kpiIcon: { borderRadius: 10, padding: 8, marginBottom: 4 },
-    kpiValue: { fontSize: 24, fontWeight: '800', color: colors.text },
-    kpiLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
-    kpiSub: { fontSize: 11, color: colors.textSecondary },
-    section: {
-        backgroundColor: colors.card + 'E0',
-        borderRadius: 20,
-        overflow: 'hidden',
+    subTabActive: {
+        backgroundColor: 'rgba(37, 99, 235, 0.12)',
     },
-    sectionHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10,
-    },
-    sectionTitle: {
-        fontSize: 15, fontWeight: '700', color: colors.text,
-        paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10,
-    },
-    seeAll: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-    table: {},
-    thead: {
-        flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 12,
-        backgroundColor: 'transparent',
-    },
-    th: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 },
-    tr: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 18, paddingVertical: 12,
-    },
-    trEven: { backgroundColor: colors.card + 'E0' },
-    td: { fontSize: 13, color: colors.text },
-    branchDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-    movRow: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 18, paddingVertical: 12,
+    subTabText: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
+    subTabTextActive: { color: '#2563EB', fontWeight: '700' },
+
+    scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
+
+    kpiGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 12,
     },
-    movIcon: { width: 34, height: 34, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-    movProduct: { fontSize: 13, fontWeight: '600', color: colors.text },
-    movMeta: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-    movQty: { fontSize: 16, fontWeight: '700' },
-    emptyNote: { padding: 24, textAlign: 'center', color: colors.textSecondary, fontSize: 14 },
+    kpiCard: {
+        flex: 1,
+        minWidth: 160,
+        backgroundColor: 'rgba(17, 24, 39, 0.75)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderRadius: Layout.borderRadius.lg,
+        padding: 16,
+    },
+    kpiCardWeb: {
+        minWidth: 200,
+    },
+    kpiHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    kpiIconBox: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    kpiLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+    },
+    kpiValue: {
+        fontSize: 22,
+        fontWeight: '900',
+        marginTop: 8,
+        letterSpacing: -0.4,
+        fontVariant: ['tabular-nums'],
+    },
+    kpiSub: {
+        fontSize: 11,
+        color: '#94A3B8',
+        marginTop: 4,
+    },
+
+    unifiedCard: {
+        backgroundColor: 'rgba(17, 24, 39, 0.75)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderRadius: Layout.borderRadius.lg,
+        overflow: 'hidden',
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.08)',
+    },
+    cardTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
+    seeAllText: { fontSize: 12, fontWeight: '700', color: '#3B82F6' },
+
+    tableHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 9,
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.06)',
+    },
+    th: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 0.5 },
+    tableRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    tableRowBorder: {
+        borderBottomWidth: 1,
+        borderColor: 'rgba(150, 150, 150, 0.08)',
+    },
+    branchDot: { width: 7, height: 7, borderRadius: 3.5 },
+    td: { fontSize: 13, color: '#94A3B8', fontVariant: ['tabular-nums'] },
+
+    movementRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+    },
+    movIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    movProduct: { fontSize: 13, fontWeight: '700' },
+    movMeta: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+    movQty: { fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
 });

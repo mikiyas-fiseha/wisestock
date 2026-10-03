@@ -77,6 +77,7 @@ export function usePurchases() {
         create: useMutation({
             mutationFn: async (params: {
                 supplier_id?: string;
+                branch_id?: string | null;
                 purchase_date: Date;
                 invoice_number: string;
                 total_amount: number;
@@ -100,7 +101,7 @@ export function usePurchases() {
                     p_notes: params.notes,
                     p_items: params.items,
                     p_created_by: user.id,
-                    p_branch_id: branch?.id || null
+                    p_branch_id: params.branch_id || branch?.id || null
                 });
 
                 if (error) throw error;

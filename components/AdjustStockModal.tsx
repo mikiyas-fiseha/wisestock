@@ -12,10 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const getReasons = (t: any) => [
-    { label: t('inventory.damaged'), value: 'damaged', icon: '💥' },
-    { label: t('inventory.expired'), value: 'expired', icon: '⏰' },
-    { label: t('inventory.correction'), value: 'correction', icon: '✏️' },
-    { label: t('inventory.other'), value: 'other', icon: '📋' },
+    { label: t('inventory.damaged'), value: 'damaged', icon: 'exclamation-triangle' as const },
+    { label: t('inventory.expired'), value: 'expired', icon: 'clock-o' as const },
+    { label: t('inventory.correction'), value: 'correction', icon: 'pencil' as const },
+    { label: t('inventory.other'), value: 'other', icon: 'clipboard' as const },
 ];
 
 interface AdjustStockModalProps {
@@ -147,7 +147,7 @@ export function AdjustStockModal({ visible, onClose, productId, productName, cur
                                 style={[styles.reasonPill, reason === r.value && styles.reasonPillActive]}
                                 onPress={() => setReason(r.value)}
                             >
-                                <Text style={styles.reasonIcon}>{r.icon}</Text>
+                                <FontAwesome name={r.icon} size={13} color={reason === r.value ? colors.primary : colors.textSecondary} style={{ marginRight: 6 }} />
                                 <Text style={[styles.reasonText, reason === r.value && styles.reasonTextActive]}>{r.label}</Text>
                             </TouchableOpacity>
                         ))}

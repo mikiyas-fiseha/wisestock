@@ -67,8 +67,10 @@ export const useAdvancedReports = (range: DateRange, branchIdOverride?: string |
                 supabase.from('branches').select('id, name').eq('company_id', company.id),
             ]);
 
-            const sales = salesRes.data;
-            const prevSales = prevSalesRes.data;
+            const salesRaw = salesRes.data || [];
+            const prevSalesRaw = prevSalesRes.data || [];
+            const sales = salesRaw.filter((s: any) => s.status !== 'cancelled' && s.status !== 'returned');
+            const prevSales = prevSalesRaw.filter((s: any) => s.status !== 'cancelled' && s.status !== 'returned');
             const expenses = expensesRes.data;
             const prevExpenses = prevExpensesRes.data;
             const branchProducts = bpRes.data;
@@ -108,20 +110,23 @@ export const useAdvancedReports = (range: DateRange, branchIdOverride?: string |
             const totalPayables = Number(finSummaryData?.[0]?.total_payables || 0);
 
             // --- Aggregations ---
-            const currentMetrics = calculateMetrics(sales, expenses);
-            const prevMetrics = calculateMetrics(prevSales, prevExpenses);
+            const validSales = (sales || []).filter((s: any) => s.status !== 'cancelled' && s.status !== 'returned');
+            const validPrevSales = (prevSales || []).filter((s: any) => s.status !== 'cancelled' && s.status !== 'returned');
+
+            const currentMetrics = calculateMetrics(validSales, expenses);
+            const prevMetrics = calculateMetrics(validPrevSales, prevExpenses);
             const currentPurchaseMetrics = calculatePurchaseMetrics(purchases);
             const prevPurchaseMetrics = calculatePurchaseMetrics(prevPurchasesList);
 
-            const trend = calculateTrend(sales, range.start, range.end);
-            const { byProduct, byCategory, profitByProduct } = calculateSalesBreakdown(sales, products);
-            const paymentMethods = calculatePaymentMethods(sales);
+            const trend = calculateTrend(validSales, range.start, range.end);
+            const { byProduct, byCategory, profitByProduct } = calculateSalesBreakdown(validSales, products);
+            const paymentMethods = calculatePaymentMethods(validSales);
             const expenseBreakdown = calculateExpensesBreakdown(expenses);
-            const inventory = calculateInventoryMetrics(products, inventoryLogs, sales);
-            const topCustomers = calculateTopCustomers(sales, customers);
+            const inventory = calculateInventoryMetrics(products, inventoryLogs, validSales);
+            const topCustomers = calculateTopCustomers(validSales, customers);
             const receivables = calculateReceivables(unpaidInvoices);
             const returnsData = calculateReturnsBreakdown(returnsList);
-            const branchPerformance = calculateBranchPerformance(sales, expenses, branches);
+            const branchPerformance = calculateBranchPerformance(validSales, expenses, branches);
 
             // Days in selected range for averages
             const daysInRange = Math.max(1, Math.round((range.end.getTime() - range.start.getTime()) / (1000 * 3600 * 24)));
@@ -243,12 +248,13 @@ async function fetchPurchases(companyId: string, branchId: string | null | undef
 }
 
 function calculateMetrics(sales: any[] | null, expenses: any[] | null) {
-    const revenue = (sales || []).reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
-    const paid = (sales || []).reduce((sum, s) => sum + Number(s.paid_amount || 0), 0);
-    const unpaid = (sales || []).reduce((sum, s) => sum + Number(s.balance_due || 0), 0);
+    const validSales = (sales || []).filter(s => s.status !== 'cancelled' && s.status !== 'returned');
+    const revenue = validSales.reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+    const paid = validSales.reduce((sum, s) => sum + Number(s.paid_amount || 0), 0);
+    const unpaid = validSales.reduce((sum, s) => sum + Number(s.balance_due || 0), 0);
 
     let cogs = 0;
-    sales?.forEach(s => {
+    validSales.forEach(s => {
         s.sale_items?.forEach((si: any) => {
             cogs += Number(si.cost_price || 0) * Number(si.quantity || 1);
         });

@@ -15,6 +15,20 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScanner
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [permission, requestPermission] = useCameraPermissions();
+    const [scanned, setScanned] = React.useState(false);
+
+    React.useEffect(() => {
+        if (visible) {
+            setScanned(false);
+        }
+    }, [visible]);
+
+    const handleBarCodeScanned = ({ data }: { data: string }) => {
+        if (scanned) return;
+        setScanned(true);
+        onScan(data);
+        onClose();
+    };
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -44,10 +58,7 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScanner
                 <CameraView
                     style={styles.camera}
                     facing="back"
-                    onBarcodeScanned={({ data }) => {
-                        onScan(data);
-                        onClose();
-                    }}
+                    onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                 >
                     <View style={styles.overlay}>
                         <View style={styles.header}>

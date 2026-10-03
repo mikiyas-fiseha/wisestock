@@ -3,7 +3,7 @@ import { SummaryCard } from '@/components/SummaryCard';
 import { DateFilter, DatePeriod, DateRange, getRangeForPeriod } from '@/components/reports/DateFilter';
 import { ReportChart } from '@/components/reports/ReportChart';
 
-import { Gradients } from '@/constants/Colors';
+import { Gradients, withOpacity } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useExpenseReports, useExpenses, useExpenseStats, useProcessRecurringExpenses } from '@/hooks/useExpenses';
@@ -212,7 +212,7 @@ export default function ExpensesScreen() {
                 style={styles.fab}
                 onPress={() => router.push('/expenses/add')}
             >
-                <Ionicons name="add" size={30} color="white" />
+                <Ionicons name="add" size={30} color={colors.card} />
             </TouchableOpacity>
         </View>
     );
@@ -222,7 +222,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: withOpacity(colors.card, 0.88),
         marginHorizontal: 16,
         marginTop: 8,
         borderRadius: 12,
@@ -235,7 +235,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 8
     },
     activeTab: {
-        backgroundColor: colors.primary + '10',
+        backgroundColor: withOpacity(colors.primary, 0.1),
     },
     tabText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
     activeTabText: { color: colors.primary },
@@ -246,14 +246,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: withOpacity(colors.card, 0.88),
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 20,
     },
     branchBtnText: { fontSize: 13, color: colors.text, fontWeight: '500' },
     expenseCard: {
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: withOpacity(colors.card, 0.88),
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
@@ -284,7 +284,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     reportsContent: { padding: 16 },
     chartCard: {
-        backgroundColor: colors.card + 'E0',
+        backgroundColor: withOpacity(colors.card, 0.88),
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,

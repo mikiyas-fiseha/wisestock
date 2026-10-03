@@ -295,7 +295,9 @@ export default function SalesAnalyticsScreen() {
                     {/* If data is empty */}
                     {salesData.length === 0 && (
                         <View style={[aS.card, aS.center, { paddingVertical: 40, borderStyle: 'dotted' }]}>
-                            <Text style={{ fontSize: 36, marginBottom: 12 }}>📊</Text>
+                            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                                <FontAwesome name="bar-chart" size={28} color={colors.primary} />
+                            </View>
                             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 }}>{t('sales.no_data')}</Text>
                             <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>{t('sales.no_data_msg')}</Text>
                         </View>

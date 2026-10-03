@@ -9,6 +9,7 @@ import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBranches } from '@/hooks/useBranches';
 import { useAddExpense, useExpenseCategories } from '@/hooks/useExpenses';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { pickImage } from '@/lib/imagePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -65,6 +66,17 @@ export default function AddExpenseScreen() {
         const selectedCategory = categories?.find(c => c.id === categoryId);
 
         try {
+            let attachmentUrl: string | undefined = undefined;
+            if (receipt) {
+                try {
+                    attachmentUrl = await uploadImageToCloudinary(receipt);
+                } catch (e: any) {
+                    showFeedback('error', 'Upload Failed', e.message);
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             await addExpense.mutateAsync({
                 amount: parseFloat(amount),
                 category_id: categoryId,
@@ -74,6 +86,7 @@ export default function AddExpenseScreen() {
                 payment_method: paymentMethod,
                 reference: reference || undefined,
                 description: description || undefined,
+                attachment_url: attachmentUrl,
                 is_recurring: isRecurring,
                 recurring_frequency: isRecurring ? frequency : undefined,
                 recurring_start_date: isRecurring ? date.toISOString() : undefined,

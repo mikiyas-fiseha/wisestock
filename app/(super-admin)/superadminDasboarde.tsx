@@ -1,6 +1,6 @@
 import { SuperAdminGuard } from '@/components/auth/SuperAdminGuard';
 import { AppButton } from '@/components/ui/AppButton';
-import { Gradients, Layout } from '@/constants/Colors';
+import { Gradients, Layout, withOpacity } from '@/constants/Colors';
 import { useFeedback } from '@/context/FeedbackContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -91,7 +91,7 @@ export default function SuperAdminDashboard() {
                 />
 
                 <View style={styles.topHeader}>
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/settings')} style={styles.backButton}>
+                    <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backButton}>
                         <FontAwesome name="arrow-left" size={20} color={colors.text} />
                     </TouchableOpacity>
                     <View>
@@ -108,7 +108,7 @@ export default function SuperAdminDashboard() {
                     {pendingSubs > 0 && (
                         <View style={styles.alertBox}>
                             <View style={styles.alertIcon}>
-                                <FontAwesome name="bell" size={20} color="#fff" />
+                                <FontAwesome name="bell" size={20} color={colors.card} />
                             </View>
                             <View style={styles.alertContent}>
                                 <Text style={styles.alertTitle}>{pendingSubs} Pending Approvals</Text>
@@ -126,7 +126,7 @@ export default function SuperAdminDashboard() {
                             title="Manage Companies"
                             onPress={() => router.push('/(super-admin)/companies')}
                             style={{ flex: 1, marginRight: 10 }}
-                            icon={<FontAwesome name="building" size={16} color="#fff" style={{ marginRight: 8 }} />}
+                            icon={<FontAwesome name="building" size={16} color={colors.card} style={{ marginRight: 8 }} />}
                         />
                         <AppButton
                             title="Pricing Plans"
@@ -140,18 +140,18 @@ export default function SuperAdminDashboard() {
                     {/* Primary Metrics */}
                     <Text style={styles.sectionTitle}>System Health</Text>
                     <View style={styles.statsGrid}>
-                        <View style={[styles.statCard, { borderTopColor: '#3B82F6', borderTopWidth: 4 }]}>
+                        <View style={[styles.statCard, { borderTopColor: colors.primary, borderTopWidth: 4 }]}>
                             <View style={styles.statIconWrapper}>
-                                <FontAwesome name="building-o" size={18} color="#3B82F6" />
+                                <FontAwesome name="building-o" size={18} color={colors.primary} />
                             </View>
                             <Text style={styles.statValue}>{system_health.total_companies || 0}</Text>
                             <Text style={styles.statLabel}>Total Companies</Text>
                             <Text style={styles.statSubInfo}>{system_health.active_companies || 0} active currently</Text>
                         </View>
 
-                        <View style={[styles.statCard, { borderTopColor: '#10B981', borderTopWidth: 4 }]}>
+                        <View style={[styles.statCard, { borderTopColor: colors.success, borderTopWidth: 4 }]}>
                             <View style={styles.statIconWrapper}>
-                                <FontAwesome name="users" size={18} color="#10B981" />
+                                <FontAwesome name="users" size={18} color={colors.success} />
                             </View>
                             <Text style={styles.statValue}>{system_health.total_users || 0}</Text>
                             <Text style={styles.statLabel}>Platform Users</Text>
@@ -162,18 +162,18 @@ export default function SuperAdminDashboard() {
                     {/* Revenue & Usage */}
                     <Text style={styles.sectionTitle}>Platform Usage (30d)</Text>
                     <View style={styles.statsGrid}>
-                        <View style={[styles.statCard, { borderTopColor: '#F59E0B', borderTopWidth: 4 }]}>
+                        <View style={[styles.statCard, { borderTopColor: colors.warning, borderTopWidth: 4 }]}>
                             <View style={styles.statIconWrapper}>
-                                <FontAwesome name="line-chart" size={18} color="#F59E0B" />
+                                <FontAwesome name="line-chart" size={18} color={colors.warning} />
                             </View>
                             <Text style={styles.statValue}>{(platform_usage.revenue_last_30d || 0).toLocaleString()}</Text>
                             <Text style={styles.statLabel}>Total GMV Processed</Text>
                             <Text style={styles.statSubInfo}>Topline sales volume</Text>
                         </View>
 
-                        <View style={[styles.statCard, { borderTopColor: '#8B5CF6', borderTopWidth: 4 }]}>
+                        <View style={[styles.statCard, { borderTopColor: colors.secondary, borderTopWidth: 4 }]}>
                             <View style={styles.statIconWrapper}>
-                                <FontAwesome name="shopping-cart" size={18} color="#8B5CF6" />
+                                <FontAwesome name="shopping-cart" size={18} color={colors.secondary} />
                             </View>
                             <Text style={styles.statValue}>{(platform_usage.sales_last_30d || 0).toLocaleString()}</Text>
                             <Text style={styles.statLabel}>Transactions</Text>
@@ -193,7 +193,7 @@ export default function SuperAdminDashboard() {
                         const subsArray = Array.isArray(comp.subscriptions) ? comp.subscriptions : (comp.subscriptions ? [comp.subscriptions] : []);
                         const activeSub = subsArray.find((s: any) => s.status === 'active');
                         const pendingSub = subsArray.find((s: any) => s.status === 'pending_approval');
-                        const statusBadgeColor = comp.status === 'active' ? '#10B981' : '#EF4444';
+                        const statusBadgeColor = comp.status === 'active' ? colors.success : colors.danger;
 
                         return (
                             <View key={comp.id} style={styles.companyCard}>
@@ -205,12 +205,12 @@ export default function SuperAdminDashboard() {
                                         <Text style={styles.companyName} numberOfLines={1}>{comp.name}</Text>
                                         <Text style={styles.companyMeta}>{comp.contact_email}</Text>
                                         <View style={styles.companyBadges}>
-                                            <View style={[styles.microBadge, { backgroundColor: statusBadgeColor + '20', borderColor: statusBadgeColor }]}>
+                                            <View style={[styles.microBadge, { backgroundColor: withOpacity(statusBadgeColor, 0.2), borderColor: statusBadgeColor }]}>
                                                 <Text style={[styles.microBadgeText, { color: statusBadgeColor }]}>{comp.status?.toUpperCase()}</Text>
                                             </View>
                                             {activeSub && (
-                                                <View style={[styles.microBadge, { backgroundColor: '#3B82F620', borderColor: '#3B82F6' }]}>
-                                                    <Text style={[styles.microBadgeText, { color: '#3B82F6' }]}>SUBSCRIBED</Text>
+                                                <View style={[styles.microBadge, { backgroundColor: withOpacity(colors.primary, 0.2), borderColor: colors.primary }]}>
+                                                    <Text style={[styles.microBadgeText, { color: colors.primary }]}>SUBSCRIBED</Text>
                                                 </View>
                                             )}
                                         </View>
@@ -244,7 +244,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginRight: 16,
         padding: 10,
         borderRadius: 20,
-        backgroundColor: colors.card + '30',
+        backgroundColor: withOpacity(colors.card, 0.3),
         width: 44,
         height: 44,
         justifyContent: 'center',
@@ -270,10 +270,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginRight: 12,
     },
     alertContent: { flex: 1 },
-    alertTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+    alertTitle: { fontSize: 16, fontWeight: 'bold', color: colors.card },
     alertDesc: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
     alertAction: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         paddingHorizontal: 12, paddingVertical: 6,
         borderRadius: 6,
     },
@@ -294,7 +294,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     statsGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
     statCard: {
         flex: 1,
-        backgroundColor: colors.card + 'F0',
+        backgroundColor: withOpacity(colors.card, 0.94),
         padding: 16,
         borderRadius: 12,
         ...Layout.shadows.small,
@@ -311,7 +311,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     statSubInfo: { fontSize: 11, color: colors.textSecondary },
 
     companyCard: {
-        backgroundColor: colors.card + 'F0',
+        backgroundColor: withOpacity(colors.card, 0.94),
         padding: 16,
         borderRadius: 12,
         flexDirection: 'row',
@@ -324,7 +324,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     companyAvatar: {
         width: 44, height: 44,
         borderRadius: 10,
-        backgroundColor: colors.primary + '20',
+        backgroundColor: withOpacity(colors.primary, 0.2),
         justifyContent: 'center', alignItems: 'center',
         marginRight: 12,
     },
