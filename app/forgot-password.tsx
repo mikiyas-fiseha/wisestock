@@ -80,7 +80,7 @@ export default function ForgotPasswordScreen() {
                             <View style={[styles.logoCircle, theme === 'dark' ? styles.logoCircleDark : styles.logoCircleLight]}>
                                 <Text style={[styles.logoText, theme === 'dark' ? styles.logoTextDark : styles.logoTextLight]}>B</Text>
                             </View>
-                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>ብልህStock</Text>
+                            <Text style={[styles.appName, { color: theme === 'dark' ? '#fff' : '#1e293b' }]}>Wise Shop Tracker</Text>
                         </View>
 
                         <BlurView

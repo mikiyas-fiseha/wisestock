@@ -1,5 +1,5 @@
-// ብልህStock Service Worker
-const CACHE_NAME = 'wisestock-v1';
+// Wise Shop Tracker Service Worker
+const CACHE_NAME = 'wiseshoptracker-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

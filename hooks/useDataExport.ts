@@ -255,11 +255,11 @@ export const useDataExport = () => {
                             <div class="header-banner">
                                 <div class="header-info">
                                     <h1>${title}</h1>
-                                    <p>ብልህStock Executive Business Report</p>
+                                    <p>Wise Shop Tracker Executive Business Report</p>
                                 </div>
                                 <div class="header-meta">
                                     <div class="date">${new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}</div>
-                                    <div class="app-name">Stock Management System</div>
+                                    <div class="app-name">Wise Shop Tracker</div>
                                 </div>
                             </div>
 

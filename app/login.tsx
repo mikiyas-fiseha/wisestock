@@ -91,8 +91,8 @@ export default function LoginScreen() {
                                     <FontAwesome name="cubes" size={32} color="#FFFFFF" />
                                 </LinearGradient>
                             </View>
-                            <Text style={styles.brandTitle}>WiseStock</Text>
-                            <Text style={styles.brandSubtitle}>Enterprise Inventory & POS</Text>
+                            <Text style={styles.brandTitle}>Wise Shop Tracker</Text>
+                            <Text style={styles.brandSubtitle}>Smart Inventory, POS & Expenses</Text>
                         </View>
 
                         {/* Card & Backdrop */}

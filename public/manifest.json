@@ -1,7 +1,7 @@
 {
-  "name": "ብልህStock — Smart Inventory & POS",
-  "short_name": "ብልህStock",
-  "description": "Smart Inventory Management and POS for Ethiopian businesses. Track stock, sales, purchases, and analytics in real time.",
+  "name": "Wise Shop Tracker — Smart Inventory, Sales & Expenses",
+  "short_name": "Wise Shop Tracker",
+  "description": "Smart Inventory Management, POS, and Expense Tracking for Ethiopian businesses. Track stock, sales, purchases, and analytics in real time.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -180,7 +180,7 @@ export const useReceiptGenerator = () => {
 
                     <div class="footer">
                         <p>Thank you for choosing <b>${data.companyName}</b>. We appreciate your business!</p>
-                        <p style="font-size: 8pt; margin-top: 10px;">Generated from ብልህStock ERP</p>
+                        <p style="font-size: 8pt; margin-top: 10px;">Generated from Wise Shop Tracker</p>
                     </div>
                 </div>
             </body>

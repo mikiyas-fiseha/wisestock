@@ -109,7 +109,7 @@ export function WebSidebar() {
                 </View>
                 <View style={styles.companyInfo}>
                     <Text style={styles.companyName} numberOfLines={1}>
-                        {company?.name || 'ብልህStock'}
+                        {company?.name || 'Wise Shop Tracker'}
                     </Text>
                     <BranchSelector />
                 </View>

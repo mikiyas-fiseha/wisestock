@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ብልህStock",
-    "slug": "stock",
+    "name": "Wise Shop Tracker",
+    "slug": "wise-shop-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "stock",
+    "scheme": "wiseshoptracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -55,14 +55,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Wisestock to access your camera to scan barcodes."
+          "cameraPermission": "Allow Wise Shop Tracker to access your camera to scan barcodes."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Wisestock to access your photos to save receipts.",
-          "savePhotosPermission": "Allow Wisestock to save receipts to your gallery.",
+          "photosPermission": "Allow Wise Shop Tracker to access your photos to save receipts.",
+          "savePhotosPermission": "Allow Wise Shop Tracker to save receipts to your gallery.",
           "granularPermissions": [
             "photo"
           ]

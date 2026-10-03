@@ -90,7 +90,7 @@ export default function RegisterScreen() {
                                 </LinearGradient>
                             </View>
                             <Text style={styles.brandTitle}>{t('auth.create_account', 'Create Account')}</Text>
-                            <Text style={styles.brandSubtitle}>WiseStock Enterprise Platform</Text>
+                            <Text style={styles.brandSubtitle}>Wise Shop Tracker Platform</Text>
                         </View>
 
                         {/* Glassmorphic Slate Card */}
