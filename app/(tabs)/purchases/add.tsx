@@ -64,6 +64,7 @@ export default function AddPurchaseScreen() {
     const [amountPaid, setAmountPaid] = useState('');
     const [receiptUri, setReceiptUri] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const isSubmittingRef = React.useRef(false);
 
     // Line Items
     const [lineItems, setLineItems] = useState<PurchaseLineItem[]>([]);
@@ -159,7 +160,7 @@ export default function AddPurchaseScreen() {
     };
 
     const handleSubmit = async () => {
-        if (isCreating || isUploading) return;
+        if (isSubmittingRef.current || isCreating || isUploading) return;
 
         if (!branchId) { showFeedback('error', t('common.error', 'Error'), t('purchases.select_branch', 'Please select a branch')); return; }
         if (!supplierId) { showFeedback('error', t('common.error', 'Error'), t('purchases.select_supplier', 'Please select a supplier')); return; }
@@ -178,6 +179,7 @@ export default function AddPurchaseScreen() {
         }
 
         try {
+            isSubmittingRef.current = true;
             setIsUploading(true);
             let receiptUrl = null;
             if (receiptUri) {
@@ -186,6 +188,7 @@ export default function AddPurchaseScreen() {
                 } catch (e: any) {
                     showFeedback('error', 'Upload Failed', e.message);
                     setIsUploading(false);
+                    isSubmittingRef.current = false;
                     return;
                 }
             }
@@ -216,6 +219,8 @@ export default function AddPurchaseScreen() {
         } catch (err: any) {
             setIsUploading(false);
             showFeedback('error', t('common.error', 'Error'), err.message || t('purchases.purchase_error', 'Failed to record purchase'));
+        } finally {
+            isSubmittingRef.current = false;
         }
     };
 

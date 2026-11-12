@@ -37,7 +37,7 @@ Wise Shop Tracker solves this by providing a lightweight, modern web and mobile 
 
 ---
 
-## 2. Why Use Wise Shop Tracker? (The Value Proposition)
+## 2. Why Use Wise stock ? (The Value Proposition)
 
 ### ❌ The Problems with Old Methods:
 | Traditional Approach | Daily Pain Points |
