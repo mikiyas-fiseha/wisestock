@@ -702,11 +702,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     emptyGreenText: { fontSize: 13, fontWeight: '600', color: colors.successText || colors.success },
 
     // ─── Mobile Layout ───
-    mobileContent: { paddingBottom: 32, paddingHorizontal: 16 },
+    mobileContent: { paddingBottom: 110, paddingHorizontal: 16 },
     mobileHeader: {
         paddingHorizontal: 16,
         paddingBottom: 12,
-        paddingTop: Platform.OS === 'ios' ? 20 : 10,
+        paddingTop: (Platform.OS === 'ios' ? 44 : 56) + 12,
     },
     mobileGreeting: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     mobileTitle: { fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },

@@ -13,8 +13,10 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHideTabs } from '@/hooks/useHideTabs';
 
 export default function AddCustomerScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
@@ -170,16 +172,17 @@ export default function AddCustomerScreen() {
 
 const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, paddingTop: 20 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, paddingTop: Platform.OS === 'web' ? 16 : Math.max(insets.top, 16) },
     title: { fontSize: 18, fontWeight: '700', color: colors.text },
     closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border + '40', justifyContent: 'center', alignItems: 'center' },
     closeBtnText: { fontSize: 14, color: colors.text, fontWeight: '600' },
-    content: { padding: 16 },
+    content: { padding: 16, paddingBottom: 40 },
     footer: {
-        padding: 8,
-        paddingBottom: Platform.OS === 'web' ? 8 : insets.bottom,
+        padding: 16,
+        paddingBottom: Math.max(insets.bottom, 16),
         borderTopWidth: 1,
-        borderColor: colors.border + '40'
+        borderColor: colors.border + '40',
+        backgroundColor: colors.card,
     },
     selectGroup: { marginBottom: 16 },
     label: { fontSize: 14, color: '#666', marginBottom: 8, fontWeight: '500' },

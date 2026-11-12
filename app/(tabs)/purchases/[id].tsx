@@ -1,4 +1,5 @@
 import { ReturnModal } from '@/components/ReturnModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { RecordPaymentModal } from '@/components/suppliers/RecordPaymentModal';
 import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
@@ -33,6 +34,7 @@ import {
 } from 'react-native';
 
 export default function PurchaseDetailScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { width } = useWindowDimensions();
     const isDesktop = width >= 960;

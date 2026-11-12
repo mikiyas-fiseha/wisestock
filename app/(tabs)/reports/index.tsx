@@ -9,7 +9,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 export default function ReportsHubScreen() {
     const { colors } = useTheme();
@@ -166,7 +166,7 @@ export default function ReportsHubScreen() {
 
 const createStyles = (colors: any) => StyleSheet.create({
     scroll: { flex: 1 },
-    content: { padding: Layout.spacing.lg, paddingBottom: 40 },
+    content: { padding: Layout.spacing.lg, paddingTop: (Platform.OS === 'ios' ? 44 : 56) + Layout.spacing.lg, paddingBottom: 110 },
     kpiGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',

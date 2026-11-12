@@ -1,5 +1,6 @@
 
 import { RecordPaymentModal } from '@/components/suppliers/RecordPaymentModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppButton } from '@/components/ui/AppButton';
 import { FeedbackModal } from '@/components/ui/FeedbackModal';
 import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
@@ -19,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SupplierDetailsScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);

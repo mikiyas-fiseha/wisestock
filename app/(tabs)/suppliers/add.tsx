@@ -11,11 +11,15 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHideTabs } from '@/hooks/useHideTabs';
 
 export default function AddSupplierScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets), [colors, insets]);
     const router = useRouter();
     const { createSupplier, isCreating } = useSuppliers();
 
@@ -200,15 +204,15 @@ export default function AddSupplierScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'transparent',
     },
     content: {
         padding: 20,
-        paddingTop: 16,
-        paddingBottom: Platform.OS === 'web' ? 20 : 180,
+        paddingTop: Platform.OS === 'web' ? 16 : Math.max(insets.top, 16),
+        paddingBottom: Math.max(insets.bottom, 16) + 40,
     },
     headerTitle: {
         fontSize: 28,

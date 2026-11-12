@@ -1,4 +1,5 @@
 import { QuickAddCustomerModal } from '@/components/customers/QuickAddCustomerModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { Gradients, withOpacity } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +23,7 @@ import {
     ScrollView, StyleSheet, Text, TextInput,
     TouchableOpacity, View, useWindowDimensions
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const isWeb = Platform.OS === 'web';
 
@@ -232,9 +234,9 @@ const createCheckoutStyles = (colors: any, theme: string) => StyleSheet.create({
     confirmText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
 });
 
-const createStyles = (colors: any, theme: string) => StyleSheet.create({
+const createStyles = (colors: any, theme: string, insets: any) => StyleSheet.create({
     screen: { flex: 1, backgroundColor: 'transparent' },
-    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: withOpacity(colors.card, 0.88), borderBottomWidth: 1, borderBottomColor: colors.border },
+    topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: Platform.OS === 'web' ? 16 : Math.max(insets.top, 16), paddingBottom: 10, backgroundColor: withOpacity(colors.card, 0.88), borderBottomWidth: 1, borderBottomColor: colors.border },
     backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     topCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
     topHeading: { fontSize: 17, fontWeight: '800', color: colors.text },
@@ -272,7 +274,7 @@ const createStyles = (colors: any, theme: string) => StyleSheet.create({
     checkoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: 14, minHeight: 50, paddingVertical: 16 },
     checkoutBtnOff: { backgroundColor: colors.border, opacity: 0.6 },
     checkoutText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
-    mobileBar: { position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
+    mobileBar: { position: 'absolute', bottom: Math.max(insets.bottom, 10), left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 14 },
     mobileBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     mobileBarBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center' },
     mobileBarBadgeText: { color: colors.card, fontSize: 12, fontWeight: '800' },
@@ -621,9 +623,11 @@ function CheckoutModal({ visible, subtotal, discount, tax, onDiscountChange, onT
 
 // ─── Main Screen ────────────────────────────────────────────────────────────
 export default function NewSaleScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
-    const s = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
+    const insets = useSafeAreaInsets();
+    const s = React.useMemo(() => createStyles(colors, theme, insets), [colors, theme, insets]);
     const { company, user, branch, isAdmin } = useAuth();
     const router = useRouter();
     const { showFeedback } = useFeedback();
@@ -949,7 +953,7 @@ export default function NewSaleScreen() {
                         style={{ flex: 1 }}
                         data={filteredProducts}
                         keyExtractor={(item, i) => `${item.id}-${i}`}
-                        contentContainerStyle={{ paddingBottom: 40 }}
+                        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 10) + 70 }}
                         renderItem={({ item }) => (
                             <ProductListItem
                                 product={item}

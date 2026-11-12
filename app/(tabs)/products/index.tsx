@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface Product {
     id: string;
@@ -29,11 +30,12 @@ export interface Product {
 export default function ProductsScreen() {
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const router = useRouter();
-    const { session, company, branch, isAdmin } = useAuth();
+    const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const isWeb = Platform.OS === 'web' && width >= 768;
+    const styles = React.useMemo(() => createStyles(colors, insets, isWeb), [colors, insets, isWeb]);
+    const router = useRouter();
+    const { session, company, branch, isAdmin } = useAuth();
     const statusBarPadding = 0;
     const { stockStatus } = useLocalSearchParams<{ stockStatus?: string }>();
     const [filters, setFilters] = useState<Record<string, string>>(stockStatus ? { stockStatus } : {});
@@ -208,10 +210,11 @@ export default function ProductsScreen() {
     );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, insets: any, isWeb: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'transparent',
+        paddingTop: isWeb ? 0 : (insets.top + (Platform.OS === 'ios' ? 44 : 56)),
     },
     header: {
         paddingHorizontal: Layout.spacing.lg,
@@ -261,7 +264,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     thRight: { textAlign: 'right', paddingRight: 12 },
 
     listContent: {
-        paddingBottom: 20,
+        paddingBottom: isWeb ? 20 : (Math.max(insets.bottom, 12) + 80),
     },
     listContentWeb: {
         marginHorizontal: 12,
@@ -299,8 +302,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     fabContainer: {
         position: 'absolute',
-        bottom: 24,
-        right: 24,
+        bottom: isWeb ? 24 : (Math.max(insets.bottom, 12) + 76),
+        right: 20,
+        zIndex: 50,
     },
     fab: {
         borderRadius: 30,

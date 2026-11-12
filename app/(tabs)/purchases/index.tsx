@@ -20,14 +20,19 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FilterType = 'all' | 'paid' | 'partial';
 
 export default function PurchasesListScreen() {
     const { colors, theme } = useTheme();
-    const styles = React.useMemo(() => createStyles(colors, theme), [colors, theme]);
+    const insets = useSafeAreaInsets();
+    const { width } = useWindowDimensions();
+    const isWeb = Platform.OS === 'web' && width >= 768;
+    const styles = React.useMemo(() => createStyles(colors, theme, insets, isWeb), [colors, theme, insets, isWeb]);
     const router = useRouter();
     const { purchases, isLoading } = usePurchases();
     const { branch } = useAuth();
@@ -469,7 +474,7 @@ const rowStyles = StyleSheet.create({
     },
 });
 
-const createStyles = (colors: any, theme: 'light' | 'dark') => StyleSheet.create({
+const createStyles = (colors: any, theme: 'light' | 'dark', insets: any, isWeb: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'transparent',
@@ -479,7 +484,7 @@ const createStyles = (colors: any, theme: 'light' | 'dark') => StyleSheet.create
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 18,
-        paddingTop: Platform.OS === 'ios' ? 56 : 24,
+        paddingTop: isWeb ? 16 : insets.top + (Platform.OS === 'ios' ? 44 : 56) + 12,
         paddingBottom: 16,
     },
     headerTitleGroup: {
@@ -610,7 +615,7 @@ const createStyles = (colors: any, theme: 'light' | 'dark') => StyleSheet.create
     },
     tableWrapper: {
         paddingHorizontal: 16,
-        paddingBottom: 40,
+        paddingBottom: 110,
     },
     tableContainer: {
         backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.75)' : '#FFFFFF',

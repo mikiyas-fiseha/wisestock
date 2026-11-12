@@ -1,4 +1,5 @@
 import { AdjustStockModal } from '@/components/AdjustStockModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { StockTransferModal } from '@/components/StockTransferModal';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -15,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 export default function ProductDetailsScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t, i18n } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);

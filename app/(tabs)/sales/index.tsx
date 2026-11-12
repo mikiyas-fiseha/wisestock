@@ -701,7 +701,7 @@ const createStyles = (colors: any, theme: 'light' | 'dark', isDesktop: boolean) 
         alignItems: 'center',
     },
 
-    scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
+    scrollContent: { paddingHorizontal: 16, paddingTop: isDesktop ? 16 : (Platform.OS === 'ios' ? 44 : 56) + 16, paddingBottom: 110 },
 
     // KPI Ribbon
     kpiGrid: {

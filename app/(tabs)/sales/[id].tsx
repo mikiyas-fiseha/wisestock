@@ -1,4 +1,5 @@
 import { ReturnModal } from '@/components/ReturnModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppButton } from '@/components/ui/AppButton';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +20,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SaleDetailsScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);

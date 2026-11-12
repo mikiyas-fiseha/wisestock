@@ -2,7 +2,6 @@ import { AppHeader } from '@/components/AppHeader';
 import { SubscriptionGuard } from '@/components/auth/SubscriptionGuard';
 import { MobileSidebar } from '@/components/navigation/MobileSidebar';
 import { WebSidebar } from '@/components/navigation/WebSidebar';
-import { ScreenWrapper } from '@/components/ScreenWrapper';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
@@ -10,9 +9,10 @@ import { useTheme } from '@/context/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -24,6 +24,7 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const { colors, theme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === 'web' && width >= 768; // Tablet/Desktop breakpoint
   const [menuVisible, setMenuVisible] = useState(false);
   const { company } = useAuth();
@@ -31,6 +32,14 @@ export default function TabLayout() {
   const router = useRouter();
   const { t } = useTranslation();
   const pathname = usePathname();
+
+  // Detect whether current route is a nested sub-route (e.g. /products/add, /sales/new, etc.)
+  const isSubRoute = useMemo(() => {
+    if (!pathname) return false;
+    const clean = pathname.replace(/^\/\(tabs\)/, '').replace(/\/$/, '');
+    const segments = clean.split('/').filter(Boolean);
+    return segments.length > 1 || clean.endsWith('/add') || clean.endsWith('/new');
+  }, [pathname]);
 
   return (
     <SubscriptionGuard>
@@ -44,21 +53,22 @@ export default function TabLayout() {
           {isWeb && <WebSidebar />}
           {!isWeb && <MobileSidebar visible={menuVisible} onClose={() => setMenuVisible(false)} />}
           <Tabs
-            screenLayout={({ children }) => <ScreenWrapper>{children}</ScreenWrapper>}
             screenOptions={{
               tabBarActiveTintColor: colors.primary,
               tabBarInactiveTintColor: colors.textSecondary,
-              headerShown: !isWeb,
+              headerShown: !isWeb && !isSubRoute,
               headerTransparent: true,
               headerBackground: () => (
-                <View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, { backgroundColor: colors.card, opacity: 0.95 }]} />
+                (!isWeb && !isSubRoute) ? (
+                  <View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, { backgroundColor: colors.card, opacity: 0.98, borderBottomWidth: 1, borderBottomColor: colors.border }]} />
+                ) : null
               ),
               headerTitleAlign: 'center',
               headerStyle: {
+                backgroundColor: 'transparent',
                 elevation: 0,
                 shadowOpacity: 0,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                borderBottomWidth: 0,
               },
               headerTitleStyle: {
                 fontSize: 18,
@@ -92,17 +102,22 @@ export default function TabLayout() {
                 </TouchableOpacity>
               ),
               tabBarBackground: () => (
-                !isWeb ? <View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, { backgroundColor: colors.card, opacity: 0.95 }]} /> : null
+                (!isWeb && !isSubRoute) ? (
+                  <View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, { backgroundColor: colors.card, opacity: 0.98 }]} />
+                ) : null
               ),
-              tabBarStyle: isWeb ? { display: 'none' } : {
+              tabBarStyle: (isWeb || isSubRoute) ? { display: 'none' } : {
                 position: 'absolute',
-                backgroundColor: 'transparent',
-                borderTopColor: 'transparent',
-                borderTopWidth: 0,
-                elevation: 0,
-                shadowOpacity: 0,
-                height: 90,
-                paddingBottom: 30,
+                backgroundColor: colors.card,
+                borderTopColor: colors.border,
+                borderTopWidth: 1,
+                elevation: 8,
+                shadowOpacity: 0.08,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -2 },
+                shadowRadius: 6,
+                height: 60 + Math.max(insets.bottom, 12),
+                paddingBottom: Math.max(insets.bottom, 12),
                 paddingTop: 8,
               },
               tabBarLabelStyle: {

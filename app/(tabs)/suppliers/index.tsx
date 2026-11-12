@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SuppliersScreen() {
     const { colors, theme } = useTheme();
@@ -137,7 +137,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 20,
+        paddingTop: (Platform.OS === 'ios' ? 44 : 56) + 16,
         paddingBottom: 16,
         backgroundColor: 'transparent',
     },
@@ -181,7 +181,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     listContent: {
         paddingHorizontal: 20,
-        paddingBottom: 20,
+        paddingBottom: 110,
     },
     card: {
         backgroundColor: colors.card + 'E0',

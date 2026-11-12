@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from 'react-native';
 
 export default function CustomersScreen() {
     const { colors, theme } = useTheme();
@@ -131,7 +131,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: Layout.spacing.lg,
         paddingTop: Layout.spacing.lg,
         paddingBottom: Layout.spacing.md,
-        marginTop: 8,
+        marginTop: (Platform.OS === 'ios' ? 44 : 56) + 8,
         backgroundColor: 'transparent',
     },
     headerTitle: {
@@ -159,7 +159,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     list: {
         padding: Layout.spacing.lg,
         paddingTop: Layout.spacing.xs,
-        paddingBottom: 20,
+        paddingBottom: 110,
     },
     center: {
         flex: 1,

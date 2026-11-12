@@ -1,4 +1,5 @@
 import { QuickAddSupplierModal } from '@/components/suppliers/QuickAddSupplierModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppSelect } from '@/components/ui/AppSelect';
 import { AppTextInput } from '@/components/ui/AppTextInput';
@@ -43,6 +44,7 @@ interface PurchaseLineItem {
 }
 
 export default function AddPurchaseScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const insets = useSafeAreaInsets();
     const isWeb = Platform.OS === 'web';
@@ -617,7 +619,7 @@ const createStyles = (colors: any, insets: any, theme: string) => StyleSheet.cre
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 24,
+        paddingTop: Platform.OS === 'web' ? 16 : Math.max(insets.top + 8, 20),
         paddingBottom: 16,
         gap: 14,
     },
@@ -633,7 +635,7 @@ const createStyles = (colors: any, insets: any, theme: string) => StyleSheet.cre
     },
     headerTitle: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.4 },
     headerSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-    scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
+    scrollContent: { paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 14) + 80 },
     card: {
         backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.75)' : '#FFFFFF',
         borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,
@@ -776,7 +778,8 @@ const createStyles = (colors: any, insets: any, theme: string) => StyleSheet.cre
         alignItems: 'center',
         gap: 16,
         paddingHorizontal: 20,
-        paddingVertical: 14,
+        paddingTop: 14,
+        paddingBottom: Math.max(insets.bottom, 14),
         backgroundColor: theme === 'dark' ? 'rgba(11, 15, 25, 0.95)' : 'rgba(255, 255, 255, 0.95)',
         borderTopWidth: 1,
         borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : colors.border,

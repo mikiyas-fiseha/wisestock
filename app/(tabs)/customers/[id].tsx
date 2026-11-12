@@ -1,4 +1,5 @@
 import { CollectPaymentModal } from '@/components/customers/CollectPaymentModal';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppButton } from '@/components/ui/AppButton';
 import { Gradients } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -17,6 +18,7 @@ import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpa
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CustomerDetailsScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);

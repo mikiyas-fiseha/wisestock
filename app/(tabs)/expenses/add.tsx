@@ -1,5 +1,6 @@
 
 import { AppHeader } from '@/components/AppHeader';
+import { useHideTabs } from '@/hooks/useHideTabs';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 
@@ -20,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function AddExpenseScreen() {
+    useHideTabs();
     const { colors, theme } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const router = useRouter();

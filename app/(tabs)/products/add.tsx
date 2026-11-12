@@ -39,8 +39,10 @@ interface Variant {
 
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { useTheme } from '@/context/ThemeContext';
+import { useHideTabs } from '@/hooks/useHideTabs';
 
 export default function AddProductScreen() {
+    useHideTabs();
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
     const insets = useSafeAreaInsets();
@@ -654,7 +656,7 @@ export default function AddProductScreen() {
 
 const createStyles = (colors: any, insets: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
-    content: { padding: 12, paddingBottom: Platform.OS === 'web' ? 100 : 40 },
+    content: { padding: 12, paddingTop: Platform.OS === 'web' ? 12 : Math.max(insets.top, 12), paddingBottom: 40 },
     card: { backgroundColor: colors.card + 'E0', borderRadius: 16, padding: 16, marginBottom: 16 },
 
     // Rows
@@ -694,7 +696,7 @@ const createStyles = (colors: any, insets: any) => StyleSheet.create({
     // Footer
     footer: {
         padding: 16,
-        paddingBottom: Platform.OS === 'web' ? 16 : 16,
+        paddingBottom: Math.max(insets.bottom, 16),
         backgroundColor: colors.card + 'F0',
         borderTopWidth: 1,
         borderColor: colors.border + '40'
